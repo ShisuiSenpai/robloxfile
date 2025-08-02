@@ -94,17 +94,42 @@ local function spawnJumpWindVFX(position)
 		fxFolder.Parent = workspace
 	end
 
-	-- Navigate to VFX folder
+	-- Navigate to VFX folder with detailed logging
+	print("🗂️ Navigating to VFX...")
 	local assetsFolder = ReplicatedStorage:WaitForChild("Assets", 5)
-	if not assetsFolder then return end
+	if not assetsFolder then
+		warn("❌ Assets folder not found!")
+		return
+	end
+	print("✅ Found Assets")
+	
 	local abilitiesFolder = assetsFolder:WaitForChild("Abilities", 5)
-	if not abilitiesFolder then return end
+	if not abilitiesFolder then
+		warn("❌ Abilities folder not found!")
+		return
+	end
+	print("✅ Found Abilities")
+	
 	local vfxFolder = abilitiesFolder:WaitForChild("VFX", 5)
-	if not vfxFolder then return end
+	if not vfxFolder then
+		warn("❌ VFX folder not found!")
+		return
+	end
+	print("✅ Found VFX")
+	
 	local upSlashFolder = vfxFolder:WaitForChild("UpSlashAbility", 5)
-	if not upSlashFolder then return end
+	if not upSlashFolder then
+		warn("❌ UpSlashAbility folder not found!")
+		return
+	end
+	print("✅ Found UpSlashAbility")
+	
 	local jumpWindVFX = upSlashFolder:WaitForChild("jumpwind", 5)
-	if not jumpWindVFX then return end
+	if not jumpWindVFX then
+		warn("❌ jumpwind part not found!")
+		return
+	end
+	print("✅ Found jumpwind VFX part")
 
 	-- Clone VFX INSTANTLY
 	local vfxClone = jumpWindVFX:Clone()
@@ -118,29 +143,55 @@ local function spawnJumpWindVFX(position)
 
 	print("🎯 VFX positioned at:", position)
 
-	-- COLLECT ALL EMITTERS FIRST (no emitting yet!)
+	print("🔍 Starting emitter collection...")
+	print("📦 VFX Clone children count:", #vfxClone:GetChildren())
+	
+	-- COLLECT ALL EMITTERS WITH DETAILED LOGGING
 	local allEmitters = {}
-	local function collectEmitters(parent)
+	local function collectEmitters(parent, depth)
+		depth = depth or 0
+		local indent = string.rep("  ", depth)
+		
+		print(indent .. "🔎 Checking:", parent.Name, "(" .. parent.ClassName .. ")")
+		
 		for _, child in pairs(parent:GetChildren()) do
+			print(indent .. "  - Found child:", child.Name, "(" .. child.ClassName .. ")")
+			
 			if child:IsA("ParticleEmitter") then
 				table.insert(allEmitters, child)
-			elseif child:IsA("Attachment") or #child:GetChildren() > 0 then
-				collectEmitters(child)
+				print(indent .. "    ✅ ADDED ParticleEmitter:", child.Name)
+			elseif child:IsA("Attachment") then
+				print(indent .. "    📎 Attachment found, going deeper...")
+				collectEmitters(child, depth + 1)
+			elseif #child:GetChildren() > 0 then
+				print(indent .. "    📦 Container with", #child:GetChildren(), "children, going deeper...")
+				collectEmitters(child, depth + 1)
 			end
 		end
 	end
 	
-	collectEmitters(vfxClone)
-	print("📊 Found", #allEmitters, "total emitters")
+	collectEmitters(vfxClone, 0)
+	print("📊 TOTAL EMITTERS FOUND:", #allEmitters)
+	
+	if #allEmitters == 0 then
+		warn("❌ NO EMITTERS FOUND! VFX structure might be different!")
+		print("🔍 VFX Clone structure:")
+		for _, child in pairs(vfxClone:GetChildren()) do
+			print("  - " .. child.Name .. " (" .. child.ClassName .. ")")
+		end
+		return
+	end
 
 	-- NOW EMIT ALL AT EXACTLY THE SAME TIME
-	for _, emitter in pairs(allEmitters) do
+	print("💥 EMITTING FROM", #allEmitters, "EMITTERS...")
+	for i, emitter in pairs(allEmitters) do
 		emitter.Enabled = false  -- Ensure burst only
 		local emitCount = math.min(50, math.max(15, math.floor(emitter.Rate * 1.0)))
 		emitter:Emit(emitCount)
+		print("  ✅", i, "- Emitted", emitCount, "from", emitter.Name)
 	end
 	
-	print("💥 ALL PARTICLES EMITTED SIMULTANEOUSLY!")
+	print("🎆 ALL PARTICLES EMITTED SIMULTANEOUSLY!")
 	
 	-- Clean up
 	Debris:AddItem(vfxClone, 6)
