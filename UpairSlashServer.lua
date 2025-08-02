@@ -86,7 +86,7 @@ local function freezePlayer(character, freeze)
 	end
 end
 
--- Spawn JumpWind VFX with FIXED particle emission
+-- Spawn JumpWind VFX with ENHANCED debugging
 local function spawnJumpWindVFX(position)
 	print("🌪️ Starting JumpWind VFX spawn process...")
 
@@ -128,31 +128,52 @@ local function spawnJumpWindVFX(position)
 	vfxClone.Name = "JumpWindEffect_" .. tick()
 	vfxClone.Anchored = true
 	vfxClone.CanCollide = false
-	vfxClone.Transparency = 1
-	vfxClone.Position = position
+	
+	-- DEBUGGING: Make the part visible to see where it spawns
+	vfxClone.Transparency = 0.5  -- Make it semi-transparent instead of invisible
+	vfxClone.Material = Enum.Material.Neon
+	vfxClone.BrickColor = BrickColor.new("Bright green") -- Bright green for visibility
+	vfxClone.Size = Vector3.new(4, 0.5, 4) -- Make it bigger so we can see it
+	
+	-- Position it ABOVE ground, not at ground level
+	local adjustedPosition = position + Vector3.new(0, 2, 0) -- 2 studs above ground
+	vfxClone.Position = adjustedPosition
 	vfxClone.Parent = workspace
 
-	print("📍 VFX cloned to workspace at position:", position)
+	print("📍 VFX cloned to workspace at position:", adjustedPosition)
+	print("🔍 Original ground position was:", position)
 
-	-- FIXED: Disable all particle emitters FIRST, then emit once
+	-- DEBUGGING: Create a bright indicator part
+	local indicator = Instance.new("Part")
+	indicator.Name = "VFX_INDICATOR"
+	indicator.Anchored = true
+	indicator.CanCollide = false
+	indicator.Material = Enum.Material.Neon
+	indicator.BrickColor = BrickColor.new("Hot pink")
+	indicator.Shape = Enum.PartType.Ball
+	indicator.Size = Vector3.new(2, 2, 2)
+	indicator.Position = adjustedPosition + Vector3.new(0, 3, 0) -- Even higher
+	indicator.Parent = workspace
+	Debris:AddItem(indicator, 10) -- Keep it for 10 seconds
+
+	-- FIRST: Disable all emitters to prevent spam
 	local function disableAllEmitters(parent)
 		for _, child in pairs(parent:GetDescendants()) do
 			if child:IsA("ParticleEmitter") then
 				child.Enabled = false -- Ensure no continuous emission
-				print("🔇 Disabled ParticleEmitter:", child:GetFullName())
 			end
 		end
 	end
 
-	-- First, disable all emitters to prevent spam
 	disableAllEmitters(vfxClone)
 	
 	-- Wait a frame to ensure all emitters are properly disabled
 	RunService.Heartbeat:Wait()
 
-	-- Find and emit ALL ParticleEmitters ONCE
+	-- Find and emit ParticleEmitters with ENHANCED debugging
 	local totalEmitters = 0
 	local emittedParticles = 0
+	local workingEmitters = 0
 
 	local function findAndEmitParticles(parent, path)
 		path = path or parent.Name
@@ -163,25 +184,44 @@ local function spawnJumpWindVFX(position)
 			if child:IsA("ParticleEmitter") then
 				totalEmitters = totalEmitters + 1
 
+				-- ENHANCED DEBUGGING: Check particle properties
 				print("🎨 Found ParticleEmitter:", childPath)
 				print("   - Enabled:", child.Enabled)
 				print("   - Rate:", child.Rate)
 				print("   - Lifetime:", tostring(child.Lifetime))
+				print("   - Texture:", child.Texture)
+				print("   - Size:", tostring(child.Size))
+				print("   - Speed:", tostring(child.Speed))
+				print("   - Color:", tostring(child.Color))
 
-				-- Emit particles ONCE
-				local emitCount = 15 -- Good burst amount
+				-- Check if particle has a valid texture
+				if child.Texture == "" or child.Texture == "rbxasset://textures/particles/sparkles_main.dds" then
+					warn("   ⚠️ ParticleEmitter has no custom texture - might be invisible!")
+					-- Set a visible texture for debugging
+					child.Texture = "rbxasset://textures/particles/fire_main.dds"
+					child.Color = ColorSequence.new(Color3.new(0, 1, 0)) -- Bright green
+					print("   🔧 Applied debug texture and color")
+				end
+
+				-- Make sure particles are big enough to see
+				if child.Size.Keypoints[1].Value < 0.5 then
+					child.Size = NumberSequence.new(2) -- Make particles bigger
+					print("   🔧 Increased particle size for visibility")
+				end
+
+				-- Emit particles
+				local emitCount = 50 -- More particles for visibility
 				child:Emit(emitCount)
 				emittedParticles = emittedParticles + emitCount
+				workingEmitters = workingEmitters + 1
 
 				print("   ✅ Emitted", emitCount, "particles")
 
 			elseif child:IsA("Attachment") then
-				print("📎 Found Attachment:", childPath)
 				-- Recursively check inside attachments
 				findAndEmitParticles(child, childPath)
 
 			elseif #child:GetChildren() > 0 then
-				print("📦 Checking container:", childPath, "(" .. child.ClassName .. ")")
 				-- Check any other containers
 				findAndEmitParticles(child, childPath)
 			end
@@ -192,17 +232,20 @@ local function spawnJumpWindVFX(position)
 	print("\n🔍 Searching for ParticleEmitters...")
 	findAndEmitParticles(vfxClone)
 
-	print("\n📊 VFX Summary:")
+	print("\n📊 ENHANCED VFX Summary:")
 	print("   - Total ParticleEmitters found:", totalEmitters)
+	print("   - Working ParticleEmitters:", workingEmitters)
 	print("   - Total particles emitted:", emittedParticles)
+	print("   - VFX Position:", adjustedPosition)
+	print("   - Look for BRIGHT GREEN part and HOT PINK ball above it!")
 
 	if totalEmitters == 0 then
 		warn("⚠️ No ParticleEmitters found in the VFX! Check your VFX structure.")
 	end
 
-	-- Clean up after particles fade
-	Debris:AddItem(vfxClone, 5)
-	print("🗑️ VFX will be cleaned up in 5 seconds\n")
+	-- Clean up after longer time for debugging
+	Debris:AddItem(vfxClone, 15) -- Keep longer for debugging
+	print("🗑️ VFX will be cleaned up in 15 seconds\n")
 end
 
 -- Perform the upair slash attack
