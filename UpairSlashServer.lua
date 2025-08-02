@@ -82,9 +82,9 @@ local function freezePlayer(character, freeze)
 	end
 end
 
--- Spawn JumpWind VFX with CONTROLLED single emission
+-- Spawn JumpWind VFX with TRUE SINGLE SIMULTANEOUS emission
 local function spawnJumpWindVFX(position)
-	print("🌪️ Starting JumpWind VFX spawn process...")
+	print("🌪️ Starting INSTANT JumpWind VFX...")
 
 	-- Create or get FX folder in workspace
 	local fxFolder = workspace:FindFirstChild("FX")
@@ -92,143 +92,58 @@ local function spawnJumpWindVFX(position)
 		fxFolder = Instance.new("Folder")
 		fxFolder.Name = "FX"
 		fxFolder.Parent = workspace
-		print("📁 Created FX folder in workspace")
-	else
-		print("📁 Found existing FX folder")
 	end
 
 	-- Navigate to VFX folder
 	local assetsFolder = ReplicatedStorage:WaitForChild("Assets", 5)
-	if not assetsFolder then 
-		warn("❌ Assets folder not found!") 
-		return 
-	end
-
+	if not assetsFolder then return end
 	local abilitiesFolder = assetsFolder:WaitForChild("Abilities", 5)
-	if not abilitiesFolder then 
-		warn("❌ Abilities folder not found!") 
-		return 
-	end
-
+	if not abilitiesFolder then return end
 	local vfxFolder = abilitiesFolder:WaitForChild("VFX", 5)
-	if not vfxFolder then 
-		warn("❌ VFX folder not found!") 
-		return 
-	end
-
+	if not vfxFolder then return end
 	local upSlashFolder = vfxFolder:WaitForChild("UpSlashAbility", 5)
-	if not upSlashFolder then 
-		warn("❌ UpSlashAbility folder not found!") 
-		return 
-	end
-
+	if not upSlashFolder then return end
 	local jumpWindVFX = upSlashFolder:WaitForChild("jumpwind", 5)
-	if not jumpWindVFX then
-		warn("❌ jumpwind part not found in UpSlashAbility!")
-		return
-	end
+	if not jumpWindVFX then return end
 
-	print("✅ Found jumpwind VFX part")
-
-	-- Clone VFX
+	-- Clone VFX INSTANTLY
 	local vfxClone = jumpWindVFX:Clone()
 	vfxClone.Name = "JumpWindEffect_" .. tick()
 	vfxClone.Anchored = true
 	vfxClone.CanCollide = false
-	vfxClone.Transparency = 0.5  -- Make temporarily visible for debugging
-	vfxClone.Material = Enum.Material.Neon  -- Make it glow for visibility
-	vfxClone.BrickColor = BrickColor.new("Bright red")  -- Red color for debugging
+	vfxClone.Transparency = 1  -- Keep invisible (remove debug)
 	vfxClone.Position = position
 	vfxClone.Parent = fxFolder
+	vfxClone.CFrame = CFrame.new(position)
 
-	print("📍 VFX cloned to FX folder at position:", position)
-	print("📏 VFX Size:", vfxClone.Size)
-	print("🎯 VFX CFrame:", vfxClone.CFrame)
-	
-	-- Make sure VFX is properly oriented and positioned
-	vfxClone.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, 0)
-	
-	-- Make the part visible temporarily for debugging
-	task.spawn(function()
-		task.wait(2) -- Keep visible for 2 seconds
-		vfxClone.Transparency = 1 -- Then make invisible
-		vfxClone.BrickColor = BrickColor.new("Medium stone grey")
-	end)
+	print("🎯 VFX positioned at:", position)
 
-	-- Track processed emitters to avoid duplicates
-	local processedEmitters = {}
-	local totalEmitters = 0
-	local emittedParticles = 0
-
-	-- FIXED: Single emission function that prevents duplicates and controls particle count
-	local function emitParticlesOnce(parent)
-		-- Get all ParticleEmitters in this parent (non-recursive for this level)
+	-- COLLECT ALL EMITTERS FIRST (no emitting yet!)
+	local allEmitters = {}
+	local function collectEmitters(parent)
 		for _, child in pairs(parent:GetChildren()) do
 			if child:IsA("ParticleEmitter") then
-				-- Create unique identifier for this emitter
-				local emitterID = child:GetFullName()
-				
-				-- Skip if we've already processed this emitter
-				if processedEmitters[emitterID] then
-					print("⏭️ Skipping duplicate emitter:", child.Name)
-					continue
-				end
-				
-				-- Mark as processed
-				processedEmitters[emitterID] = true
-				totalEmitters = totalEmitters + 1
-
-				print("🎨 Processing ParticleEmitter:", child.Name)
-				print("   - Parent:", child.Parent.Name)
-				print("   - Full Path:", child:GetFullName())
-				print("   - Enabled:", child.Enabled)
-				print("   - Rate:", child.Rate)
-				print("   - Lifetime:", tostring(child.Lifetime))
-				print("   - Texture:", child.Texture)
-
-				-- Ensure it's disabled (burst only)
-				child.Enabled = false
-				
-				-- Wait a frame to ensure readiness
-				RunService.Heartbeat:Wait()
-
-				-- Calculate more visible emit count while still being controlled
-				local emitCount = math.min(100, math.max(25, math.floor(child.Rate * 1.5)))
-				
-				-- Emit particles with safety check
-				pcall(function()
-					child:Emit(emitCount)
-					emittedParticles = emittedParticles + emitCount
-					print("   ✅ Successfully emitted", emitCount, "particles")
-				end)
-			end
-		end
-		
-		-- Now recursively process attachments and sub-containers
-		for _, child in pairs(parent:GetChildren()) do
-			if child:IsA("Attachment") or (child:IsA("Instance") and #child:GetChildren() > 0) then
-				emitParticlesOnce(child)
+				table.insert(allEmitters, child)
+			elseif child:IsA("Attachment") or #child:GetChildren() > 0 then
+				collectEmitters(child)
 			end
 		end
 	end
+	
+	collectEmitters(vfxClone)
+	print("📊 Found", #allEmitters, "total emitters")
 
-	-- Start the controlled emission
-	print("\n🔍 Starting controlled particle emission...")
-	emitParticlesOnce(vfxClone)
-
-	print("\n📊 VFX Summary:")
-	print("   - Total ParticleEmitters processed:", totalEmitters)
-	print("   - Total particles emitted:", emittedParticles)
-
-	if totalEmitters == 0 then
-		warn("⚠️ No ParticleEmitters found in the VFX! Check your VFX structure.")
-	else
-		print("🎆 VFX should now show a controlled wind effect with", emittedParticles, "particles!")
+	-- NOW EMIT ALL AT EXACTLY THE SAME TIME
+	for _, emitter in pairs(allEmitters) do
+		emitter.Enabled = false  -- Ensure burst only
+		local emitCount = math.min(50, math.max(15, math.floor(emitter.Rate * 1.0)))
+		emitter:Emit(emitCount)
 	end
-
-	-- Clean up after particles fade
-	Debris:AddItem(vfxClone, 8)
-	print("🗑️ VFX will be cleaned up in 8 seconds\n")
+	
+	print("💥 ALL PARTICLES EMITTED SIMULTANEOUSLY!")
+	
+	-- Clean up
+	Debris:AddItem(vfxClone, 6)
 end
 
 -- Perform the upair slash attack
@@ -268,17 +183,17 @@ local function performUpairSlash(player)
 	COOLDOWNS[player] = tick()
 	print("✅ Cooldown updated")
 
-	-- Freeze player movement
-	freezePlayer(character, true)
+	-- GET CURRENT POSITION IMMEDIATELY (before any delays)
+	local currentPosition = rootPart.Position
+	print("📍 Player position captured:", currentPosition)
 
-	-- Get ground position for VFX
-	print("🎯 Calculating ground position...")
+	-- Calculate ground position IMMEDIATELY
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 	rayParams.FilterDescendantsInstances = {character}
 
 	local groundRay = workspace:Raycast(
-		rootPart.Position,
+		currentPosition,
 		Vector3.new(0, -50, 0),
 		rayParams
 	)
@@ -286,29 +201,29 @@ local function performUpairSlash(player)
 	local groundPos
 	if groundRay then
 		groundPos = groundRay.Position + Vector3.new(0, 0.5, 0)
-		print("✅ Ground found at:", groundPos)
 	else
-		groundPos = rootPart.Position - Vector3.new(0, 3, 0)
-		print("⚠️ No ground found, using offset position:", groundPos)
+		groundPos = currentPosition - Vector3.new(0, 3, 0)
 	end
+	print("🎯 Ground position:", groundPos)
 
-	-- Spawn CONTROLLED VFX at ground
-	print("🎬 Spawning CONTROLLED VFX at ground position...")
+	-- START EVERYTHING SIMULTANEOUSLY
+	print("🚀 STARTING ALL EFFECTS SIMULTANEOUSLY!")
+	
+	-- 1. Freeze player
+	freezePlayer(character, true)
+	
+	-- 2. Spawn VFX INSTANTLY (no waiting)
 	spawnJumpWindVFX(groundPos)
-
-	-- Get or create animation
+	
+	-- 3. Start animation INSTANTLY
 	local animTrack = animationCache[player]
 	if not animTrack then
-		print("📹 Loading animation for first time...")
 		animTrack = preloadAnimation(player)
 	end
-
 	if animTrack then
 		animTrack.Priority = Enum.AnimationPriority.Action
 		animTrack:Play()
-		print("▶️ Animation playing")
-	else
-		warn("❌ Failed to load animation")
+		print("▶️ Animation playing SIMULTANEOUSLY")
 	end
 
 	-- Unanchor for jump but keep movement frozen
