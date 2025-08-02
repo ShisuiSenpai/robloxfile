@@ -135,11 +135,25 @@ local function spawnJumpWindVFX(position)
 	vfxClone.Name = "JumpWindEffect_" .. tick()
 	vfxClone.Anchored = true
 	vfxClone.CanCollide = false
-	vfxClone.Transparency = 1
+	vfxClone.Transparency = 0.5  -- Make temporarily visible for debugging
+	vfxClone.Material = Enum.Material.Neon  -- Make it glow for visibility
+	vfxClone.BrickColor = BrickColor.new("Bright red")  -- Red color for debugging
 	vfxClone.Position = position
 	vfxClone.Parent = fxFolder
 
 	print("📍 VFX cloned to FX folder at position:", position)
+	print("📏 VFX Size:", vfxClone.Size)
+	print("🎯 VFX CFrame:", vfxClone.CFrame)
+	
+	-- Make sure VFX is properly oriented and positioned
+	vfxClone.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, 0)
+	
+	-- Make the part visible temporarily for debugging
+	task.spawn(function()
+		task.wait(2) -- Keep visible for 2 seconds
+		vfxClone.Transparency = 1 -- Then make invisible
+		vfxClone.BrickColor = BrickColor.new("Medium stone grey")
+	end)
 
 	-- Track processed emitters to avoid duplicates
 	local processedEmitters = {}
@@ -165,21 +179,28 @@ local function spawnJumpWindVFX(position)
 				totalEmitters = totalEmitters + 1
 
 				print("🎨 Processing ParticleEmitter:", child.Name)
+				print("   - Parent:", child.Parent.Name)
+				print("   - Full Path:", child:GetFullName())
 				print("   - Enabled:", child.Enabled)
 				print("   - Rate:", child.Rate)
 				print("   - Lifetime:", tostring(child.Lifetime))
+				print("   - Texture:", child.Texture)
 
 				-- Ensure it's disabled (burst only)
 				child.Enabled = false
-
-				-- Calculate controlled emit count (much smaller for controlled effect)
-				local emitCount = math.min(20, math.max(5, math.floor(child.Rate * 0.5)))
 				
-				-- Emit particles
-				child:Emit(emitCount)
-				emittedParticles = emittedParticles + emitCount
+				-- Wait a frame to ensure readiness
+				RunService.Heartbeat:Wait()
 
-				print("   ✅ Emitted", emitCount, "particles")
+				-- Calculate more visible emit count while still being controlled
+				local emitCount = math.min(100, math.max(25, math.floor(child.Rate * 1.5)))
+				
+				-- Emit particles with safety check
+				pcall(function()
+					child:Emit(emitCount)
+					emittedParticles = emittedParticles + emitCount
+					print("   ✅ Successfully emitted", emitCount, "particles")
+				end)
 			end
 		end
 		
