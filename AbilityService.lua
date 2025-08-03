@@ -225,6 +225,21 @@ local function executeUpwardSlash(player)
 
 				debug("Applied", damage, "damage to", enemy.Name, "with knockback")
 
+				-- RELEASE ENEMY AFTER DAMAGE
+				if config.enemyMovement.releaseAfterDamage then
+					enemy:SetAttribute("BeingGrabbed", false)
+					local origWalkSpeed = enemy:GetAttribute("OriginalWalkSpeed") or 16
+					local origJumpPower = enemy:GetAttribute("OriginalJumpPower") or 50
+					local origAutoRotate = enemy:GetAttribute("OriginalAutoRotate")
+					if origAutoRotate == nil then origAutoRotate = true end
+					
+					enemyHumanoid.WalkSpeed = origWalkSpeed
+					enemyHumanoid.JumpPower = origJumpPower
+					enemyHumanoid.AutoRotate = origAutoRotate
+					
+					debug("Released enemy after damage:", enemy.Name)
+				end
+
 				-- Notify clients of damage
 				abilitySyncRemote:FireAllClients("damage", {
 					ability = "UpwardSlash",
@@ -245,8 +260,8 @@ local function executeUpwardSlash(player)
 			humanoid.JumpPower = originalJumpPower
 		end
 
-		-- Restore enemy state - Improved restoration
-		if enemy and enemy.Character then
+		-- Only restore enemy state if they haven't been released yet
+		if enemy and enemy.Character and not config.enemyMovement.releaseAfterDamage then
 			local enemyHumanoid = enemy.Character:FindFirstChild("Humanoid")
 			if enemyHumanoid then
 				enemy:SetAttribute("BeingGrabbed", false)

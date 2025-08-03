@@ -58,7 +58,10 @@ enemyMovement = {
     useTween = true, -- Use smooth tweening
     tweenDuration = 0.4, -- How fast enemy moves to peak
     stayAtPeak = true, -- Enemy stays at peak until damage
-    peakHeight = 25 -- Same as attacker peak height
+    peakHeight = 25, -- Same as attacker peak height
+    releaseAfterDamage = true, -- Release enemy after damage is applied
+    holdUntilDamage = true, -- Keep enemy frozen until damage moment
+    holdDuration = 1.0 -- How long enemy stays at peak (1.0 = until damage)
 }
 ```
 
@@ -66,6 +69,8 @@ enemyMovement = {
 - **Faster enemy movement**: Decrease `tweenDuration` (e.g., 0.2, 0.3)
 - **Slower enemy movement**: Increase `tweenDuration` (e.g., 0.6, 0.8)
 - **Different enemy height**: Change `peakHeight` (must match `phases.rise.height`)
+- **Longer enemy hold**: Increase `holdDuration` (e.g., 1.5, 2.0)
+- **Shorter enemy hold**: Decrease `holdDuration` (e.g., 0.5, 0.8)
 
 ## 🎯 Quick Adjustment Examples
 

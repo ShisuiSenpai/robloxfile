@@ -56,7 +56,10 @@ AbilityConfig.Abilities = {
 			useTween = true, -- Use TweenService for smooth movement
 			tweenDuration = 0.4, -- How fast enemy moves to peak
 			stayAtPeak = true, -- Enemy stays at peak until damage
-			peakHeight = 25 -- Same as attacker peak height
+			peakHeight = 25, -- Same as attacker peak height
+			releaseAfterDamage = true, -- Release enemy after damage is applied
+			holdUntilDamage = true, -- Keep enemy frozen until damage moment
+			holdDuration = 1.0 -- How long enemy stays at peak (1.0 = until damage)
 		}
 	}
 }
