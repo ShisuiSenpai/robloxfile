@@ -451,43 +451,29 @@ local function executeUpwardSlash(player)
 					debug("Released enemy after damage:", enemy.Name)
 				end
 
-				-- Play hit animation on the enemy
-				local animationHandler = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("AnimationHandler"))
-				if animationHandler then
-					-- Determine which hit animation to play based on percentage
-					local currentPercent = percentValue and percentValue.Value or 0
-					if currentPercent > 150 then
-						-- High percentage - play spin animation
-						animationHandler.Play(enemy.Character, "HitSpin")
-						debug("Playing HitSpin animation on", enemy.Name)
-						
-						-- Stop spin animation when they land (like in CombatFramework)
-						local function stopSpinAnimation()
-							animationHandler.Stop(enemy.Character, "HitSpin")
-						end
-						
-						-- Connect to state change to stop on landing
-						local stateConnection
-						stateConnection = enemyHumanoid.StateChanged:Connect(function(_, newState)
-							if newState == Enum.HumanoidStateType.Landed then
-								stopSpinAnimation()
-								stateConnection:Disconnect()
-							end
-						end)
-						
-						-- Also stop after 2 seconds as fallback
-						task.delay(2, function()
-							stopSpinAnimation()
-							if stateConnection then
-								stateConnection:Disconnect()
-							end
-						end)
-					else
-						-- Normal hit animation
-						animationHandler.Play(enemy.Character, "Hit1")
-						debug("Playing Hit1 animation on", enemy.Name)
-					end
+				-- Play hit animation directly with the specific animation ID
+				local animator = enemyHumanoid:FindFirstChildOfClass("Animator")
+				if not animator then
+					animator = Instance.new("Animator")
+					animator.Parent = enemyHumanoid
 				end
+				
+				-- Create and load the hit animation
+				local hitAnimation = Instance.new("Animation")
+				hitAnimation.AnimationId = "rbxassetid://121509032866215"
+				
+				local hitAnimTrack = animator:LoadAnimation(hitAnimation)
+				hitAnimTrack.Priority = Enum.AnimationPriority.Action4 -- High priority to override other animations
+				hitAnimTrack:Play()
+				
+				debug("Playing ability hit animation on", enemy.Name)
+				
+				-- Stop animation after it completes (or after 2 seconds)
+				task.delay(2, function()
+					if hitAnimTrack.IsPlaying then
+						hitAnimTrack:Stop()
+					end
+				end)
 				
 				-- Notify clients
 				abilitySyncRemote:FireAllClients("damage", {

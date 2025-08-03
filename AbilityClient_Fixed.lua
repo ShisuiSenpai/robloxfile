@@ -281,6 +281,41 @@ local function handleDamagePhase(data)
 	
 	-- Apply hit effects using your combat framework
 	if data.enemy and data.enemy.Character then
+		-- Play the specific hit animation on the enemy
+		local enemyHumanoid = data.enemy.Character:FindFirstChild("Humanoid")
+		if enemyHumanoid then
+			local animator = enemyHumanoid:FindFirstChildOfClass("Animator")
+			if not animator then
+				animator = Instance.new("Animator")
+				animator.Parent = enemyHumanoid
+			end
+			
+			-- Create and load the hit animation
+			local hitAnimation = Instance.new("Animation")
+			hitAnimation.AnimationId = "rbxassetid://121509032866215"
+			
+			-- Use pcall to safely load animation
+			local success, hitAnimTrack = pcall(function()
+				return animator:LoadAnimation(hitAnimation)
+			end)
+			
+			if success and hitAnimTrack then
+				hitAnimTrack.Priority = Enum.AnimationPriority.Action4
+				hitAnimTrack:Play()
+				debug("Playing hit animation on enemy (client)")
+				
+				-- Stop after 2 seconds
+				task.delay(2, function()
+					if hitAnimTrack.IsPlaying then
+						hitAnimTrack:Stop()
+					end
+				end)
+			else
+				debug("Failed to load hit animation")
+			end
+		end
+		
+		-- Also apply combat framework effects
 		local combatFramework = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("CombatFramework"))
 		if combatFramework then
 			-- Create a temporary instance to use ApplyHitEffects
