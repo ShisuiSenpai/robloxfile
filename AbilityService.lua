@@ -159,13 +159,13 @@ local function executeUpwardSlash(player)
 	-- Notify all clients to handle movement and VFX
 	abilitySyncRemote:FireAllClients("start", syncData)
 
-	-- Disable movement
+	-- Disable attacker movement
 	local originalWalkSpeed = humanoid.WalkSpeed
 	local originalJumpPower = humanoid.JumpPower
 	humanoid.WalkSpeed = 0
 	humanoid.JumpPower = 0
 
-	-- Handle enemy state - Instant and complete freeze
+	-- Handle enemy state - Complete freeze for teleportation
 	if enemy and enemy.Character then
 		local enemyHumanoid = enemy.Character:FindFirstChild("Humanoid")
 		if enemyHumanoid then
@@ -175,12 +175,12 @@ local function executeUpwardSlash(player)
 			enemy:SetAttribute("OriginalJumpPower", enemyHumanoid.JumpPower)
 			enemy:SetAttribute("OriginalAutoRotate", enemyHumanoid.AutoRotate)
 			
-			-- INSTANTLY disable enemy movement - no delays
+			-- COMPLETELY freeze enemy for teleportation
 			enemyHumanoid.WalkSpeed = 0
 			enemyHumanoid.JumpPower = 0
 			enemyHumanoid.AutoRotate = false
 			
-			-- Immediately stop all animations for instant freeze
+			-- Stop all animations immediately
 			local animator = enemyHumanoid:FindFirstChildOfClass("Animator")
 			if animator then
 				for _, track in pairs(animator:GetPlayingAnimationTracks()) do
@@ -188,13 +188,14 @@ local function executeUpwardSlash(player)
 				end
 			end
 			
-			-- Also freeze any physics bodies for instant response
+			-- Clear any physics that might interfere with teleportation
 			local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
 			if enemyRoot then
-				-- Clear any existing velocity for instant stop
-				local bodyVelocity = enemyRoot:FindFirstChild("BodyVelocity")
-				if bodyVelocity then
-					bodyVelocity:Destroy()
+				-- Remove any existing physics bodies
+				for _, child in pairs(enemyRoot:GetChildren()) do
+					if child:IsA("BodyVelocity") or child:IsA("BodyPosition") or child:IsA("BodyGyro") then
+						child:Destroy()
+					end
 				end
 			end
 		end

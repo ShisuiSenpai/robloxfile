@@ -105,7 +105,7 @@ local function playSlashVFX(rootPart)
 	debug("Played slash VFX")
 end
 
--- Improved movement sync handler with better timing
+-- COMPLETELY NEW: Direct CFrame movement handler for instant, snappy movement
 local function handleMovementSync(data)
 	local config = AbilityConfig.Abilities[data.ability]
 	if not config then return end
@@ -136,56 +136,47 @@ local function handleMovementSync(data)
 		end
 	end
 
-	-- Play VFX immediately for better responsiveness
+	-- Play VFX immediately
 	playJumpWindVFX(attackerRoot.Position)
 
-	-- Schedule slash VFX with improved timing
+	-- Schedule slash VFX
 	task.delay(config.vfxTiming.slash1, function()
 		if attackerRoot and attackerRoot.Parent then
 			playSlashVFX(attackerRoot)
 		end
 	end)
 
-	-- Start movement almost immediately for instant response
+	-- Minimal delay for instant response
 	task.wait(config.animationTiming.startDelay)
 
-	-- Create movement controllers with instant, snappy control
-	local attackerBodyPos = Instance.new("BodyPosition")
-	attackerBodyPos.MaxForce = config.bodyPositionSettings.maxForce
-	attackerBodyPos.P = config.bodyPositionSettings.P
-	attackerBodyPos.D = config.bodyPositionSettings.D
-	attackerBodyPos.Parent = attackerRoot
+	-- STORE ORIGINAL POSITIONS
+	local attackerStartPos = attackerRoot.Position
+	local enemyStartPos = enemy and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") and enemy.Character.HumanoidRootPart.Position or nil
 
-	local enemyBodyPos
-	local enemyRoot
-	local enemyBodyGyro
-
-	if enemy and enemy.Character then
-		enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
+	-- TELEPORT ENEMY TO PEAK HEIGHT IMMEDIATELY
+	if enemy and enemy.Character and config.movementSettings.teleportEnemy then
+		local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
 		if enemyRoot then
-			-- Create instant enemy control
-			enemyBodyPos = Instance.new("BodyPosition")
-			enemyBodyPos.MaxForce = config.enemyControl.maxForce
-			enemyBodyPos.P = config.enemyControl.P
-			enemyBodyPos.D = config.enemyControl.D
-			enemyBodyPos.Parent = enemyRoot
-
-			-- Add instant rotation control - no tweening, direct rotation
-			enemyBodyGyro = Instance.new("BodyGyro")
-			enemyBodyGyro.MaxTorque = config.enemyControl.gyroMaxTorque
-			enemyBodyGyro.P = config.enemyControl.gyroP
-			enemyBodyGyro.D = config.enemyControl.gyroD
-			enemyBodyGyro.Parent = enemyRoot
-
-			-- Store for later cleanup
-			if activeSyncs[attacker] then
-				activeSyncs[attacker].enemyBodyGyro = enemyBodyGyro
+			-- Calculate peak position for enemy
+			local peakHeight = attackerStartPos.Y + config.phases.rise.height
+			local attackerCFrame = CFrame.new(attackerStartPos, attackerStartPos + attackerRoot.CFrame.LookVector)
+			local enemyPeakPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
+			enemyPeakPos = Vector3.new(enemyPeakPos.X, peakHeight, enemyPeakPos.Z)
+			
+			-- TELEPORT ENEMY TO PEAK HEIGHT
+			enemyRoot.CFrame = CFrame.new(enemyPeakPos)
+			
+			-- Make enemy face attacker instantly
+			local lookDirection = (attackerStartPos - enemyPeakPos) * Vector3.new(1, 0, 1)
+			if lookDirection.Magnitude > 0 then
+				enemyRoot.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
 			end
+			
+			debug("TELEPORTED enemy to peak height:", enemy.Name)
 		end
 	end
 
-	-- Movement sequence with improved timing
-	local startPos = data.startPosition
+	-- Movement sequence using direct CFrame manipulation
 	local startTime = workspace:GetServerTimeNow() - config.animationTiming.startDelay
 
 	local connection
@@ -197,126 +188,57 @@ local function handleMovementSync(data)
 		local hoverEnd = riseEnd + config.phases.hover.duration
 
 		if elapsed <= riseEnd then
-			-- Rising phase with snappy, linear movement
+			-- Rising phase - direct CFrame movement
 			local progress = elapsed / config.phases.rise.duration
-			-- Use linear movement for instant response, no easing delay
-			local height = startPos.Y + (config.phases.rise.height * progress)
-			attackerBodyPos.Position = Vector3.new(startPos.X, height, startPos.Z)
-
-			-- Sync enemy with instant height matching
-			if enemyBodyPos and enemyRoot then
-				-- Calculate enemy position relative to attacker with exact height sync
-				local attackerCFrame = CFrame.new(attackerRoot.Position, attackerRoot.Position + attackerRoot.CFrame.LookVector)
-				local enemyTargetPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
-				
-				-- Ensure enemy matches attacker's height exactly
-				enemyTargetPos = Vector3.new(enemyTargetPos.X, height, enemyTargetPos.Z)
-				enemyBodyPos.Position = enemyTargetPos
-
-				-- Make enemy face attacker INSTANTLY - no gradual rotation
-				local lookDirection = (attackerRoot.Position - enemyRoot.Position) * Vector3.new(1, 0, 1)
-				if lookDirection.Magnitude > 0 then
-					if enemyBodyGyro then
-						-- Direct rotation, no tweening
-						enemyBodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
-					end
-				end
-			end
+			local height = attackerStartPos.Y + (config.phases.rise.height * progress)
+			
+			-- Move attacker directly
+			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, height, attackerStartPos.Z)
 
 		elseif elapsed <= hoverEnd then
-			-- Hovering phase with perfect sync
-			local height = startPos.Y + config.phases.rise.height
-			attackerBodyPos.Position = Vector3.new(startPos.X, height, startPos.Z)
-
-			-- Keep enemy perfectly synced
-			if enemyBodyPos and enemyRoot then
-				local attackerCFrame = CFrame.new(attackerRoot.Position, attackerRoot.Position + attackerRoot.CFrame.LookVector)
-				local enemyTargetPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
-				
-				-- Maintain exact height sync
-				enemyTargetPos = Vector3.new(enemyTargetPos.X, height, enemyTargetPos.Z)
-				enemyBodyPos.Position = enemyTargetPos
-
-				-- Maintain instant facing
-				local lookDirection = (attackerRoot.Position - enemyRoot.Position) * Vector3.new(1, 0, 1)
-				if lookDirection.Magnitude > 0 then
-					if enemyBodyGyro then
-						-- Direct rotation, no gradual movement
-						enemyBodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
-					end
-				end
-			end
+			-- Hovering phase - maintain peak height
+			local peakHeight = attackerStartPos.Y + config.phases.rise.height
+			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, peakHeight, attackerStartPos.Z)
 
 		else
 			-- Falling - cleanup
 			connection:Disconnect()
-			attackerBodyPos:Destroy()
-			if enemyBodyPos then
-				enemyBodyPos:Destroy()
-			end
-
-			if enemyBodyGyro then
-				enemyBodyGyro:Destroy()
-			end
-
+			
 			-- Clear from activeSyncs
 			if activeSyncs[attacker] then
 				activeSyncs[attacker].connection = nil
-				activeSyncs[attacker].attackerBodyPos = nil
-				activeSyncs[attacker].enemyBodyPos = nil
-				activeSyncs[attacker].enemyBodyGyro = nil
 			end
 		end
 	end)
 
-	-- Store sync data
+	-- Store sync data (no BodyPosition objects needed)
 	activeSyncs[attacker] = {
 		connection = connection,
-		attackerBodyPos = attackerBodyPos,
-		enemyBodyPos = enemyBodyPos,
-		enemyBodyGyro = enemyBodyGyro,
-		animationTrack = animationTrack
+		animationTrack = animationTrack,
+		attackerStartPos = attackerStartPos,
+		enemyStartPos = enemyStartPos
 	}
 
-	debug("Started movement sync for", attacker.Name)
+	debug("Started DIRECT CFrame movement for", attacker.Name)
 end
 
--- Handle damage phase with immediate enemy release
+-- Handle damage phase - enemy is already at peak height
 local function handleDamagePhase(data)
 	local sync = activeSyncs[data.attacker]
 	if sync then
-		-- Immediately remove enemy physics when damage is applied
-		if sync.enemyBodyPos then
-			sync.enemyBodyPos:Destroy()
-			sync.enemyBodyPos = nil
-		end
-		if sync.enemyBodyGyro then
-			sync.enemyBodyGyro:Destroy()
-			sync.enemyBodyGyro = nil
-		end
-		debug("Removed enemy physics for damage")
+		-- Enemy is already teleported to peak height, no need to remove physics
+		-- The knockback from server will handle the enemy movement
+		debug("Damage applied - enemy at peak height")
 	end
 end
 
--- Cleanup sync
+-- Cleanup sync - simplified since we use direct CFrame
 local function cleanupSync(data)
 	local sync = activeSyncs[data.attacker]
 	if not sync then return end
 
 	if sync.connection then
 		sync.connection:Disconnect()
-	end
-
-	if sync.attackerBodyPos and sync.attackerBodyPos.Parent then
-		sync.attackerBodyPos:Destroy()
-	end
-
-	if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
-		sync.enemyBodyPos:Destroy()
-	end
-
-	if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
-		sync.enemyBodyGyro:Destroy()
 	end
 
 	if sync.animationTrack then
@@ -396,15 +318,6 @@ player.CharacterAdded:Connect(function(newChar)
 	for _, sync in pairs(activeSyncs) do
 		if sync.connection then
 			sync.connection:Disconnect()
-		end
-		if sync.attackerBodyPos and sync.attackerBodyPos.Parent then
-			sync.attackerBodyPos:Destroy()
-		end
-		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
-			sync.enemyBodyPos:Destroy()
-		end
-		if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
-			sync.enemyBodyGyro:Destroy()
 		end
 	end
 	activeSyncs = {}
