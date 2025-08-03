@@ -146,10 +146,10 @@ local function handleMovementSync(data)
 		end
 	end)
 
-	-- Start movement after a small delay to match animation
+	-- Start movement almost immediately for instant response
 	task.wait(config.animationTiming.startDelay)
 
-	-- Create movement controllers with improved enemy control
+	-- Create movement controllers with instant, snappy control
 	local attackerBodyPos = Instance.new("BodyPosition")
 	attackerBodyPos.MaxForce = config.bodyPositionSettings.maxForce
 	attackerBodyPos.P = config.bodyPositionSettings.P
@@ -163,14 +163,14 @@ local function handleMovementSync(data)
 	if enemy and enemy.Character then
 		enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
 		if enemyRoot then
-			-- Create stronger enemy control
+			-- Create instant enemy control
 			enemyBodyPos = Instance.new("BodyPosition")
 			enemyBodyPos.MaxForce = config.enemyControl.maxForce
 			enemyBodyPos.P = config.enemyControl.P
 			enemyBodyPos.D = config.enemyControl.D
 			enemyBodyPos.Parent = enemyRoot
 
-			-- Add strong rotation control to completely freeze enemy
+			-- Add instant rotation control - no tweening, direct rotation
 			enemyBodyGyro = Instance.new("BodyGyro")
 			enemyBodyGyro.MaxTorque = config.enemyControl.gyroMaxTorque
 			enemyBodyGyro.P = config.enemyControl.gyroP
@@ -197,14 +197,13 @@ local function handleMovementSync(data)
 		local hoverEnd = riseEnd + config.phases.hover.duration
 
 		if elapsed <= riseEnd then
-			-- Rising phase with improved easing
+			-- Rising phase with snappy, linear movement
 			local progress = elapsed / config.phases.rise.duration
-			local eased = 1 - (1 - progress) ^ 2 -- Smoother easing
-
-			local height = startPos.Y + (config.phases.rise.height * eased)
+			-- Use linear movement for instant response, no easing delay
+			local height = startPos.Y + (config.phases.rise.height * progress)
 			attackerBodyPos.Position = Vector3.new(startPos.X, height, startPos.Z)
 
-			-- Sync enemy with perfect height matching
+			-- Sync enemy with instant height matching
 			if enemyBodyPos and enemyRoot then
 				-- Calculate enemy position relative to attacker with exact height sync
 				local attackerCFrame = CFrame.new(attackerRoot.Position, attackerRoot.Position + attackerRoot.CFrame.LookVector)
@@ -214,10 +213,11 @@ local function handleMovementSync(data)
 				enemyTargetPos = Vector3.new(enemyTargetPos.X, height, enemyTargetPos.Z)
 				enemyBodyPos.Position = enemyTargetPos
 
-				-- Make enemy face attacker with strong control
+				-- Make enemy face attacker INSTANTLY - no gradual rotation
 				local lookDirection = (attackerRoot.Position - enemyRoot.Position) * Vector3.new(1, 0, 1)
 				if lookDirection.Magnitude > 0 then
 					if enemyBodyGyro then
+						-- Direct rotation, no tweening
 						enemyBodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
 					end
 				end
@@ -237,10 +237,11 @@ local function handleMovementSync(data)
 				enemyTargetPos = Vector3.new(enemyTargetPos.X, height, enemyTargetPos.Z)
 				enemyBodyPos.Position = enemyTargetPos
 
-				-- Maintain facing
+				-- Maintain instant facing
 				local lookDirection = (attackerRoot.Position - enemyRoot.Position) * Vector3.new(1, 0, 1)
 				if lookDirection.Magnitude > 0 then
 					if enemyBodyGyro then
+						-- Direct rotation, no gradual movement
 						enemyBodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
 					end
 				end

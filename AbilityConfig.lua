@@ -19,11 +19,11 @@ AbilityConfig.Abilities = {
 		animationId = "rbxassetid://126685859180940",
 		animationPriority = Enum.AnimationPriority.Action4,
 
-		-- Movement phases (in seconds) - Adjusted for smoother flow
+		-- Movement phases (in seconds) - Much faster and more responsive
 		phases = {
-			rise = {duration = 0.8, height = 20},
-			hover = {duration = 1.0},
-			fall = {duration = 0.71}
+			rise = {duration = 0.4, height = 20}, -- Halved duration for snappier ascent
+			hover = {duration = 0.8}, -- Slightly shorter hover
+			fall = {duration = 0.5} -- Faster fall
 		},
 
 		-- Combat
@@ -37,35 +37,35 @@ AbilityConfig.Abilities = {
 		-- Enemy positioning - Adjusted for better sync
 		enemyOffset = Vector3.new(0, 0, -5), -- 5 studs in front
 
-		-- VFX Timing - Improved timing for smoother flow
+		-- VFX Timing - Immediate and snappy
 		vfxTiming = {
 			jumpWind = 0, -- Immediate
-			slash1 = 0.1, -- Reduced delay for better sync
-			slash2 = 1.0, -- Slightly earlier for better timing
-			damagePoint = 1.65 -- Adjusted to match slash2 timing
+			slash1 = 0.05, -- Almost immediate slash
+			slash2 = 0.8, -- Earlier slash2
+			damagePoint = 1.2 -- Earlier damage point
 		},
 
-		-- Animation timing
+		-- Animation timing - No delays for instant response
 		animationTiming = {
-			windup = 0.2, -- Reduced windup for more responsive feel
-			startDelay = 0.1 -- Small delay before movement starts
+			windup = 0.05, -- Minimal windup for instant response
+			startDelay = 0.02 -- Almost no delay
 		},
 
-		-- Physics settings for smooth movement
+		-- Physics settings for instant, snappy movement
 		bodyPositionSettings = {
-			maxForce = Vector3.new(4000, 1e6, 4000),
-			P = 20000,
-			D = 2000
+			maxForce = Vector3.new(1e6, 1e6, 1e6), -- Maximum force for instant response
+			P = 50000, -- Much higher P for instant positioning
+			D = 5000 -- Higher D for no overshoot
 		},
 
-		-- Enemy control settings
+		-- Enemy control settings - Instant and snappy
 		enemyControl = {
-			maxForce = Vector3.new(1e6, 1e6, 1e6), -- Stronger control
-			P = 30000, -- Higher P for more responsive control
-			D = 3000, -- Higher D for better damping
-			gyroMaxTorque = Vector3.new(1e6, 1e6, 1e6), -- Strong rotation control
-			gyroP = 5000,
-			gyroD = 1000
+			maxForce = Vector3.new(1e6, 1e6, 1e6), -- Maximum force
+			P = 100000, -- Extremely high P for instant positioning
+			D = 10000, -- High D for no overshoot
+			gyroMaxTorque = Vector3.new(1e6, 1e6, 1e6), -- Maximum rotation control
+			gyroP = 50000, -- Extremely high P for instant rotation
+			gyroD = 5000 -- High D for no rotation overshoot
 		}
 	}
 }

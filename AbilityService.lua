@@ -165,7 +165,7 @@ local function executeUpwardSlash(player)
 	humanoid.WalkSpeed = 0
 	humanoid.JumpPower = 0
 
-	-- Handle enemy state - Improved enemy control
+	-- Handle enemy state - Instant and complete freeze
 	if enemy and enemy.Character then
 		local enemyHumanoid = enemy.Character:FindFirstChild("Humanoid")
 		if enemyHumanoid then
@@ -175,16 +175,26 @@ local function executeUpwardSlash(player)
 			enemy:SetAttribute("OriginalJumpPower", enemyHumanoid.JumpPower)
 			enemy:SetAttribute("OriginalAutoRotate", enemyHumanoid.AutoRotate)
 			
-			-- Completely disable enemy movement
+			-- INSTANTLY disable enemy movement - no delays
 			enemyHumanoid.WalkSpeed = 0
 			enemyHumanoid.JumpPower = 0
 			enemyHumanoid.AutoRotate = false
 			
-			-- Disable any active animations
+			-- Immediately stop all animations for instant freeze
 			local animator = enemyHumanoid:FindFirstChildOfClass("Animator")
 			if animator then
 				for _, track in pairs(animator:GetPlayingAnimationTracks()) do
 					track:Stop()
+				end
+			end
+			
+			-- Also freeze any physics bodies for instant response
+			local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
+			if enemyRoot then
+				-- Clear any existing velocity for instant stop
+				local bodyVelocity = enemyRoot:FindFirstChild("BodyVelocity")
+				if bodyVelocity then
+					bodyVelocity:Destroy()
 				end
 			end
 		end

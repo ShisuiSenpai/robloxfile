@@ -9,33 +9,36 @@ This improved ability system addresses the timing and synchronization issues in 
 **Problem**: Animation started immediately but movement was delayed by 0.3s, creating a disconnect between visual and physical feedback.
 
 **Solution**: 
-- Reduced animation windup from 0.3s to 0.2s for more responsive feel
-- Added small 0.1s delay before movement starts to better match animation
-- VFX now plays immediately for better responsiveness
-- Improved easing function for smoother movement
+- **Instant Response**: Reduced animation windup from 0.3s to 0.05s for immediate response
+- **No Movement Delay**: Reduced start delay from 0.1s to 0.02s for instant movement
+- **Immediate VFX**: VFX plays instantly when ability is triggered
+- **Linear Movement**: Removed easing functions for snappy, direct movement
+- **Faster Phases**: Halved rise duration from 0.8s to 0.4s for much snappier ascent
 
 ### 2. Enemy Synchronization
 **Problem**: Enemy didn't match attacker's height and could still move during the ability.
 
 **Solution**:
 - **Perfect Height Sync**: Enemy now matches attacker's height exactly using `enemyTargetPos = Vector3.new(enemyTargetPos.X, height, enemyTargetPos.Z)`
-- **Complete Movement Freeze**: 
-  - Disabled `AutoRotate` on enemy humanoid
-  - Stopped all active animations
-  - Added stronger `BodyGyro` control for rotation
-  - Increased physics force values for better control
+- **Instant Movement Freeze**: 
+  - Disabled `AutoRotate` on enemy humanoid immediately
+  - Stopped all active animations instantly
+  - Added maximum `BodyGyro` control for instant rotation
+  - Increased physics force values to maximum for instant response
+  - Clear any existing velocity for instant stop
+- **Instant Rotation**: Enemy faces attacker immediately with no gradual tweening
 - **Immediate Release**: Enemy physics are removed immediately when damage is applied
 
 ### 3. Enhanced Physics Control
 **New Enemy Control Settings**:
 ```lua
 enemyControl = {
-    maxForce = Vector3.new(1e6, 1e6, 1e6), -- Stronger control
-    P = 30000, -- Higher P for more responsive control
-    D = 3000, -- Higher D for better damping
-    gyroMaxTorque = Vector3.new(1e6, 1e6, 1e6), -- Strong rotation control
-    gyroP = 5000,
-    gyroD = 1000
+    maxForce = Vector3.new(1e6, 1e6, 1e6), -- Maximum force
+    P = 100000, -- Extremely high P for instant positioning
+    D = 10000, -- High D for no overshoot
+    gyroMaxTorque = Vector3.new(1e6, 1e6, 1e6), -- Maximum rotation control
+    gyroP = 50000, -- Extremely high P for instant rotation
+    gyroD = 5000 -- High D for no rotation overshoot
 }
 ```
 
@@ -44,17 +47,26 @@ enemyControl = {
 ```lua
 vfxTiming = {
     jumpWind = 0, -- Immediate
-    slash1 = 0.1, -- Reduced delay for better sync
-    slash2 = 1.0, -- Slightly earlier for better timing
-    damagePoint = 1.65 -- Adjusted to match slash2 timing
+    slash1 = 0.05, -- Almost immediate slash
+    slash2 = 0.8, -- Earlier slash2
+    damagePoint = 1.2 -- Earlier damage point
 }
 ```
 
 **New Animation Timing**:
 ```lua
 animationTiming = {
-    windup = 0.2, -- Reduced windup for more responsive feel
-    startDelay = 0.1 -- Small delay before movement starts
+    windup = 0.05, -- Minimal windup for instant response
+    startDelay = 0.02 -- Almost no delay
+}
+```
+
+**Faster Movement Phases**:
+```lua
+phases = {
+    rise = {duration = 0.4, height = 20}, -- Halved duration for snappier ascent
+    hover = {duration = 0.8}, -- Slightly shorter hover
+    fall = {duration = 0.5} -- Faster fall
 }
 ```
 
