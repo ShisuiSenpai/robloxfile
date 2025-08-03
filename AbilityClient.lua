@@ -184,6 +184,30 @@ local function handleMovementSync(data)
 				rotationTween:Play()
 			end
 			
+			-- HOLD ENEMY AT PEAK FOR SPECIFIED DURATION
+			if config.enemyMovement.stayAtPeak then
+				local holdTime = config.enemyMovement.holdDuration
+				if config.enemyMovement.holdUntilDamage then
+					-- Hold until damage point
+					holdTime = config.vfxTiming.damagePoint
+				end
+				
+				-- Create a BodyPosition to hold enemy at peak
+				local enemyBodyPos = Instance.new("BodyPosition")
+				enemyBodyPos.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+				enemyBodyPos.P = 50000
+				enemyBodyPos.D = 5000
+				enemyBodyPos.Position = enemyPeakPos
+				enemyBodyPos.Parent = enemyRoot
+				
+				-- Store for cleanup
+				if activeSyncs[attacker] then
+					activeSyncs[attacker].enemyBodyPos = enemyBodyPos
+				end
+				
+				debug("Holding enemy at peak for", holdTime, "seconds")
+			end
+			
 			debug("Tweened enemy to peak height:", enemy.Name)
 		end
 	end
@@ -260,18 +284,26 @@ local function handleMovementSync(data)
 	debug("Started independent movement for", attacker.Name)
 	debug("Total ability duration:", AbilityConfig.GetAbilityDuration("UpwardSlash"), "seconds")
 	debug("Rise:", config.phases.rise.duration, "Hover:", config.phases.hover.duration, "Fall:", config.phases.fall.duration)
+	debug("Enemy hold duration:", config.enemyMovement.holdDuration, "Damage point:", config.vfxTiming.damagePoint)
 end
 
 -- Handle damage phase - enemy gets knocked back naturally
 local function handleDamagePhase(data)
 	local sync = activeSyncs[data.attacker]
 	if sync then
-		-- Enemy is already at peak height, server knockback will handle the rest
-		debug("Damage applied - enemy at peak height, knockback will handle movement")
+		-- Remove enemy physics so they can be knocked back naturally
+		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
+			sync.enemyBodyPos:Destroy()
+			sync.enemyBodyPos = nil
+			debug("Removed enemy physics for knockback")
+		end
+		
+		-- Enemy is now free to be knocked back by server
+		debug("Damage applied - enemy released for knockback")
 	end
 end
 
--- Cleanup sync - simplified
+-- Cleanup sync - handle enemy physics
 local function cleanupSync(data)
 	local sync = activeSyncs[data.attacker]
 	if not sync then return end
@@ -282,6 +314,11 @@ local function cleanupSync(data)
 
 	if sync.animationTrack then
 		sync.animationTrack:Stop()
+	end
+
+	-- Clean up enemy physics
+	if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
+		sync.enemyBodyPos:Destroy()
 	end
 
 	activeSyncs[data.attacker] = nil
@@ -357,6 +394,9 @@ player.CharacterAdded:Connect(function(newChar)
 	for _, sync in pairs(activeSyncs) do
 		if sync.connection then
 			sync.connection:Disconnect()
+		end
+		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
+			sync.enemyBodyPos:Destroy()
 		end
 	end
 	activeSyncs = {}

@@ -201,8 +201,10 @@ local function executeUpwardSlash(player)
 		end
 	end
 
-	-- Schedule damage at the exact damage point
-	task.delay(config.vfxTiming.damagePoint, function()
+	-- Schedule damage at the exact damage point from config
+	local damageDelay = config.vfxTiming.damagePoint
+	debug("Scheduling damage in", damageDelay, "seconds")
+	task.delay(damageDelay, function()
 		if enemy and enemy.Character then
 			local enemyHumanoid = enemy.Character:FindFirstChild("Humanoid")
 			local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
