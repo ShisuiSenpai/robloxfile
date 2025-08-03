@@ -277,6 +277,40 @@ local function executeUpwardSlash(player)
 					child:Destroy()
 				end
 			end
+			
+			-- SERVER-SIDE ENEMY MOVEMENT
+			-- Calculate target position
+			local attackerStartPos = rootPart.Position
+			local peakHeight = attackerStartPos.Y + config.enemyMovement.peakHeight
+			local attackerCFrame = CFrame.new(attackerStartPos, attackerStartPos + rootPart.CFrame.LookVector)
+			local enemyPeakPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
+			enemyPeakPos = Vector3.new(enemyPeakPos.X, peakHeight, enemyPeakPos.Z)
+			
+			-- Apply BodyPosition to move enemy
+			local bodyPosition = Instance.new("BodyPosition")
+			bodyPosition.MaxForce = Vector3.new(4e4, 4e4, 4e4)
+			bodyPosition.P = 20000
+			bodyPosition.D = 1000
+			bodyPosition.Position = enemyPeakPos
+			bodyPosition.Parent = enemyRoot
+			
+			-- Apply BodyGyro to face attacker
+			local lookDirection = (attackerStartPos - enemyPeakPos) * Vector3.new(1, 0, 1)
+			if lookDirection.Magnitude > 0 then
+				local bodyGyro = Instance.new("BodyGyro")
+				bodyGyro.MaxTorque = Vector3.new(0, 4e4, 0)
+				bodyGyro.P = 10000
+				bodyGyro.D = 500
+				bodyGyro.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+				bodyGyro.Parent = enemyRoot
+				
+				-- Store for cleanup
+				abilityData.enemyBodyGyro = bodyGyro
+			end
+			
+			-- Store for cleanup
+			abilityData.enemyBodyPosition = bodyPosition
+			abilityData.enemyRoot = enemyRoot
 		end
 	end
 
@@ -309,6 +343,16 @@ local function executeUpwardSlash(player)
 				local damage = math.random(config.damage.min, config.damage.max)
 				enemyHumanoid:TakeDamage(damage)
 
+				-- Remove physics constraints before applying knockback
+				if abilityData.enemyBodyPosition and abilityData.enemyBodyPosition.Parent then
+					abilityData.enemyBodyPosition:Destroy()
+					abilityData.enemyBodyPosition = nil
+				end
+				if abilityData.enemyBodyGyro and abilityData.enemyBodyGyro.Parent then
+					abilityData.enemyBodyGyro:Destroy()
+					abilityData.enemyBodyGyro = nil
+				end
+				
 				-- Apply knockback
 				local knockbackDirection = (enemyRoot.Position - rootPart.Position).Unit
 				if knockbackDirection.Magnitude == 0 then
@@ -357,6 +401,14 @@ local function executeUpwardSlash(player)
 			humanoid.AutoRotate = abilityData.originalAutoRotate
 		end
 
+		-- Clean up physics objects if they still exist
+		if abilityData.enemyBodyPosition and abilityData.enemyBodyPosition.Parent then
+			abilityData.enemyBodyPosition:Destroy()
+		end
+		if abilityData.enemyBodyGyro and abilityData.enemyBodyGyro.Parent then
+			abilityData.enemyBodyGyro:Destroy()
+		end
+		
 		-- Restore enemy state if not already released
 		if enemy and enemy.Character and enemy:GetAttribute("BeingGrabbed") then
 			restoreEnemyState(enemy)
