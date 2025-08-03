@@ -138,9 +138,11 @@ local function handleMovementSync(data)
 		connection = nil,
 		animationTrack = nil,
 		attackerStartPos = attackerRoot.Position,
+		attackerStartRotation = attackerRoot.CFrame.Rotation,
 		enemyStartPos = nil,
 		enemyBodyPos = nil,
-		enemyBodyGyro = nil
+		enemyBodyGyro = nil,
+		enemyMoveConnection = nil
 	}
 
 	-- Play animation immediately
@@ -206,54 +208,81 @@ local function handleMovementSync(data)
 			local enemyPeakPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
 			enemyPeakPos = Vector3.new(enemyPeakPos.X, peakHeight, enemyPeakPos.Z)
 
-			-- Tween enemy to peak
-			local tweenInfo = TweenInfo.new(
-				config.enemyMovement.tweenDuration,
-				Enum.EasingStyle.Quad,
-				Enum.EasingDirection.Out
-			)
-
-			local enemyTween = TweenService:Create(enemyRoot, tweenInfo, {
-				CFrame = CFrame.new(enemyPeakPos)
-			})
-			enemyTween:Play()
-
-			-- Make enemy face attacker continuously
+			-- Calculate look direction for facing
 			local lookDirection = (attackerStartPos - enemyPeakPos) * Vector3.new(1, 0, 1)
-			if lookDirection.Magnitude > 0 then
-				-- Initial rotation
-				local rotationTween = TweenService:Create(enemyRoot, tweenInfo, {
-					CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
-				})
-				rotationTween:Play()
-			end
-
-			-- Hold enemy at peak if configured
+			
+			-- IMMEDIATELY apply physics constraints to prevent drop
 			if config.enemyMovement.stayAtPeak then
-				task.delay(config.enemyMovement.tweenDuration, function()
-					if enemyRoot and enemyRoot.Parent and activeSyncs[attacker] then
-						local enemyBodyPos = Instance.new("BodyPosition")
-						enemyBodyPos.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-						enemyBodyPos.P = 50000
-						enemyBodyPos.D = 5000
+				-- Create BodyPosition immediately but with dynamic target
+				local enemyBodyPos = Instance.new("BodyPosition")
+				enemyBodyPos.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+				enemyBodyPos.P = 50000
+				enemyBodyPos.D = 5000
+				enemyBodyPos.Position = enemyRoot.Position -- Start at current position
+				enemyBodyPos.Parent = enemyRoot
+				
+				-- Create BodyGyro for rotation
+				local bodyGyro = Instance.new("BodyGyro")
+				bodyGyro.MaxTorque = Vector3.new(0, 1e6, 0) -- Only Y-axis rotation
+				bodyGyro.P = 10000
+				bodyGyro.D = 500
+				if lookDirection.Magnitude > 0 then
+					bodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
+				end
+				bodyGyro.Parent = enemyRoot
+				
+				-- Store for cleanup
+				activeSyncs[attacker].enemyBodyPos = enemyBodyPos
+				activeSyncs[attacker].enemyBodyGyro = bodyGyro
+				
+				-- Smoothly move to peak position using BodyPosition
+				local startTime = tick()
+				local moveConnection
+				moveConnection = RunService.Heartbeat:Connect(function()
+					local elapsed = tick() - startTime
+					local progress = math.min(elapsed / config.enemyMovement.tweenDuration, 1)
+					
+					-- Quad easing out
+					local eased = 1 - (1 - progress) ^ 2
+					
+					-- Interpolate position
+					local currentPos = enemyStartPos:Lerp(enemyPeakPos, eased)
+					enemyBodyPos.Position = currentPos
+					
+					-- Update rotation
+					if lookDirection.Magnitude > 0 then
+						bodyGyro.CFrame = CFrame.lookAt(currentPos, currentPos + lookDirection)
+					end
+					
+					-- Stop when complete
+					if progress >= 1 then
+						moveConnection:Disconnect()
 						enemyBodyPos.Position = enemyPeakPos
-						enemyBodyPos.Parent = enemyRoot
-
-						-- Store for cleanup
-						activeSyncs[attacker].enemyBodyPos = enemyBodyPos
-						
-						-- Add BodyGyro to maintain facing direction
-						local bodyGyro = Instance.new("BodyGyro")
-						bodyGyro.MaxTorque = Vector3.new(0, 1e6, 0) -- Only Y-axis rotation
-						bodyGyro.P = 10000
-						bodyGyro.D = 500
-						bodyGyro.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
-						bodyGyro.Parent = enemyRoot
-						
-						activeSyncs[attacker].enemyBodyGyro = bodyGyro
-						debug("Holding enemy at peak with facing lock")
+						if lookDirection.Magnitude > 0 then
+							bodyGyro.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+						end
+						debug("Enemy reached peak position")
 					end
 				end)
+				
+				-- Store connection for cleanup
+				activeSyncs[attacker].enemyMoveConnection = moveConnection
+			else
+				-- If not staying at peak, use regular tween
+				local tweenInfo = TweenInfo.new(
+					config.enemyMovement.tweenDuration,
+					Enum.EasingStyle.Quad,
+					Enum.EasingDirection.Out
+				)
+
+				local targetCFrame = lookDirection.Magnitude > 0 
+					and CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+					or CFrame.new(enemyPeakPos)
+
+				local enemyTween = TweenService:Create(enemyRoot, tweenInfo, {
+					CFrame = targetCFrame
+				})
+				enemyTween:Play()
 			end
 		end
 	end
@@ -283,13 +312,13 @@ local function handleMovementSync(data)
 			local eased = 1 - (1 - progress) ^ 2
 			local height = attackerStartPos.Y + (config.phases.rise.height * eased)
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, height, attackerStartPos.Z) 
-			                      * attackerRoot.CFrame.Rotation
+			                      * activeSyncs[attacker].attackerStartRotation
 
 		elseif elapsed <= phaseEndTimes.hover then
 			-- Hovering phase
 			local peakHeight = attackerStartPos.Y + config.phases.rise.height
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, peakHeight, attackerStartPos.Z)
-			                      * attackerRoot.CFrame.Rotation
+			                      * activeSyncs[attacker].attackerStartRotation
 
 		elseif elapsed <= phaseEndTimes.fall then
 			-- Falling phase
@@ -298,7 +327,7 @@ local function handleMovementSync(data)
 			local peakHeight = attackerStartPos.Y + config.phases.rise.height
 			local fallHeight = peakHeight - (config.phases.rise.height * fallEased)
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, fallHeight, attackerStartPos.Z)
-			                      * attackerRoot.CFrame.Rotation
+			                      * activeSyncs[attacker].attackerStartRotation
 
 		else
 			-- Ability complete
@@ -342,6 +371,11 @@ local function cleanupSync(data)
 	-- Disconnect movement
 	if sync.connection then
 		sync.connection:Disconnect()
+	end
+	
+	-- Disconnect enemy movement
+	if sync.enemyMoveConnection then
+		sync.enemyMoveConnection:Disconnect()
 	end
 
 	-- Stop animation
@@ -448,6 +482,9 @@ local function onCharacterAdded(newChar)
 		if sync.connection then
 			sync.connection:Disconnect()
 		end
+		if sync.enemyMoveConnection then
+			sync.enemyMoveConnection:Disconnect()
+		end
 		if sync.animationTrack then
 			sync.animationTrack:Stop()
 		end
@@ -476,6 +513,9 @@ game.Players.PlayerRemoving:Connect(function(leavingPlayer)
 	if sync then
 		if sync.connection then
 			sync.connection:Disconnect()
+		end
+		if sync.enemyMoveConnection then
+			sync.enemyMoveConnection:Disconnect()
 		end
 		if sync.animationTrack then
 			sync.animationTrack:Stop()
