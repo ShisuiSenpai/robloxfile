@@ -380,7 +380,25 @@ local function executeUpwardSlash(player)
 			if enemyHumanoid and enemyRoot and enemyHumanoid.Health > 0 then
 				-- Calculate damage
 				local damage = math.random(config.damage.min, config.damage.max)
-				enemyHumanoid:TakeDamage(damage)
+				
+				-- Use your combat system's HealthValue instead of Humanoid health
+				local healthValue = enemy.Character:FindFirstChild("HealthValue")
+				local percentValue = enemy.Character:FindFirstChild("PercentValue")
+				
+				if healthValue and percentValue then
+					-- Apply damage to HealthValue (your system)
+					healthValue.Value = math.max(0, healthValue.Value - damage)
+					
+					-- Get current percentage for knockback scaling
+					local percentageManager = require(script.Parent.ServerCombat:FindFirstChild("PercentageManager"))
+					local currentPercent = percentageManager and percentageManager.GetPercentFromHealth(enemy.Character) or 0
+					
+					debug("Applied", damage, "damage to", enemy.Name, "- now at", currentPercent, "%")
+				else
+					-- Fallback to default damage if combat system not initialized
+					enemyHumanoid:TakeDamage(damage)
+					debug("Applied", damage, "damage to", enemy.Name, "(fallback method)")
+				end
 
 				-- Remove physics constraints before applying knockback
 				if abilityData.enemyBodyPosition and abilityData.enemyBodyPosition.Parent then
@@ -392,19 +410,38 @@ local function executeUpwardSlash(player)
 					abilityData.enemyBodyGyro = nil
 				end
 				
-				-- Apply knockback
-				local knockbackDirection = (enemyRoot.Position - rootPart.Position).Unit
-				if knockbackDirection.Magnitude == 0 then
-					knockbackDirection = rootPart.CFrame.LookVector
+				-- Use your RagdollModule for knockback instead of BodyVelocity
+				local ragdollModule = require(script.Parent.ServerCombat:FindFirstChild("RagdollModule"))
+				if ragdollModule then
+					-- Calculate knockback force with your system's scaling
+					local percentForKnockback = percentValue and percentValue.Value or 0
+					local scaledPercent = math.clamp(percentForKnockback, 0, 400)
+					
+					-- Scale knockback based on percentage (similar to your combat system)
+					local baseForce = config.knockback.force
+					local scaledForce = baseForce * (1 + (scaledPercent / 200)) -- Scale up to 3x at 400%
+					
+					local knockbackDirection = (enemyRoot.Position - rootPart.Position).Unit
+					if knockbackDirection.Magnitude == 0 then
+						knockbackDirection = rootPart.CFrame.LookVector
+					end
+					
+					local knockbackVector = (knockbackDirection * scaledForce) + 
+					                       Vector3.new(0, config.knockback.upwardBoost, 0)
+					
+					-- Use your knockback system
+					ragdollModule.Knockback(enemy, knockbackVector, true, config.knockback.duration, player)
+					
+					debug("Applied knockback with force:", scaledForce, "to", enemy.Name)
+				else
+					-- Fallback to simple knockback
+					local knockback = Instance.new("BodyVelocity")
+					knockback.MaxForce = Vector3.new(4e4, 4e4, 4e4)
+					knockback.Velocity = (knockbackDirection * config.knockback.force) + 
+					                    Vector3.new(0, config.knockback.upwardBoost, 0)
+					knockback.Parent = enemyRoot
+					Debris:AddItem(knockback, config.knockback.duration)
 				end
-
-				local knockback = Instance.new("BodyVelocity")
-				knockback.MaxForce = Vector3.new(4e4, 4e4, 4e4)
-				knockback.Velocity = (knockbackDirection * config.knockback.force) + 
-				                    Vector3.new(0, config.knockback.upwardBoost, 0)
-				knockback.Parent = enemyRoot
-
-				Debris:AddItem(knockback, config.knockback.duration)
 
 				debug("Applied", damage, "damage to", enemy.Name)
 

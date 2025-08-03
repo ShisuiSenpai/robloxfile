@@ -278,6 +278,24 @@ end
 local function handleDamagePhase(data)
 	-- Server handles physics removal now
 	debug("Damage phase - enemy released for knockback")
+	
+	-- Apply hit effects using your combat framework
+	if data.enemy and data.enemy.Character then
+		local combatFramework = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("CombatFramework"))
+		if combatFramework then
+			-- Create a temporary instance to use ApplyHitEffects
+			local tempCombat = combatFramework.new(player.Character)
+			if tempCombat and tempCombat.ApplyHitEffects then
+				tempCombat:ApplyHitEffects(data.enemy.Character)
+			end
+		end
+		
+		-- Fire the hit player remote for other visual effects
+		local hitPlayerRemote = remotes:FindFirstChild("HitPlayer")
+		if hitPlayerRemote then
+			hitPlayerRemote:FireServer(data.enemy.Character)
+		end
+	end
 end
 
 -- Cleanup sync with proper error handling
