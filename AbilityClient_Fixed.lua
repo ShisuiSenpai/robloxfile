@@ -156,12 +156,21 @@ local function handleMovementSync(data)
 		local animation = Instance.new("Animation")
 		animation.AnimationId = config.animationId
 
-		animationTrack = animator:LoadAnimation(animation)
-		animationTrack.Priority = config.animationPriority
+		-- Safely load animation with pcall to catch errors
+		local success, result = pcall(function()
+			return animator:LoadAnimation(animation)
+		end)
 		
-		-- Apply animation timing
-		task.wait(config.animationTiming.windup)
-		animationTrack:Play()
+		if success and result then
+			animationTrack = result
+			animationTrack.Priority = config.animationPriority
+			
+			-- Apply animation timing
+			task.wait(config.animationTiming.windup)
+			animationTrack:Play()
+		else
+			debug("Failed to load animation:", config.animationId)
+		end
 		
 		activeSyncs[attacker].animationTrack = animationTrack
 		debug("Playing animation for", attacker.Name)

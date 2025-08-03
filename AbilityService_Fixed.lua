@@ -195,11 +195,17 @@ local function restoreEnemyState(enemy)
 	local platformStand = enemy:GetAttribute("OriginalPlatformStand")
 	humanoid.PlatformStand = platformStand == true -- Default to false if nil
 	
-	-- Re-enable Animate script
-	local animateScript = enemy.Character and enemy.Character:FindFirstChild("Animate")
-	if animateScript then
-		animateScript.Disabled = false
+	-- Re-enable Movement script if we disabled it
+	if enemy:GetAttribute("MovementScriptDisabled") then
+		local movementScript = enemy.Character and enemy.Character:FindFirstChild("Movement")
+		if movementScript then
+			movementScript.Enabled = true
+		end
+		enemy:SetAttribute("MovementScriptDisabled", nil)
 	end
+	
+	-- Clear idle animation disable flag
+	enemy:SetAttribute("DisableIdleAnimations", nil)
 	
 	-- Clear attributes
 	enemy:SetAttribute("BeingGrabbed", false)
@@ -274,7 +280,15 @@ local function executeUpwardSlash(player)
 			enemyHumanoid.JumpHeight = 0
 			enemyHumanoid.AutoRotate = false
 
-			-- Stop all animations immediately
+						-- Stop all animations using your animation system
+			local animationHandler = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("AnimationHandler"))
+			
+			-- Stop all animations on the enemy using your AnimationHandler
+			if animationHandler and animationHandler.StopAll then
+				animationHandler.StopAll(enemy.Character)
+			end
+			
+			-- Also stop any remaining tracks the traditional way as backup
 			local animator = enemyHumanoid:FindFirstChildOfClass("Animator")
 			if animator then
 				for _, track in pairs(animator:GetPlayingAnimationTracks()) do
@@ -282,14 +296,19 @@ local function executeUpwardSlash(player)
 				end
 			end
 			
-						-- Set PlatformStand to prevent movement animations
+			-- Set PlatformStand to prevent movement
 			enemyHumanoid.PlatformStand = true
 			
-			-- Disable Animate script to prevent any animation playback
-			local animateScript = enemy.Character:FindFirstChild("Animate")
-			if animateScript then
-				animateScript.Disabled = true
+			-- Disable the movement framework for this character
+			-- Find and disable the Movement script in the enemy's character
+			local movementScript = enemy.Character:FindFirstChild("Movement")
+			if movementScript then
+				movementScript.Enabled = false
+				enemy:SetAttribute("MovementScriptDisabled", true)
 			end
+			
+			-- Set attribute to signal IdleScript to stop (since it's in PlayerScripts)
+			enemy:SetAttribute("DisableIdleAnimations", true)
 			
 			-- Clear physics bodies
 			for _, child in pairs(enemyRoot:GetChildren()) do
