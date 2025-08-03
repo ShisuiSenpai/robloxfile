@@ -23,7 +23,7 @@ AbilityConfig.Abilities = {
 		phases = {
 			rise = {duration = 0.6, height = 25}, -- Slower rise for better timing
 			hover = {duration = 1.2}, -- Longer hover for slash completion
-			fall = {duration = 0.5} -- Moderate fall
+			fall = {duration = 0.8} -- Slower, more natural fall
 		},
 
 		-- Combat
@@ -40,7 +40,7 @@ AbilityConfig.Abilities = {
 		-- VFX Timing - ADJUSTABLE TIMING
 		vfxTiming = {
 			jumpWind = 0, -- Immediate
-			slash1 = 0.2, -- Slash1 timing
+			slash1 = 0.15, -- Earlier slash1 for better timing
 			slash2 = 0.8, -- Slash2 timing (after rise completes)
 			damagePoint = 1.0 -- Damage point (after slash2)
 		},
@@ -51,12 +51,12 @@ AbilityConfig.Abilities = {
 			startDelay = 0.02 -- Small delay
 		},
 
-		-- Enemy movement settings - ADJUSTABLE
+		-- Enemy movement settings - SYNCED WITH ATTACKER
 		enemyMovement = {
-			useTween = true, -- Use TweenService for smooth movement
-			tweenDuration = 0.4, -- How fast enemy moves to peak
+			syncWithAttacker = true, -- Enemy follows attacker's position
 			stayAtPeak = true, -- Enemy stays at peak until damage
-			peakHeight = 25 -- Same as attacker peak height
+			peakHeight = 25, -- Same as attacker peak height
+			reactToSlash = true -- Enemy reacts to slash moment
 		}
 	}
 }
