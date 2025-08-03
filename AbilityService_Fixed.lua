@@ -174,6 +174,7 @@ local function storeEnemyState(enemy)
 	enemy:SetAttribute("OriginalJumpPower", humanoid.JumpPower)
 	enemy:SetAttribute("OriginalJumpHeight", humanoid.JumpHeight)
 	enemy:SetAttribute("OriginalAutoRotate", humanoid.AutoRotate)
+	enemy:SetAttribute("OriginalPlatformStand", humanoid.PlatformStand)
 end
 
 -- Restore enemy state
@@ -191,12 +192,22 @@ local function restoreEnemyState(enemy)
 	local autoRotate = enemy:GetAttribute("OriginalAutoRotate")
 	humanoid.AutoRotate = autoRotate ~= false -- Default to true if nil
 	
+	local platformStand = enemy:GetAttribute("OriginalPlatformStand")
+	humanoid.PlatformStand = platformStand == true -- Default to false if nil
+	
+	-- Re-enable Animate script
+	local animateScript = enemy.Character and enemy.Character:FindFirstChild("Animate")
+	if animateScript then
+		animateScript.Disabled = false
+	end
+	
 	-- Clear attributes
 	enemy:SetAttribute("BeingGrabbed", false)
 	enemy:SetAttribute("OriginalWalkSpeed", nil)
 	enemy:SetAttribute("OriginalJumpPower", nil)
 	enemy:SetAttribute("OriginalJumpHeight", nil)
 	enemy:SetAttribute("OriginalAutoRotate", nil)
+	enemy:SetAttribute("OriginalPlatformStand", nil)
 end
 
 -- Execute Upward Slash with improved safety
@@ -263,14 +274,23 @@ local function executeUpwardSlash(player)
 			enemyHumanoid.JumpHeight = 0
 			enemyHumanoid.AutoRotate = false
 
-			-- Stop all animations
+			-- Stop all animations immediately
 			local animator = enemyHumanoid:FindFirstChildOfClass("Animator")
 			if animator then
 				for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-					track:Stop()
+					track:Stop(0) -- Stop immediately with 0 fade time
 				end
 			end
-
+			
+						-- Set PlatformStand to prevent movement animations
+			enemyHumanoid.PlatformStand = true
+			
+			-- Disable Animate script to prevent any animation playback
+			local animateScript = enemy.Character:FindFirstChild("Animate")
+			if animateScript then
+				animateScript.Disabled = true
+			end
+			
 			-- Clear physics bodies
 			for _, child in pairs(enemyRoot:GetChildren()) do
 				if child:IsA("BodyVelocity") or child:IsA("BodyPosition") or child:IsA("BodyGyro") then
