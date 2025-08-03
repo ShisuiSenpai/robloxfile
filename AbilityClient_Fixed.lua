@@ -139,7 +139,8 @@ local function handleMovementSync(data)
 		animationTrack = nil,
 		attackerStartPos = attackerRoot.Position,
 		enemyStartPos = nil,
-		enemyBodyPos = nil
+		enemyBodyPos = nil,
+		enemyBodyGyro = nil
 	}
 
 	-- Play animation immediately
@@ -217,14 +218,14 @@ local function handleMovementSync(data)
 			})
 			enemyTween:Play()
 
-			-- Make enemy face attacker
+			-- Make enemy face attacker continuously
 			local lookDirection = (attackerStartPos - enemyPeakPos) * Vector3.new(1, 0, 1)
 			if lookDirection.Magnitude > 0 then
-				task.delay(config.enemyMovement.tweenDuration * 0.5, function()
-					if enemyRoot and enemyRoot.Parent then
-						enemyRoot.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
-					end
-				end)
+				-- Initial rotation
+				local rotationTween = TweenService:Create(enemyRoot, tweenInfo, {
+					CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+				})
+				rotationTween:Play()
 			end
 
 			-- Hold enemy at peak if configured
@@ -240,7 +241,17 @@ local function handleMovementSync(data)
 
 						-- Store for cleanup
 						activeSyncs[attacker].enemyBodyPos = enemyBodyPos
-						debug("Holding enemy at peak")
+						
+						-- Add BodyGyro to maintain facing direction
+						local bodyGyro = Instance.new("BodyGyro")
+						bodyGyro.MaxTorque = Vector3.new(0, 1e6, 0) -- Only Y-axis rotation
+						bodyGyro.P = 10000
+						bodyGyro.D = 500
+						bodyGyro.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+						bodyGyro.Parent = enemyRoot
+						
+						activeSyncs[attacker].enemyBodyGyro = bodyGyro
+						debug("Holding enemy at peak with facing lock")
 					end
 				end)
 			end
@@ -309,9 +320,16 @@ end
 -- Handle damage phase
 local function handleDamagePhase(data)
 	local sync = activeSyncs[data.attacker]
-	if sync and sync.enemyBodyPos and sync.enemyBodyPos.Parent then
-		sync.enemyBodyPos:Destroy()
-		sync.enemyBodyPos = nil
+	if sync then
+		-- Remove physics constraints
+		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
+			sync.enemyBodyPos:Destroy()
+			sync.enemyBodyPos = nil
+		end
+		if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
+			sync.enemyBodyGyro:Destroy()
+			sync.enemyBodyGyro = nil
+		end
 		debug("Released enemy for knockback")
 	end
 end
@@ -334,6 +352,9 @@ local function cleanupSync(data)
 	-- Clean up enemy physics
 	if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
 		sync.enemyBodyPos:Destroy()
+	end
+	if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
+		sync.enemyBodyGyro:Destroy()
 	end
 
 	activeSyncs[data.attacker] = nil
@@ -433,6 +454,9 @@ local function onCharacterAdded(newChar)
 		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
 			sync.enemyBodyPos:Destroy()
 		end
+		if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
+			sync.enemyBodyGyro:Destroy()
+		end
 	end
 	activeSyncs = {}
 
@@ -458,6 +482,9 @@ game.Players.PlayerRemoving:Connect(function(leavingPlayer)
 		end
 		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
 			sync.enemyBodyPos:Destroy()
+		end
+		if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
+			sync.enemyBodyGyro:Destroy()
 		end
 		activeSyncs[leavingPlayer] = nil
 	end

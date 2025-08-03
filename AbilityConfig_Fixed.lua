@@ -40,8 +40,8 @@ AbilityConfig.Abilities = {
 		-- VFX Timing - ADJUSTABLE TIMING
 		vfxTiming = {
 			jumpWind = 0, -- Immediate
-			slash1 = 0.15, -- Earlier slash1 for better timing
-			slash2 = 0.8, -- Slash2 timing (after rise completes)
+			slash1 = 0.09, -- Earlier slash1 for better timing
+			slash2 = 1.25, -- Slash2 timing (after rise completes)
 			damagePoint = 1.0 -- Damage point (after slash2)
 		},
 
@@ -59,7 +59,7 @@ AbilityConfig.Abilities = {
 			peakHeight = 25, -- Same as attacker peak height
 			releaseAfterDamage = true, -- Release enemy after damage is applied
 			holdUntilDamage = true, -- Keep enemy frozen until damage moment
-			holdDuration = 1.0 -- How long enemy stays at peak (1.0 = until damage)
+			holdDuration = 1.5 -- How long enemy stays at peak (1.0 = until damage)
 		}
 	}
 }

@@ -227,11 +227,13 @@ local function executeUpwardSlash(player)
 	local originalWalkSpeed = humanoid.WalkSpeed
 	local originalJumpPower = humanoid.JumpPower
 	local originalJumpHeight = humanoid.JumpHeight
+	local originalAutoRotate = humanoid.AutoRotate
 
-	-- Disable attacker movement
+	-- Disable attacker movement and rotation
 	humanoid.WalkSpeed = 0
 	humanoid.JumpPower = 0
 	humanoid.JumpHeight = 0
+	humanoid.AutoRotate = false -- Lock orientation
 
 	-- Create ability data with cleanup function
 	local abilityData = {
@@ -240,7 +242,8 @@ local function executeUpwardSlash(player)
 		startTime = tick(),
 		originalWalkSpeed = originalWalkSpeed,
 		originalJumpPower = originalJumpPower,
-		originalJumpHeight = originalJumpHeight
+		originalJumpHeight = originalJumpHeight,
+		originalAutoRotate = originalAutoRotate
 	}
 
 	-- Handle enemy state
@@ -351,6 +354,7 @@ local function executeUpwardSlash(player)
 			humanoid.WalkSpeed = abilityData.originalWalkSpeed
 			humanoid.JumpPower = abilityData.originalJumpPower
 			humanoid.JumpHeight = abilityData.originalJumpHeight
+			humanoid.AutoRotate = abilityData.originalAutoRotate
 		end
 
 		-- Restore enemy state if not already released
