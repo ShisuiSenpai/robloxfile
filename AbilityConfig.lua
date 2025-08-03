@@ -19,11 +19,11 @@ AbilityConfig.Abilities = {
 		animationId = "rbxassetid://126685859180940",
 		animationPriority = Enum.AnimationPriority.Action4,
 
-		-- Movement phases (in seconds) - Instant and snappy
+		-- Movement phases (in seconds) - ADJUSTABLE TIMING
 		phases = {
-			rise = {duration = 0.3, height = 25}, -- Fast rise with higher height
-			hover = {duration = 0.6}, -- Shorter hover
-			fall = {duration = 0.4} -- Fast fall
+			rise = {duration = 0.6, height = 25}, -- Slower rise for better timing
+			hover = {duration = 1.2}, -- Longer hover for slash completion
+			fall = {duration = 0.5} -- Moderate fall
 		},
 
 		-- Combat
@@ -37,25 +37,26 @@ AbilityConfig.Abilities = {
 		-- Enemy positioning - Adjusted for better sync
 		enemyOffset = Vector3.new(0, 0, -5), -- 5 studs in front
 
-		-- VFX Timing - Immediate and snappy
+		-- VFX Timing - ADJUSTABLE TIMING
 		vfxTiming = {
 			jumpWind = 0, -- Immediate
-			slash1 = 0.1, -- Quick slash
-			slash2 = 0.6, -- Earlier slash2
-			damagePoint = 0.9 -- Earlier damage point
+			slash1 = 0.2, -- Slash1 timing
+			slash2 = 0.8, -- Slash2 timing (after rise completes)
+			damagePoint = 1.0 -- Damage point (after slash2)
 		},
 
-		-- Animation timing - Instant response
+		-- Animation timing - ADJUSTABLE TIMING
 		animationTiming = {
-			windup = 0.02, -- Almost no windup
-			startDelay = 0.01 -- Minimal delay
+			windup = 0.05, -- Small windup
+			startDelay = 0.02 -- Small delay
 		},
 
-		-- Direct CFrame movement settings (no BodyPosition)
-		movementSettings = {
-			useDirectCFrame = true, -- Use direct CFrame manipulation
-			teleportEnemy = true, -- Teleport enemy to peak height immediately
-			smoothAttacker = false -- No smoothing for attacker - direct movement
+		-- Enemy movement settings - ADJUSTABLE
+		enemyMovement = {
+			useTween = true, -- Use TweenService for smooth movement
+			tweenDuration = 0.4, -- How fast enemy moves to peak
+			stayAtPeak = true, -- Enemy stays at peak until damage
+			peakHeight = 25 -- Same as attacker peak height
 		}
 	}
 }

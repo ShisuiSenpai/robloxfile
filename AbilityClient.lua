@@ -105,7 +105,7 @@ local function playSlashVFX(rootPart)
 	debug("Played slash VFX")
 end
 
--- COMPLETELY NEW: Direct CFrame movement handler for instant, snappy movement
+-- IMPROVED: Smooth movement with independent enemy positioning
 local function handleMovementSync(data)
 	local config = AbilityConfig.Abilities[data.ability]
 	if not config then return end
@@ -139,44 +139,56 @@ local function handleMovementSync(data)
 	-- Play VFX immediately
 	playJumpWindVFX(attackerRoot.Position)
 
-	-- Schedule slash VFX
+	-- Schedule slash VFX with proper timing
 	task.delay(config.vfxTiming.slash1, function()
 		if attackerRoot and attackerRoot.Parent then
 			playSlashVFX(attackerRoot)
 		end
 	end)
 
-	-- Minimal delay for instant response
+	-- Small delay for smooth start
 	task.wait(config.animationTiming.startDelay)
 
 	-- STORE ORIGINAL POSITIONS
 	local attackerStartPos = attackerRoot.Position
 	local enemyStartPos = enemy and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") and enemy.Character.HumanoidRootPart.Position or nil
 
-	-- TELEPORT ENEMY TO PEAK HEIGHT IMMEDIATELY
-	if enemy and enemy.Character and config.movementSettings.teleportEnemy then
+	-- MOVE ENEMY TO PEAK HEIGHT USING TWEEN
+	if enemy and enemy.Character and config.enemyMovement.useTween then
 		local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
 		if enemyRoot then
 			-- Calculate peak position for enemy
-			local peakHeight = attackerStartPos.Y + config.phases.rise.height
+			local peakHeight = attackerStartPos.Y + config.enemyMovement.peakHeight
 			local attackerCFrame = CFrame.new(attackerStartPos, attackerStartPos + attackerRoot.CFrame.LookVector)
 			local enemyPeakPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
 			enemyPeakPos = Vector3.new(enemyPeakPos.X, peakHeight, enemyPeakPos.Z)
 			
-			-- TELEPORT ENEMY TO PEAK HEIGHT
-			enemyRoot.CFrame = CFrame.new(enemyPeakPos)
+			-- Tween enemy to peak height
+			local tweenInfo = TweenInfo.new(
+				config.enemyMovement.tweenDuration, -- Duration
+				Enum.EasingStyle.Quad, -- Easing style
+				Enum.EasingDirection.Out -- Easing direction
+			)
 			
-			-- Make enemy face attacker instantly
+			local tween = TweenService:Create(enemyRoot, tweenInfo, {
+				CFrame = CFrame.new(enemyPeakPos)
+			})
+			tween:Play()
+			
+			-- Make enemy face attacker
 			local lookDirection = (attackerStartPos - enemyPeakPos) * Vector3.new(1, 0, 1)
 			if lookDirection.Magnitude > 0 then
-				enemyRoot.CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+				local rotationTween = TweenService:Create(enemyRoot, tweenInfo, {
+					CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+				})
+				rotationTween:Play()
 			end
 			
-			debug("TELEPORTED enemy to peak height:", enemy.Name)
+			debug("Tweened enemy to peak height:", enemy.Name)
 		end
 	end
 
-	-- Movement sequence using direct CFrame manipulation
+	-- Movement sequence for attacker
 	local startTime = workspace:GetServerTimeNow() - config.animationTiming.startDelay
 
 	local connection
@@ -188,11 +200,13 @@ local function handleMovementSync(data)
 		local hoverEnd = riseEnd + config.phases.hover.duration
 
 		if elapsed <= riseEnd then
-			-- Rising phase - direct CFrame movement
+			-- Rising phase - smooth movement
 			local progress = elapsed / config.phases.rise.duration
-			local height = attackerStartPos.Y + (config.phases.rise.height * progress)
+			-- Use easing for smoother movement
+			local eased = 1 - (1 - progress) ^ 2
+			local height = attackerStartPos.Y + (config.phases.rise.height * eased)
 			
-			-- Move attacker directly
+			-- Move attacker
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, height, attackerStartPos.Z)
 
 		elseif elapsed <= hoverEnd then
@@ -211,7 +225,7 @@ local function handleMovementSync(data)
 		end
 	end)
 
-	-- Store sync data (no BodyPosition objects needed)
+	-- Store sync data
 	activeSyncs[attacker] = {
 		connection = connection,
 		animationTrack = animationTrack,
@@ -219,7 +233,7 @@ local function handleMovementSync(data)
 		enemyStartPos = enemyStartPos
 	}
 
-	debug("Started DIRECT CFrame movement for", attacker.Name)
+	debug("Started smooth movement for", attacker.Name)
 end
 
 -- Handle damage phase - enemy is already at peak height

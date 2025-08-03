@@ -5,33 +5,34 @@ This completely redesigned ability system uses direct CFrame manipulation and in
 
 ## Key Improvements
 
-### 1. INSTANT TELEPORTATION APPROACH
-**Problem**: BodyPosition was too slow and gradual, causing sluggish movement.
+### 1. SMOOTH MOVEMENT WITH INDEPENDENT ENEMY POSITIONING
+**Problem**: Movement was too fast and enemy followed attacker's position.
 
 **Solution**: 
-- **Direct CFrame Manipulation**: Completely removed BodyPosition in favor of direct CFrame changes
-- **Instant Enemy Teleportation**: Enemy is teleported to peak height immediately when ability starts
-- **No Physics Delays**: Eliminated all gradual movement and physics-based positioning
-- **Immediate Response**: 0.02s windup and 0.01s start delay for instant activation
-- **Faster Phases**: 0.3s rise duration with 25 stud height for snappy ascent
+- **Smooth Tweening**: Enemy uses TweenService for smooth movement to peak height
+- **Independent Movement**: Enemy moves independently, doesn't follow attacker's position
+- **Proper Timing**: Slower rise (0.6s) and longer hover (1.2s) for proper VFX timing
+- **Peak Height Sync**: Enemy reaches same peak height as attacker
+- **Stay at Peak**: Enemy stays at peak height until damage is applied
 
 ### 2. PERFECT ENEMY SYNCHRONIZATION
 **Problem**: Enemy couldn't match attacker's height and movement was delayed.
 
 **Solution**:
-- **Instant Teleportation**: Enemy is teleported to exact peak height immediately
+- **Smooth Tweening**: Enemy smoothly moves to exact peak height
 - **Perfect Height Match**: Enemy uses same peak height calculation as attacker
-- **Instant Rotation**: Enemy faces attacker immediately with direct CFrame rotation
-- **Complete Physics Clear**: Removes all existing physics bodies before teleportation
-- **No Gradual Movement**: Enemy appears at peak height instantly, no gradual ascent
+- **Independent Movement**: Enemy doesn't follow attacker's position changes
+- **Stay at Peak**: Enemy stays at peak height until damage is applied
+- **Smooth Rotation**: Enemy smoothly rotates to face attacker
 
-### 3. DIRECT CFrame MOVEMENT
-**New Movement Settings**:
+### 3. ADJUSTABLE TIMING SYSTEM
+**New Timing Settings**:
 ```lua
-movementSettings = {
-    useDirectCFrame = true, -- Use direct CFrame manipulation
-    teleportEnemy = true, -- Teleport enemy to peak height immediately
-    smoothAttacker = false -- No smoothing for attacker - direct movement
+enemyMovement = {
+    useTween = true, -- Use smooth tweening
+    tweenDuration = 0.4, -- How fast enemy moves to peak
+    stayAtPeak = true, -- Enemy stays at peak until damage
+    peakHeight = 25 -- Same as attacker peak height
 }
 ```
 
