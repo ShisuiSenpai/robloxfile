@@ -191,16 +191,21 @@ local function handleMovementSync(data)
 	-- Movement sequence for attacker
 	local startTime = workspace:GetServerTimeNow() - config.animationTiming.startDelay
 
-	local connection
+			local connection
 	connection = RunService.Heartbeat:Connect(function()
 		local elapsed = workspace:GetServerTimeNow() - startTime
 
 		-- Calculate current phase
 		local riseEnd = config.phases.rise.duration
 		local hoverEnd = riseEnd + config.phases.hover.duration
+		local fallEnd = hoverEnd + config.phases.fall.duration
 
 		if elapsed <= riseEnd then
 			-- Rising phase - smooth movement
+			-- Debug: Show phase info every 0.5 seconds
+			if math.floor(elapsed * 2) ~= math.floor((elapsed - 0.016) * 2) then
+				debug("Phase: RISE, Elapsed:", string.format("%.2f", elapsed), "/", riseEnd)
+			end
 			local progress = elapsed / config.phases.rise.duration
 			-- Use easing for smoother movement
 			local eased = 1 - (1 - progress) ^ 2
@@ -211,11 +216,30 @@ local function handleMovementSync(data)
 
 		elseif elapsed <= hoverEnd then
 			-- Hovering phase - maintain peak height
+			-- Debug: Show phase info every 0.5 seconds
+			if math.floor(elapsed * 2) ~= math.floor((elapsed - 0.016) * 2) then
+				debug("Phase: HOVER, Elapsed:", string.format("%.2f", elapsed), "/", hoverEnd)
+			end
 			local peakHeight = attackerStartPos.Y + config.phases.rise.height
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, peakHeight, attackerStartPos.Z)
 
+		elseif elapsed <= fallEnd then
+			-- Falling phase - smooth descent
+			-- Debug: Show phase info every 0.5 seconds
+			if math.floor(elapsed * 2) ~= math.floor((elapsed - 0.016) * 2) then
+				debug("Phase: FALL, Elapsed:", string.format("%.2f", elapsed), "/", fallEnd)
+			end
+			local fallProgress = (elapsed - hoverEnd) / config.phases.fall.duration
+			-- Use easing for smoother fall
+			local fallEased = fallProgress ^ 2
+			local peakHeight = attackerStartPos.Y + config.phases.rise.height
+			local fallHeight = peakHeight - (config.phases.rise.height * fallEased)
+			
+			-- Move attacker down
+			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, fallHeight, attackerStartPos.Z)
+
 		else
-			-- Falling - cleanup
+			-- Ability complete - cleanup
 			connection:Disconnect()
 			
 			-- Clear from activeSyncs
@@ -234,6 +258,8 @@ local function handleMovementSync(data)
 	}
 
 	debug("Started independent movement for", attacker.Name)
+	debug("Total ability duration:", AbilityConfig.GetAbilityDuration("UpwardSlash"), "seconds")
+	debug("Rise:", config.phases.rise.duration, "Hover:", config.phases.hover.duration, "Fall:", config.phases.fall.duration)
 end
 
 -- Handle damage phase - enemy gets knocked back naturally
