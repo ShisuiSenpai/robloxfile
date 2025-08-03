@@ -251,8 +251,13 @@ local function handleMovementSync(data)
 			local peakHeight = attackerStartPos.Y + config.phases.rise.height
 			local fallHeight = peakHeight - (config.phases.rise.height * fallEased)
 			
-			-- Ensure we don't go below start position
-			fallHeight = math.max(fallHeight, attackerStartPos.Y)
+			-- Ensure we don't go below start position with small buffer
+			fallHeight = math.max(fallHeight, attackerStartPos.Y + 0.1) -- Small buffer above ground
+			
+			-- If we're close to the end, snap to exact position
+			if fallProgress > 0.95 then
+				fallHeight = attackerStartPos.Y
+			end
 			
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, fallHeight, attackerStartPos.Z)
 			                      * activeSyncs[attacker].attackerStartRotation
@@ -262,6 +267,23 @@ local function handleMovementSync(data)
 			connection:Disconnect()
 			if activeSyncs[attacker] then
 				activeSyncs[attacker].connection = nil
+			end
+			
+			-- IMPORTANT: Clean up any residual velocity to prevent bouncing
+			if attackerRoot and attackerRoot.Parent then
+				-- Clear any existing velocity
+				attackerRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				attackerRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+				
+				-- Ensure we're exactly at ground level
+				attackerRoot.CFrame = CFrame.new(attackerStartPos.X, attackerStartPos.Y, attackerStartPos.Z) 
+				                      * activeSyncs[attacker].attackerStartRotation
+				
+				-- Small delay then double-check position
+				task.wait(0.1)
+				if attackerRoot.Parent then
+					attackerRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				end
 			end
 		end
 	end)

@@ -251,6 +251,20 @@ local function executeUpwardSlash(player)
 	humanoid.JumpPower = 0
 	humanoid.JumpHeight = 0
 	humanoid.AutoRotate = false -- Lock orientation
+	
+	-- Prevent physics issues by temporarily making attacker massless
+	rootPart.Massless = true
+	
+	-- Store original CanCollide states to restore later
+	local originalCanCollide = {}
+	for _, part in pairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and part ~= rootPart then
+			originalCanCollide[part] = part.CanCollide
+			if part.Name ~= "HumanoidRootPart" then
+				part.CanCollide = false -- Prevent collision issues during ability
+			end
+		end
+	end
 
 	-- Create ability data with cleanup function
 	local abilityData = {
@@ -260,7 +274,9 @@ local function executeUpwardSlash(player)
 		originalWalkSpeed = originalWalkSpeed,
 		originalJumpPower = originalJumpPower,
 		originalJumpHeight = originalJumpHeight,
-		originalAutoRotate = originalAutoRotate
+		originalAutoRotate = originalAutoRotate,
+		originalCanCollide = originalCanCollide,
+		rootPart = rootPart
 	}
 
 	-- Handle enemy state
@@ -499,6 +515,24 @@ local function executeUpwardSlash(player)
 			humanoid.JumpPower = abilityData.originalJumpPower
 			humanoid.JumpHeight = abilityData.originalJumpHeight
 			humanoid.AutoRotate = abilityData.originalAutoRotate
+			
+			-- Restore physics properties
+			if abilityData.rootPart and abilityData.rootPart.Parent then
+				abilityData.rootPart.Massless = false
+				
+				-- Clear any residual velocity
+				abilityData.rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				abilityData.rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+			end
+			
+			-- Restore collision properties
+			if abilityData.originalCanCollide then
+				for part, canCollide in pairs(abilityData.originalCanCollide) do
+					if part and part.Parent then
+						part.CanCollide = canCollide
+					end
+				end
+			end
 		end
 
 		-- Clean up physics objects if they still exist
