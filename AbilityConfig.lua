@@ -51,12 +51,12 @@ AbilityConfig.Abilities = {
 			startDelay = 0.02 -- Small delay
 		},
 
-		-- Enemy movement settings - SYNCED WITH ATTACKER
+		-- Enemy movement settings - INDEPENDENT WITH PEAK HOLD
 		enemyMovement = {
-			syncWithAttacker = true, -- Enemy follows attacker's position
+			useTween = true, -- Use TweenService for smooth movement
+			tweenDuration = 0.4, -- How fast enemy moves to peak
 			stayAtPeak = true, -- Enemy stays at peak until damage
-			peakHeight = 25, -- Same as attacker peak height
-			reactToSlash = true -- Enemy reacts to slash moment
+			peakHeight = 25 -- Same as attacker peak height
 		}
 	}
 }

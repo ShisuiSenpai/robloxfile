@@ -105,7 +105,7 @@ local function playSlashVFX(rootPart)
 	debug("Played slash VFX")
 end
 
--- IMPROVED: Enemy syncs with attacker and reacts to slash moment
+-- IMPROVED: Independent enemy movement with peak hold
 local function handleMovementSync(data)
 	local config = AbilityConfig.Abilities[data.ability]
 	if not config then return end
@@ -153,34 +153,43 @@ local function handleMovementSync(data)
 	local attackerStartPos = attackerRoot.Position
 	local enemyStartPos = enemy and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") and enemy.Character.HumanoidRootPart.Position or nil
 
-	-- ENEMY MOVEMENT - SYNCED WITH ATTACKER
-	local enemyRoot
-	local enemyBodyPos
-	local enemyBodyGyro
-
-	if enemy and enemy.Character and config.enemyMovement.syncWithAttacker then
-		enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
+	-- MOVE ENEMY TO PEAK HEIGHT USING TWEEN
+	if enemy and enemy.Character and config.enemyMovement.useTween then
+		local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
 		if enemyRoot then
-			-- Create physics bodies for enemy control
-			enemyBodyPos = Instance.new("BodyPosition")
-			enemyBodyPos.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-			enemyBodyPos.P = 50000
-			enemyBodyPos.D = 5000
-			enemyBodyPos.Parent = enemyRoot
-
-			enemyBodyGyro = Instance.new("BodyGyro")
-			enemyBodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-			enemyBodyGyro.P = 50000
-			enemyBodyGyro.D = 5000
-			enemyBodyGyro.Parent = enemyRoot
-
-			debug("Created enemy physics for synced movement")
+			-- Calculate peak position for enemy
+			local peakHeight = attackerStartPos.Y + config.enemyMovement.peakHeight
+			local attackerCFrame = CFrame.new(attackerStartPos, attackerStartPos + attackerRoot.CFrame.LookVector)
+			local enemyPeakPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
+			enemyPeakPos = Vector3.new(enemyPeakPos.X, peakHeight, enemyPeakPos.Z)
+			
+			-- Tween enemy to peak height
+			local tweenInfo = TweenInfo.new(
+				config.enemyMovement.tweenDuration, -- Duration
+				Enum.EasingStyle.Quad, -- Easing style
+				Enum.EasingDirection.Out -- Easing direction
+			)
+			
+			local tween = TweenService:Create(enemyRoot, tweenInfo, {
+				CFrame = CFrame.new(enemyPeakPos)
+			})
+			tween:Play()
+			
+			-- Make enemy face attacker
+			local lookDirection = (attackerStartPos - enemyPeakPos) * Vector3.new(1, 0, 1)
+			if lookDirection.Magnitude > 0 then
+				local rotationTween = TweenService:Create(enemyRoot, tweenInfo, {
+					CFrame = CFrame.lookAt(enemyPeakPos, enemyPeakPos + lookDirection)
+				})
+				rotationTween:Play()
+			end
+			
+			debug("Tweened enemy to peak height:", enemy.Name)
 		end
 	end
 
-	-- Movement sequence for attacker with enemy sync
+	-- Movement sequence for attacker
 	local startTime = workspace:GetServerTimeNow() - config.animationTiming.startDelay
-	local enemyReacted = false -- Track if enemy has reacted to slash
 
 	local connection
 	connection = RunService.Heartbeat:Connect(function()
@@ -200,50 +209,14 @@ local function handleMovementSync(data)
 			-- Move attacker
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, height, attackerStartPos.Z)
 
-			-- Sync enemy with attacker
-			if enemyBodyPos and enemyRoot then
-				local attackerCFrame = CFrame.new(attackerRoot.Position, attackerRoot.Position + attackerRoot.CFrame.LookVector)
-				local enemyTargetPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
-				enemyTargetPos = Vector3.new(enemyTargetPos.X, height, enemyTargetPos.Z)
-				enemyBodyPos.Position = enemyTargetPos
-
-				-- Make enemy face attacker
-				local lookDirection = (attackerRoot.Position - enemyRoot.Position) * Vector3.new(1, 0, 1)
-				if lookDirection.Magnitude > 0 then
-					enemyBodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
-				end
-			end
-
 		elseif elapsed <= hoverEnd then
 			-- Hovering phase - maintain peak height
 			local peakHeight = attackerStartPos.Y + config.phases.rise.height
 			attackerRoot.CFrame = CFrame.new(attackerStartPos.X, peakHeight, attackerStartPos.Z)
 
-			-- Keep enemy synced at peak
-			if enemyBodyPos and enemyRoot and not enemyReacted then
-				local attackerCFrame = CFrame.new(attackerRoot.Position, attackerRoot.Position + attackerRoot.CFrame.LookVector)
-				local enemyTargetPos = (attackerCFrame * CFrame.new(config.enemyOffset)).Position
-				enemyTargetPos = Vector3.new(enemyTargetPos.X, peakHeight, enemyTargetPos.Z)
-				enemyBodyPos.Position = enemyTargetPos
-
-				-- Maintain facing
-				local lookDirection = (attackerRoot.Position - enemyRoot.Position) * Vector3.new(1, 0, 1)
-				if lookDirection.Magnitude > 0 then
-					enemyBodyGyro.CFrame = CFrame.lookAt(enemyRoot.Position, enemyRoot.Position + lookDirection)
-				end
-			end
-
 		else
 			-- Falling - cleanup
 			connection:Disconnect()
-			
-			-- Remove enemy physics if they haven't reacted yet
-			if enemyBodyPos and enemyBodyPos.Parent then
-				enemyBodyPos:Destroy()
-			end
-			if enemyBodyGyro and enemyBodyGyro.Parent then
-				enemyBodyGyro:Destroy()
-			end
 			
 			-- Clear from activeSyncs
 			if activeSyncs[attacker] then
@@ -257,37 +230,22 @@ local function handleMovementSync(data)
 		connection = connection,
 		animationTrack = animationTrack,
 		attackerStartPos = attackerStartPos,
-		enemyStartPos = enemyStartPos,
-		enemyBodyPos = enemyBodyPos,
-		enemyBodyGyro = enemyBodyGyro,
-		enemyReacted = false
+		enemyStartPos = enemyStartPos
 	}
 
-	debug("Started synced movement for", attacker.Name)
+	debug("Started independent movement for", attacker.Name)
 end
 
--- Handle damage phase - enemy reacts to slash moment
+-- Handle damage phase - enemy gets knocked back naturally
 local function handleDamagePhase(data)
 	local sync = activeSyncs[data.attacker]
 	if sync then
-		-- Remove enemy physics so they can be knocked back naturally
-		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
-			sync.enemyBodyPos:Destroy()
-			sync.enemyBodyPos = nil
-		end
-		if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
-			sync.enemyBodyGyro:Destroy()
-			sync.enemyBodyGyro = nil
-		end
-		
-		-- Mark enemy as reacted
-		sync.enemyReacted = true
-		
-		debug("Enemy reacted to slash moment - physics removed for knockback")
+		-- Enemy is already at peak height, server knockback will handle the rest
+		debug("Damage applied - enemy at peak height, knockback will handle movement")
 	end
 end
 
--- Cleanup sync - handle physics objects
+-- Cleanup sync - simplified
 local function cleanupSync(data)
 	local sync = activeSyncs[data.attacker]
 	if not sync then return end
@@ -298,14 +256,6 @@ local function cleanupSync(data)
 
 	if sync.animationTrack then
 		sync.animationTrack:Stop()
-	end
-
-	-- Clean up enemy physics
-	if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
-		sync.enemyBodyPos:Destroy()
-	end
-	if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
-		sync.enemyBodyGyro:Destroy()
 	end
 
 	activeSyncs[data.attacker] = nil
@@ -381,12 +331,6 @@ player.CharacterAdded:Connect(function(newChar)
 	for _, sync in pairs(activeSyncs) do
 		if sync.connection then
 			sync.connection:Disconnect()
-		end
-		if sync.enemyBodyPos and sync.enemyBodyPos.Parent then
-			sync.enemyBodyPos:Destroy()
-		end
-		if sync.enemyBodyGyro and sync.enemyBodyGyro.Parent then
-			sync.enemyBodyGyro:Destroy()
 		end
 	end
 	activeSyncs = {}

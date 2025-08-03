@@ -55,17 +55,17 @@ animationTiming = {
 ### Enemy Movement
 ```lua
 enemyMovement = {
-    syncWithAttacker = true, -- Enemy follows attacker's position
+    useTween = true, -- Use smooth tweening
+    tweenDuration = 0.4, -- How fast enemy moves to peak
     stayAtPeak = true, -- Enemy stays at peak until damage
-    peakHeight = 25, -- Same as attacker peak height
-    reactToSlash = true -- Enemy reacts to slash moment
+    peakHeight = 25 -- Same as attacker peak height
 }
 ```
 
 **Adjust these for:**
-- **Perfect sync**: Keep `syncWithAttacker = true`
+- **Faster enemy movement**: Decrease `tweenDuration` (e.g., 0.2, 0.3)
+- **Slower enemy movement**: Increase `tweenDuration` (e.g., 0.6, 0.8)
 - **Different enemy height**: Change `peakHeight` (must match `phases.rise.height`)
-- **Enemy reaction**: Keep `reactToSlash = true` for natural knockback
 
 ## 🎯 Quick Adjustment Examples
 
