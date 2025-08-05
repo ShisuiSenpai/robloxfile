@@ -25,6 +25,9 @@ LockOnConfig.UPDATE_RATE = 0.016 -- Update rate in seconds (60 FPS)
 LockOnConfig.TARGET_SCAN_RATE = 0.1 -- How often to scan for new targets when not locked
 
 -- Input Settings
-LockOnConfig.LOCK_ON_KEY = Enum.KeyCode.LeftControl
+LockOnConfig.LOCK_ON_KEY = Enum.KeyCode.F
+
+-- Debug Settings
+LockOnConfig.DEBUG_MODE = true -- Set to false to disable debug prints
 
 return LockOnConfig
