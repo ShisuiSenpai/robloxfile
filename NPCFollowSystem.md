@@ -32,8 +32,8 @@ ReplicatedStorage
 
 2. **Install the scripts:**
    - Place `NPCFollowConfig.lua` as a ModuleScript in `ReplicatedStorage > NPCFollowModules`
-   - Place `NPCAnimationHandler.lua` as a ModuleScript in `ReplicatedStorage > NPCFollowModules`
    - Place `NPCFollowServer.lua` as a Script in `ServerScriptService`
+   - Place `NPCAnimateSetup.lua` as a Script in `ServerScriptService` (for animations)
    - (Optional) Place `NPCFollowClient.lua` as a LocalScript in `StarterPlayer > StarterPlayerScripts`
 
 3. **Add NPCs to the NPCS folder:**
@@ -41,7 +41,7 @@ ReplicatedStorage
      - A Humanoid
      - A HumanoidRootPart (or Torso for R6)
    - NPCs can be R15 or R6 characters
-   - Default Roblox animations will be applied automatically
+   - Animations will be added automatically by NPCAnimateSetup script
 
 ## Configuration Guide
 
@@ -201,6 +201,29 @@ The optional client script creates a UI showing follower count automatically.
 Add attributes to NPC models to override settings:
 - Add NumberValue "DetectionRadius" to override radius
 - Add BoolValue "CanFollow" to enable/disable following
+
+## Animation Setup
+
+The system now supports Roblox's default animations for NPCs. There are three ways to add animations:
+
+### Method 1: Automatic Setup (Recommended)
+The `NPCAnimateSetup.lua` script automatically adds a simplified Animate script to all NPCs in the NPCS folder. This script includes:
+- Idle animations (randomly cycles between 3 variations)
+- Walk animation (speed adjusts with movement)
+- Run animation (for faster movement)
+- Jump, fall, climb, and sit animations
+
+### Method 2: Copy from Player
+1. Test your game in Studio
+2. Find your character in Workspace
+3. Copy the "Animate" LocalScript
+4. Convert it to a regular Script
+5. Place it in your NPC model
+
+### Method 3: Manual Setup
+If you already have the Animate LocalScript in your NPC:
+1. Change it from LocalScript to Script
+2. Make sure it references `script.Parent` instead of LocalPlayer.Character
 
 ## Performance Metrics
 

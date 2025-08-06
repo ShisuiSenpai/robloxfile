@@ -12,7 +12,6 @@ local CollectionService = game:GetService("CollectionService")
 -- Wait for configuration
 local NPCFollowModules = ReplicatedStorage:WaitForChild("NPCFollowModules")
 local Config = require(NPCFollowModules:WaitForChild("NPCFollowConfig"))
-local NPCAnimationHandler = require(NPCFollowModules:WaitForChild("NPCAnimationHandler"))
 
 -- Debug print function
 local function debugPrint(...)
@@ -60,12 +59,6 @@ function NPCController.new(npcModel)
 	self.DetectionSphere = nil
 	self.ExclamationMark = nil
 	self.OriginalColors = {}
-	
-	-- Animation handler
-	self.AnimationHandler = nil
-	if Config.USE_ANIMATIONS and Config.USE_DEFAULT_ROBLOX_ANIMS then
-		self.AnimationHandler = NPCAnimationHandler.new(self.Humanoid)
-	end
 	
 	-- Movement smoothing
 	self.LastAvoidanceVector = Vector3.new(0, 0, 0)
@@ -432,9 +425,6 @@ function NPCController:MoveToTarget()
 		else
 			-- Fully stop to prevent wobbling
 			self.Humanoid:MoveTo(self.RootPart.Position)
-			if self.AnimationHandler then
-				self.AnimationHandler:UpdateMovementAnimation(Vector3.new(0, 0, 0))
-			end
 		end
 		return
 	end
@@ -481,12 +471,6 @@ function NPCController:MoveToTarget()
 	-- Move to smoothed position
 	self.Humanoid:MoveTo(smoothedPosition)
 	
-	-- Update animations based on velocity
-	if self.AnimationHandler then
-		local velocity = self.RootPart.AssemblyLinearVelocity
-		self.AnimationHandler:UpdateMovementAnimation(velocity)
-	end
-	
 	-- Update last seen position
 	self.LastSeenPosition = targetRoot.Position
 	self.LastSeenTime = currentTime
@@ -503,11 +487,6 @@ function NPCController:ReturnToStart()
 		-- Reset orientation
 		self.RootPart.CFrame = CFrame.lookAt(self.RootPart.Position, 
 			self.RootPart.Position + CFrame.Angles(0, math.rad(self.StartOrientation.Y), 0).LookVector)
-		
-		-- Play idle animation
-		if self.AnimationHandler then
-			self.AnimationHandler:UpdateMovementAnimation(Vector3.new(0, 0, 0))
-		end
 		
 		debugPrint(self.Model.Name, "returned to start position")
 		return
@@ -540,11 +519,7 @@ function NPCController:ReturnToStart()
 		self.Humanoid:MoveTo(self.StartPosition)
 	end
 	
-	-- Update animation while returning
-	if self.AnimationHandler then
-		local velocity = self.RootPart.AssemblyLinearVelocity
-		self.AnimationHandler:UpdateMovementAnimation(velocity)
-	end
+
 end
 
 function NPCController:StartFollowing(player)
@@ -604,11 +579,7 @@ function NPCController:Update()
 			end
 		end
 		
-		-- Ensure idle animation is playing
-		if self.AnimationHandler then
-			self.AnimationHandler:UpdateMovementAnimation(Vector3.new(0, 0, 0))
-		end
-		
+
 	elseif self.State == "Following" then
 		-- Check if should stop following
 		if not self.Target or not self.Target.Character then
