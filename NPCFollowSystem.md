@@ -32,6 +32,7 @@ ReplicatedStorage
 
 2. **Install the scripts:**
    - Place `NPCFollowConfig.lua` as a ModuleScript in `ReplicatedStorage > NPCFollowModules`
+   - Place `NPCAnimationHandler.lua` as a ModuleScript in `ReplicatedStorage > NPCFollowModules`
    - Place `NPCFollowServer.lua` as a Script in `ServerScriptService`
    - (Optional) Place `NPCFollowClient.lua` as a LocalScript in `StarterPlayer > StarterPlayerScripts`
 
@@ -40,6 +41,7 @@ ReplicatedStorage
      - A Humanoid
      - A HumanoidRootPart (or Torso for R6)
    - NPCs can be R15 or R6 characters
+   - Default Roblox animations will be applied automatically
 
 ## Configuration Guide
 

@@ -12,6 +12,7 @@ local CollectionService = game:GetService("CollectionService")
 -- Wait for configuration
 local NPCFollowModules = ReplicatedStorage:WaitForChild("NPCFollowModules")
 local Config = require(NPCFollowModules:WaitForChild("NPCFollowConfig"))
+local NPCAnimationHandler = require(NPCFollowModules:WaitForChild("NPCAnimationHandler"))
 
 -- Debug print function
 local function debugPrint(...)
@@ -59,6 +60,17 @@ function NPCController.new(npcModel)
 	self.DetectionSphere = nil
 	self.ExclamationMark = nil
 	self.OriginalColors = {}
+	
+	-- Animation handler
+	self.AnimationHandler = nil
+	if Config.USE_ANIMATIONS and Config.USE_DEFAULT_ROBLOX_ANIMS then
+		self.AnimationHandler = NPCAnimationHandler.new(self.Humanoid)
+	end
+	
+	-- Movement smoothing
+	self.LastAvoidanceVector = Vector3.new(0, 0, 0)
+	self.VelocitySmoother = Vector3.new(0, 0, 0)
+	self.LastMoveToPosition = self.RootPart.Position
 	
 	-- Store original colors for tinting
 	for _, part in pairs(npcModel:GetDescendants()) do
@@ -320,13 +332,21 @@ function NPCController:CalculateAvoidanceVector()
 	for _, npcData in pairs(nearbyNPCs) do
 		if npcData.distance < Config.NPC_SPACING_RADIUS then
 			-- Calculate repulsion vector
-			local direction = (self.RootPart.Position - npcData.rootPart.Position).Unit
-			local strength = 1 - (npcData.distance / Config.NPC_SPACING_RADIUS)
-			avoidanceVector = avoidanceVector + direction * strength * Config.AVOIDANCE_FORCE
+			local direction = (self.RootPart.Position - npcData.rootPart.Position)
+			if direction.Magnitude > 0 then
+				direction = direction.Unit
+				local strength = 1 - (npcData.distance / Config.NPC_SPACING_RADIUS)
+				strength = strength * strength -- Square for smoother falloff
+				avoidanceVector = avoidanceVector + direction * strength * Config.AVOIDANCE_FORCE
+			end
 		end
 	end
 	
-	return avoidanceVector
+	-- Smooth the avoidance vector to prevent jittering
+	self.LastAvoidanceVector = self.LastAvoidanceVector:Lerp(avoidanceVector, Config.AVOIDANCE_SMOOTHING)
+	
+	-- Only apply Y component if it's significant (prevents floating)
+	return Vector3.new(self.LastAvoidanceVector.X, 0, self.LastAvoidanceVector.Z)
 end
 
 function NPCController:GetFormationPosition(targetPosition, followerIndex, totalFollowers)
@@ -406,11 +426,15 @@ function NPCController:MoveToTarget()
 	if distance <= Config.STOP_DISTANCE + (totalFollowers - 1) * 2 then
 		-- Apply avoidance even when stopped
 		local avoidance = self:CalculateAvoidanceVector()
-		if avoidance.Magnitude > 0.1 then
-			local avoidPos = self.RootPart.Position + avoidance.Unit * 2
+		if avoidance.Magnitude > 0.5 then
+			local avoidPos = self.RootPart.Position + avoidance * 0.1
 			self.Humanoid:MoveTo(avoidPos)
 		else
+			-- Fully stop to prevent wobbling
 			self.Humanoid:MoveTo(self.RootPart.Position)
+			if self.AnimationHandler then
+				self.AnimationHandler:UpdateMovementAnimation(Vector3.new(0, 0, 0))
+			end
 		end
 		return
 	end
@@ -423,13 +447,12 @@ function NPCController:MoveToTarget()
 	end
 	
 	-- Move along path with avoidance
+	local moveToPosition = targetPosition
+	
 	if self.Waypoints and #self.Waypoints > 0 then
 		local currentWaypoint = self.Waypoints[self.CurrentWaypointIndex]
 		if currentWaypoint then
-			-- Apply avoidance to waypoint position
-			local avoidance = self:CalculateAvoidanceVector()
-			local adjustedPosition = currentWaypoint.Position + avoidance * 0.1
-			self.Humanoid:MoveTo(adjustedPosition)
+			moveToPosition = currentWaypoint.Position
 			
 			-- Check if reached waypoint
 			local waypointDistance = (currentWaypoint.Position - self.RootPart.Position).Magnitude
@@ -445,11 +468,23 @@ function NPCController:MoveToTarget()
 				self.Humanoid.Jump = true
 			end
 		end
-	else
-		-- Direct movement if no path
-		local avoidance = self:CalculateAvoidanceVector()
-		local adjustedPosition = targetPosition + avoidance * 0.1
-		self.Humanoid:MoveTo(adjustedPosition)
+	end
+	
+	-- Apply avoidance with smoothing
+	local avoidance = self:CalculateAvoidanceVector()
+	local adjustedPosition = moveToPosition + avoidance * 0.05 -- Reduced influence
+	
+	-- Smooth the movement to prevent stuttering
+	local smoothedPosition = self.LastMoveToPosition:Lerp(adjustedPosition, 0.5)
+	self.LastMoveToPosition = smoothedPosition
+	
+	-- Move to smoothed position
+	self.Humanoid:MoveTo(smoothedPosition)
+	
+	-- Update animations based on velocity
+	if self.AnimationHandler then
+		local velocity = self.RootPart.AssemblyLinearVelocity
+		self.AnimationHandler:UpdateMovementAnimation(velocity)
 	end
 	
 	-- Update last seen position
@@ -468,6 +503,11 @@ function NPCController:ReturnToStart()
 		-- Reset orientation
 		self.RootPart.CFrame = CFrame.lookAt(self.RootPart.Position, 
 			self.RootPart.Position + CFrame.Angles(0, math.rad(self.StartOrientation.Y), 0).LookVector)
+		
+		-- Play idle animation
+		if self.AnimationHandler then
+			self.AnimationHandler:UpdateMovementAnimation(Vector3.new(0, 0, 0))
+		end
 		
 		debugPrint(self.Model.Name, "returned to start position")
 		return
@@ -498,6 +538,12 @@ function NPCController:ReturnToStart()
 		end
 	else
 		self.Humanoid:MoveTo(self.StartPosition)
+	end
+	
+	-- Update animation while returning
+	if self.AnimationHandler then
+		local velocity = self.RootPart.AssemblyLinearVelocity
+		self.AnimationHandler:UpdateMovementAnimation(velocity)
 	end
 end
 
@@ -556,6 +602,11 @@ function NPCController:Update()
 			if nearestPlayer then
 				self:StartFollowing(nearestPlayer)
 			end
+		end
+		
+		-- Ensure idle animation is playing
+		if self.AnimationHandler then
+			self.AnimationHandler:UpdateMovementAnimation(Vector3.new(0, 0, 0))
 		end
 		
 	elseif self.State == "Following" then

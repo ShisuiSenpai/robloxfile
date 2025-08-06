@@ -14,15 +14,16 @@ NPCFollowConfig.WALK_SPEED = 16 -- Normal walking speed
 NPCFollowConfig.RUN_SPEED = 24 -- Speed when player is far away
 NPCFollowConfig.RUN_DISTANCE_THRESHOLD = 20 -- Distance at which NPC starts running
 NPCFollowConfig.STOP_DISTANCE = 8 -- How close NPC gets before stopping
-NPCFollowConfig.PATH_UPDATE_INTERVAL = 0.2 -- How often to recalculate path (seconds)
+NPCFollowConfig.PATH_UPDATE_INTERVAL = 0.5 -- How often to recalculate path (seconds, increased to reduce wobbling)
 NPCFollowConfig.MOVEMENT_SMOOTHING = 0.8 -- How smooth the movement is (0-1, higher = smoother)
 
 -- SPACING SETTINGS
 NPCFollowConfig.NPC_SPACING_RADIUS = 6 -- Minimum distance between NPCs (studs)
 NPCFollowConfig.FORMATION_TYPE = "circle" -- "circle", "semicircle", or "random"
 NPCFollowConfig.FORMATION_SPREAD = 12 -- How spread out NPCs are around player
-NPCFollowConfig.AVOIDANCE_FORCE = 50 -- How strongly NPCs push away from each other
+NPCFollowConfig.AVOIDANCE_FORCE = 20 -- How strongly NPCs push away from each other (reduced to prevent wobbling)
 NPCFollowConfig.USE_FLOCKING = true -- Enable flocking behavior for natural movement
+NPCFollowConfig.AVOIDANCE_SMOOTHING = 0.3 -- Smoothing factor for avoidance (0-1, higher = smoother)
 
 -- BEHAVIOR SETTINGS
 NPCFollowConfig.MAX_FOLLOW_TIME = 30 -- Maximum time to follow before giving up (seconds, 0 = infinite)
@@ -46,6 +47,7 @@ NPCFollowConfig.CAN_CLIMB = true -- Whether NPC can climb ladders/trusses
 
 -- ANIMATION SETTINGS
 NPCFollowConfig.USE_ANIMATIONS = true -- Enable custom animations
+NPCFollowConfig.USE_DEFAULT_ROBLOX_ANIMS = true -- Use Roblox's default animations
 NPCFollowConfig.IDLE_ANIMATION_ID = "" -- Leave empty for default
 NPCFollowConfig.WALK_ANIMATION_ID = "" -- Leave empty for default
 NPCFollowConfig.RUN_ANIMATION_ID = "" -- Leave empty for default
