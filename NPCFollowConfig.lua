@@ -17,8 +17,16 @@ NPCFollowConfig.STOP_DISTANCE = 8 -- How close NPC gets before stopping
 NPCFollowConfig.PATH_UPDATE_INTERVAL = 0.2 -- How often to recalculate path (seconds)
 NPCFollowConfig.MOVEMENT_SMOOTHING = 0.8 -- How smooth the movement is (0-1, higher = smoother)
 
+-- SPACING SETTINGS
+NPCFollowConfig.NPC_SPACING_RADIUS = 6 -- Minimum distance between NPCs (studs)
+NPCFollowConfig.FORMATION_TYPE = "circle" -- "circle", "semicircle", or "random"
+NPCFollowConfig.FORMATION_SPREAD = 12 -- How spread out NPCs are around player
+NPCFollowConfig.AVOIDANCE_FORCE = 50 -- How strongly NPCs push away from each other
+NPCFollowConfig.USE_FLOCKING = true -- Enable flocking behavior for natural movement
+
 -- BEHAVIOR SETTINGS
 NPCFollowConfig.MAX_FOLLOW_TIME = 30 -- Maximum time to follow before giving up (seconds, 0 = infinite)
+NPCFollowConfig.MAX_FOLLOW_DISTANCE = 100 -- Maximum distance from origin before returning (studs)
 NPCFollowConfig.IDLE_RETURN_TO_START = true -- Whether NPC returns to starting position when idle
 NPCFollowConfig.RETURN_SPEED = 12 -- Speed when returning to start position
 NPCFollowConfig.MEMORY_TIME = 5 -- How long NPC remembers last seen position (seconds)

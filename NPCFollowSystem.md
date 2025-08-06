@@ -55,8 +55,15 @@ All settings are in the `NPCFollowConfig` module. Here are the key settings:
 - `RUN_SPEED` (24): Speed when you're far away
 - `STOP_DISTANCE` (8): How close they get before stopping
 
+### Spacing Settings
+- `NPC_SPACING_RADIUS` (6): Minimum distance between NPCs
+- `FORMATION_TYPE` ("circle"): How NPCs arrange around you
+- `FORMATION_SPREAD` (12): How spread out the formation is
+- `AVOIDANCE_FORCE` (50): How strongly NPCs avoid each other
+
 ### Behavior Settings
 - `MAX_FOLLOW_TIME` (30): Seconds before giving up (0 = infinite)
+- `MAX_FOLLOW_DISTANCE` (100): Max distance from origin before returning
 - `IDLE_RETURN_TO_START` (true): Return to spawn when done following
 - `MEMORY_TIME` (5): Remember last position for X seconds
 
@@ -72,8 +79,12 @@ All settings are in the `NPCFollowConfig` module. Here are the key settings:
 - ✅ Field of view detection (NPCs must "see" you)
 - ✅ Line of sight checking
 - ✅ Gives up after max time or distance
+- ✅ Returns to origin when too far (MAX_FOLLOW_DISTANCE)
 - ✅ Returns to starting position when idle
 - ✅ Multiple NPCs can follow simultaneously
+- ✅ NPCs maintain spacing to avoid crowding
+- ✅ Formation system (circle, semicircle, random)
+- ✅ Collision avoidance between NPCs
 
 ### Visual Feedback
 - ✅ Exclamation mark on detection

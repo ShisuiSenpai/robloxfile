@@ -289,6 +289,77 @@ function NPCController:VisualizeWaypoints()
 	end
 end
 
+function NPCController:GetNearbyNPCs()
+	local nearbyNPCs = {}
+	local npcFolder = workspace:FindFirstChild(Config.NPC_FOLDER_NAME)
+	if not npcFolder then return nearbyNPCs end
+	
+	for _, npcModel in pairs(npcFolder:GetChildren()) do
+		if npcModel:IsA("Model") and npcModel ~= self.Model then
+			local otherRoot = npcModel:FindFirstChild("HumanoidRootPart") or npcModel:FindFirstChild("Torso")
+			if otherRoot then
+				local distance = (otherRoot.Position - self.RootPart.Position).Magnitude
+				if distance < Config.NPC_SPACING_RADIUS * 2 then
+					table.insert(nearbyNPCs, {
+						model = npcModel,
+						rootPart = otherRoot,
+						distance = distance
+					})
+				end
+			end
+		end
+	end
+	
+	return nearbyNPCs
+end
+
+function NPCController:CalculateAvoidanceVector()
+	local avoidanceVector = Vector3.new(0, 0, 0)
+	local nearbyNPCs = self:GetNearbyNPCs()
+	
+	for _, npcData in pairs(nearbyNPCs) do
+		if npcData.distance < Config.NPC_SPACING_RADIUS then
+			-- Calculate repulsion vector
+			local direction = (self.RootPart.Position - npcData.rootPart.Position).Unit
+			local strength = 1 - (npcData.distance / Config.NPC_SPACING_RADIUS)
+			avoidanceVector = avoidanceVector + direction * strength * Config.AVOIDANCE_FORCE
+		end
+	end
+	
+	return avoidanceVector
+end
+
+function NPCController:GetFormationPosition(targetPosition, followerIndex, totalFollowers)
+	if Config.FORMATION_TYPE == "circle" then
+		local angle = (followerIndex / totalFollowers) * math.pi * 2
+		local offset = Vector3.new(
+			math.cos(angle) * Config.FORMATION_SPREAD,
+			0,
+			math.sin(angle) * Config.FORMATION_SPREAD
+		)
+		return targetPosition + offset
+		
+	elseif Config.FORMATION_TYPE == "semicircle" then
+		local angle = (followerIndex / (totalFollowers + 1)) * math.pi
+		local offset = Vector3.new(
+			math.cos(angle) * Config.FORMATION_SPREAD,
+			0,
+			math.sin(angle) * Config.FORMATION_SPREAD
+		)
+		return targetPosition + offset
+		
+	else -- random
+		local angle = math.random() * math.pi * 2
+		local distance = Config.STOP_DISTANCE + math.random() * (Config.FORMATION_SPREAD - Config.STOP_DISTANCE)
+		local offset = Vector3.new(
+			math.cos(angle) * distance,
+			0,
+			math.sin(angle) * distance
+		)
+		return targetPosition + offset
+	end
+end
+
 function NPCController:MoveToTarget()
 	if not self.Target or not self.Target.Character then
 		self:StopFollowing()
@@ -310,9 +381,37 @@ function NPCController:MoveToTarget()
 		self.Humanoid.WalkSpeed = Config.WALK_SPEED
 	end
 	
+	-- Calculate target position with formation and avoidance
+	local targetPosition = targetRoot.Position
+	
+	-- Get follower index for formation
+	local followerIndex = 1
+	local totalFollowers = 1
+	if NPCFollowSystem then
+		local followers = NPCFollowSystem:GetFollowersForPlayer(self.Target)
+		for i, controller in ipairs(followers) do
+			if controller == self then
+				followerIndex = i
+			end
+		end
+		totalFollowers = #followers
+	end
+	
+	-- Apply formation positioning
+	if totalFollowers > 1 and Config.USE_FLOCKING then
+		targetPosition = self:GetFormationPosition(targetRoot.Position, followerIndex, totalFollowers)
+	end
+	
 	-- Stop if close enough
-	if distance <= Config.STOP_DISTANCE then
-		self.Humanoid:MoveTo(self.RootPart.Position)
+	if distance <= Config.STOP_DISTANCE + (totalFollowers - 1) * 2 then
+		-- Apply avoidance even when stopped
+		local avoidance = self:CalculateAvoidanceVector()
+		if avoidance.Magnitude > 0.1 then
+			local avoidPos = self.RootPart.Position + avoidance.Unit * 2
+			self.Humanoid:MoveTo(avoidPos)
+		else
+			self.Humanoid:MoveTo(self.RootPart.Position)
+		end
 		return
 	end
 	
@@ -320,14 +419,17 @@ function NPCController:MoveToTarget()
 	local currentTime = tick()
 	if currentTime - self.LastPathUpdate > Config.PATH_UPDATE_INTERVAL then
 		self.LastPathUpdate = currentTime
-		self:CreatePath(targetRoot.Position)
+		self:CreatePath(targetPosition)
 	end
 	
-	-- Move along path
+	-- Move along path with avoidance
 	if self.Waypoints and #self.Waypoints > 0 then
 		local currentWaypoint = self.Waypoints[self.CurrentWaypointIndex]
 		if currentWaypoint then
-			self.Humanoid:MoveTo(currentWaypoint.Position)
+			-- Apply avoidance to waypoint position
+			local avoidance = self:CalculateAvoidanceVector()
+			local adjustedPosition = currentWaypoint.Position + avoidance * 0.1
+			self.Humanoid:MoveTo(adjustedPosition)
 			
 			-- Check if reached waypoint
 			local waypointDistance = (currentWaypoint.Position - self.RootPart.Position).Magnitude
@@ -345,7 +447,9 @@ function NPCController:MoveToTarget()
 		end
 	else
 		-- Direct movement if no path
-		self.Humanoid:MoveTo(targetRoot.Position)
+		local avoidance = self:CalculateAvoidanceVector()
+		local adjustedPosition = targetPosition + avoidance * 0.1
+		self.Humanoid:MoveTo(adjustedPosition)
 	end
 	
 	-- Update last seen position
@@ -468,6 +572,14 @@ function NPCController:Update()
 		end
 		
 		local distance = (targetRoot.Position - self.RootPart.Position).Magnitude
+		local distanceFromOrigin = (self.RootPart.Position - self.StartPosition).Magnitude
+		
+		-- Check if too far from origin
+		if Config.MAX_FOLLOW_DISTANCE > 0 and distanceFromOrigin > Config.MAX_FOLLOW_DISTANCE then
+			debugPrint(self.Model.Name, "too far from origin:", distanceFromOrigin)
+			self:StopFollowing()
+			return
+		end
 		
 		-- Check if target is too far
 		if distance > Config.LOSE_INTEREST_RADIUS then
@@ -516,6 +628,16 @@ end
 local NPCFollowSystem = {}
 NPCFollowSystem.Controllers = {}
 NPCFollowSystem.ActiveCount = 0
+
+function NPCFollowSystem:GetFollowersForPlayer(player)
+	local followers = {}
+	for _, controller in pairs(self.Controllers) do
+		if controller.State == "Following" and controller.Target == player then
+			table.insert(followers, controller)
+		end
+	end
+	return followers
+end
 
 function NPCFollowSystem:Initialize()
 	debugPrint("Initializing NPC Follow System...")
