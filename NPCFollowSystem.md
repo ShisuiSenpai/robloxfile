@@ -204,26 +204,30 @@ Add attributes to NPC models to override settings:
 
 ## Animation Setup
 
-The system now supports Roblox's default animations for NPCs. There are three ways to add animations:
+The system now supports Roblox's default animations for NPCs. Since you already have the Animate script in your NPCs, here's how to make it work:
 
-### Method 1: Automatic Setup (Recommended)
-The `NPCAnimateSetup.lua` script automatically adds a simplified Animate script to all NPCs in the NPCS folder. This script includes:
-- Idle animations (randomly cycles between 3 variations)
-- Walk animation (speed adjusts with movement)
-- Run animation (for faster movement)
-- Jump, fall, climb, and sit animations
+### Required Scripts for Animations:
+1. **NPCAnimationFixer.lua** - Makes animations work by properly firing Humanoid events
+2. **NPCAnimateSetupComplete.lua** - Ensures Animate scripts have required components
 
-### Method 2: Copy from Player
-1. Test your game in Studio
-2. Find your character in Workspace
-3. Copy the "Animate" LocalScript
-4. Convert it to a regular Script
-5. Place it in your NPC model
+### Installation:
+1. Place both scripts in ServerScriptService
+2. The scripts will automatically:
+   - Add missing components (Animator, msg StringValue)
+   - Monitor NPC movement and fire animation events
+   - Handle the connection between movement and animations
 
-### Method 3: Manual Setup
-If you already have the Animate LocalScript in your NPC:
-1. Change it from LocalScript to Script
-2. Make sure it references `script.Parent` instead of LocalPlayer.Character
+### Why NPCs Need Help with Animations:
+- Player characters automatically fire Humanoid.Running events when moving
+- NPCs using Humanoid:MoveTo() don't always fire these events properly
+- The NPCAnimationFixer monitors actual movement and manually fires the events
+- This ensures the Animate script receives the signals it needs
+
+### Troubleshooting:
+- Check that NPCs have an "Animator" object in their Humanoid
+- Ensure the Animate script has a "msg" StringValue child
+- Verify NPCs are actually moving (not just having MoveTo called)
+- Check console for diagnostic messages
 
 ## Performance Metrics
 
