@@ -126,12 +126,38 @@ function SpawnManager:OrientPlayerToPath(player, spawnIndex)
     end
     
     -- Calculate direction from spawn to first footstep
-    local direction = (firstFootstep.Position - humanoidRootPart.Position).Unit
-    local lookAtCFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + direction)
+    local toFootstep = firstFootstep.Position - humanoidRootPart.Position
+    
+    -- Determine the dominant direction (X or Z)
+    -- This will make the player face straight along one axis
+    local lookDirection
+    
+    if math.abs(toFootstep.X) > math.abs(toFootstep.Z) then
+        -- Primarily moving along X axis
+        if toFootstep.X > 0 then
+            lookDirection = Vector3.new(1, 0, 0) -- Face positive X
+        else
+            lookDirection = Vector3.new(-1, 0, 0) -- Face negative X
+        end
+    else
+        -- Primarily moving along Z axis
+        if toFootstep.Z > 0 then
+            lookDirection = Vector3.new(0, 0, 1) -- Face positive Z
+        else
+            lookDirection = Vector3.new(0, 0, -1) -- Face negative Z
+        end
+    end
+    
+    -- Create CFrame facing the cardinal direction
+    local lookAtCFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + lookDirection)
     
     -- Apply rotation
     humanoidRootPart.CFrame = lookAtCFrame
+    
+    -- Debug output
     print("[SpawnManager] Oriented player", player.Name, "toward their path")
+    print("[SpawnManager] Direction to footstep:", toFootstep)
+    print("[SpawnManager] Final facing direction:", lookDirection)
 end
 
 function SpawnManager:ResetSpawns()
