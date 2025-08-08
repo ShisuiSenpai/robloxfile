@@ -116,16 +116,11 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         return false
     end
     
-    -- Calculate direction from current position to footstep
-    local toFootstep = footstep.Position - humanoidRootPart.Position
-    local direction = Vector3.new(toFootstep.X, 0, toFootstep.Z).Unit
-    
-    -- Add a small overshoot to ensure we reach the center (MoveTo stops "close enough")
-    local overshootDistance = 1.5 -- studs past center
+    -- Target the exact center of the footstep
     local targetPosition = Vector3.new(
-        footstep.Position.X + (direction.X * overshootDistance),
+        footstep.Position.X,
         footstep.Position.Y + footstep.Size.Y/2 + 0.1, -- Just above footstep surface
-        footstep.Position.Z + (direction.Z * overshootDistance)
+        footstep.Position.Z
     )
     
     print("[PathManager] Footstep info - Position:", footstep.Position, "Size:", footstep.Size)
@@ -180,22 +175,8 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         humanoid.WalkSpeed = 0
         humanoid.JumpPower = 0
         
-        -- Stop movement and freeze
-        humanoid:MoveTo(humanoidRootPart.Position)
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
-        
-        -- Wait a moment for physics to settle
-        task.wait(0.1)
-        
-        -- Now position exactly on footstep center
+        -- Anchor immediately where MoveTo stopped naturally
         humanoidRootPart.Anchored = true
-        local centerPosition = Vector3.new(
-            footstep.Position.X,
-            humanoidRootPart.Position.Y, -- Keep current Y height
-            footstep.Position.Z
-        )
-        humanoidRootPart.Position = centerPosition
         
         -- Debug final position
         print("[PathManager] Final position:", humanoidRootPart.Position)
