@@ -40,6 +40,7 @@ function QuizController:CreateRemoteEvents()
     self.updateQuizTimerRemote = remoteEvents:WaitForChild("UpdateQuizTimer")
     self.showQuizResultRemote = remoteEvents:WaitForChild("ShowQuizResult")
     self.announceWinnerRemote = remoteEvents:WaitForChild("AnnounceWinner")
+    self.updateNextQuestionRemote = remoteEvents:WaitForChild("UpdateNextQuestion")
     
     print("[QuizController] Connected to existing RemoteEvents")
     
@@ -192,6 +193,13 @@ function QuizController:EndQuizRound()
     
     -- Wait for results display
     wait(3)
+    
+    -- Show next question countdown (3 seconds)
+    local countdownTime = 3
+    for i = countdownTime, 0, -0.1 do
+        self.updateNextQuestionRemote:FireAllClients(i)
+        wait(0.1)
+    end
     
     -- Advance winners
     for _, player in ipairs(winners) do

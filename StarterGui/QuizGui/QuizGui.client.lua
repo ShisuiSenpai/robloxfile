@@ -26,6 +26,49 @@ local answerFrames = {
     BG:WaitForChild("AnswerD")
 }
 
+-- Create Next Question UI (matching quiz style)
+local nextQuestionFrame = Instance.new("Frame")
+nextQuestionFrame.Name = "NextQuestionFrame"
+nextQuestionFrame.Size = UDim2.new(0, 400, 0, 100)
+nextQuestionFrame.Position = UDim2.new(0.5, -200, 0.85, 0)
+nextQuestionFrame.BackgroundColor3 = Colors.White
+nextQuestionFrame.BorderSizePixel = 0
+nextQuestionFrame.Visible = false
+nextQuestionFrame.Parent = BG
+
+local nextQuestionCorner = Instance.new("UICorner")
+nextQuestionCorner.CornerRadius = UDim.new(0, 20)
+nextQuestionCorner.Parent = nextQuestionFrame
+
+local nextQuestionBorder = Instance.new("UIStroke")
+nextQuestionBorder.Color = Colors.Blue
+nextQuestionBorder.Thickness = 3
+nextQuestionBorder.Parent = nextQuestionFrame
+
+local nextQuestionLabel = Instance.new("TextLabel")
+nextQuestionLabel.Name = "Label"
+nextQuestionLabel.Size = UDim2.new(1, 0, 0.5, 0)
+nextQuestionLabel.Position = UDim2.new(0, 0, 0, 0)
+nextQuestionLabel.BackgroundTransparency = 1
+nextQuestionLabel.Text = "Next question in:"
+nextQuestionLabel.TextColor3 = Colors.Blue
+nextQuestionLabel.TextScaled = false
+nextQuestionLabel.TextSize = 20
+nextQuestionLabel.Font = Enum.Font.Gotham
+nextQuestionLabel.Parent = nextQuestionFrame
+
+local nextQuestionTimer = Instance.new("TextLabel")
+nextQuestionTimer.Name = "Timer"
+nextQuestionTimer.Size = UDim2.new(1, 0, 0.5, 0)
+nextQuestionTimer.Position = UDim2.new(0, 0, 0.5, 0)
+nextQuestionTimer.BackgroundTransparency = 1
+nextQuestionTimer.Text = "3"
+nextQuestionTimer.TextColor3 = Colors.Blue
+nextQuestionTimer.TextScaled = false
+nextQuestionTimer.TextSize = 36
+nextQuestionTimer.Font = Enum.Font.GothamBold
+nextQuestionTimer.Parent = nextQuestionFrame
+
 -- Color scheme
 local Colors = {
     Correct = Color3.fromRGB(50, 200, 100),
@@ -43,6 +86,7 @@ local submitAnswerRemote = remoteEvents:WaitForChild("SubmitAnswer")
 local updateQuizTimerRemote = remoteEvents:WaitForChild("UpdateQuizTimer")
 local showQuizResultRemote = remoteEvents:WaitForChild("ShowQuizResult")
 local announceWinnerRemote = remoteEvents:WaitForChild("AnnounceWinner")
+local updateNextQuestionRemote = remoteEvents:WaitForChild("UpdateNextQuestion")
 
 -- State
 local currentQuestion = nil
@@ -803,11 +847,77 @@ function AnnounceWinner(winner)
     gui.Enabled = false
 end
 
+function ShowNextQuestionCountdown(timeLeft)
+    -- Show the next question frame
+    nextQuestionFrame.Visible = true
+    
+    -- Update timer text
+    nextQuestionTimer.Text = tostring(math.ceil(math.max(0, timeLeft)))
+    
+    -- Animate in if just became visible
+    if timeLeft == 3 then
+        -- Start off-screen
+        nextQuestionFrame.Position = UDim2.new(0.5, -200, 1.2, 0)
+        nextQuestionFrame.Size = UDim2.new(0, 400, 0, 100)
+        
+        -- Animate in
+        TweenService:Create(nextQuestionFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.5, -200, 0.85, 0)
+        }):Play()
+        
+        -- Play appear sound
+        sounds.appear:Play()
+    end
+    
+    -- Change color as time runs out
+    if timeLeft <= 1 then
+        nextQuestionTimer.TextColor3 = Colors.Incorrect
+        nextQuestionBorder.Color = Colors.Incorrect
+    elseif timeLeft <= 2 then
+        nextQuestionTimer.TextColor3 = Color3.fromRGB(241, 196, 15) -- Yellow
+        nextQuestionBorder.Color = Color3.fromRGB(241, 196, 15)
+    else
+        nextQuestionTimer.TextColor3 = Colors.Blue
+        nextQuestionBorder.Color = Colors.Blue
+    end
+    
+    -- Pulse effect on each second
+    if timeLeft == math.ceil(timeLeft) and timeLeft > 0 then
+        TweenService:Create(nextQuestionFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 420, 0, 105)
+        }):Play()
+        
+        task.delay(0.2, function()
+            TweenService:Create(nextQuestionFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 400, 0, 100)
+            }):Play()
+        end)
+    end
+end
+
+function HideNextQuestionCountdown()
+    if nextQuestionFrame.Visible then
+        -- Animate out
+        TweenService:Create(nextQuestionFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            Position = UDim2.new(0.5, -200, 1.2, 0),
+            BackgroundTransparency = 1
+        }):Play()
+        
+        task.wait(0.3)
+        nextQuestionFrame.Visible = false
+        nextQuestionFrame.BackgroundTransparency = 0
+    end
+end
+
 -- Connect RemoteEvents
-showQuestionRemote.OnClientEvent:Connect(ShowQuestion)
+showQuestionRemote.OnClientEvent:Connect(function(question, totalTime)
+    HideNextQuestionCountdown() -- Hide countdown when new question appears
+    ShowQuestion(question, totalTime)
+end)
 updateQuizTimerRemote.OnClientEvent:Connect(UpdateTimer)
 showQuizResultRemote.OnClientEvent:Connect(ShowResults)
 announceWinnerRemote.OnClientEvent:Connect(AnnounceWinner)
+updateNextQuestionRemote.OnClientEvent:Connect(ShowNextQuestionCountdown)
 
 -- Initially hide
 gui.Enabled = false
