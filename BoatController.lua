@@ -12,15 +12,43 @@ remoteEvent.Parent = ReplicatedStorage
 
 -- Configuration
 local BOAT_NAME = "RowBoat"
-local MAX_SPEED = 50 -- Maximum boat speed
-local BASE_SPEED = 5 -- Minimum boat speed
-local SPEED_INCREASE_PER_CORRECT = 2 -- Speed increase for correct input
-local SPEED_DECREASE_PER_INCORRECT = 3 -- Speed decrease for incorrect input
-local SPEED_DECAY_RATE = 0.95 -- Speed decay over time
+
+-- Speed Configuration (Balanced for gradual progression)
+local SPEED_LEVELS = {
+    {streak = 0, speed = 0},      -- No movement without input
+    {streak = 1, speed = 2},      -- First correct key
+    {streak = 2, speed = 4},      -- Small boost
+    {streak = 3, speed = 7},      -- Starting to build momentum
+    {streak = 5, speed = 11},     -- Good rhythm
+    {streak = 8, speed = 16},     -- Strong rowing
+    {streak = 12, speed = 22},    -- Excellent coordination
+    {streak = 17, speed = 30},    -- Expert level
+    {streak = 23, speed = 40},    -- Master rower
+    {streak = 30, speed = 50},    -- Maximum speed
+}
+
+-- Balancing Configuration
+local SPEED_DECAY_RATE = 0.98         -- Slower decay (2% per frame) to maintain momentum
+local WRONG_KEY_SPEED_PENALTY = 5     -- Direct speed reduction for wrong keys
+local WRONG_KEY_STREAK_PENALTY = 0.5  -- Streak multiplier on wrong key (halves streak)
+local NO_INPUT_DECAY_RATE = 0.95      -- Faster decay when no input (5% per frame)
+local STREAK_TIMEOUT = 1.5             -- Seconds before streak resets if no input
 
 -- Boat data storage
 local boatData = {}
 local lastSpeedUpdate = {}
+
+-- Function to calculate speed based on streak
+local function getSpeedFromStreak(streak)
+    local speed = 0
+    for i = #SPEED_LEVELS, 1, -1 do
+        if streak >= SPEED_LEVELS[i].streak then
+            speed = SPEED_LEVELS[i].speed
+            break
+        end
+    end
+    return speed
+end
 
 -- Function to find the boat in workspace
 local function findBoat()
@@ -70,11 +98,16 @@ local function initializeBoat(boat)
     if not boatData[boat] then
         boatData[boat] = {
             currentSpeed = 0,
+            targetSpeed = 0,
             isOccupied = false,
             occupants = {},
             primaryPart = getBoatPrimaryPart(boat),
             originalCFrame = nil,
-            forwardDirection = nil
+            forwardDirection = nil,
+            streak = 0,
+            lastInputTime = 0,
+            totalCorrectInputs = 0,
+            totalWrongInputs = 0
         }
         
         if boatData[boat].primaryPart then
@@ -117,6 +150,10 @@ local function onSeatOccupancyChanged(seat)
             end
             data.occupants = {}
             data.currentSpeed = 0
+            data.targetSpeed = 0
+            data.streak = 0
+            data.totalCorrectInputs = 0
+            data.totalWrongInputs = 0
         end
     end
 end
@@ -129,12 +166,42 @@ local function onRowingInput(player, action, isCorrect, boat)
     if not data.occupants[player] then return end
     
     if action == "KeyPress" then
+        local currentTime = tick()
+        
         if isCorrect then
-            -- Increase speed for correct input
-            data.currentSpeed = math.min(data.currentSpeed + SPEED_INCREASE_PER_CORRECT, MAX_SPEED)
+            -- Correct input
+            data.totalCorrectInputs = data.totalCorrectInputs + 1
+            
+            -- Check if streak should continue or reset
+            if currentTime - data.lastInputTime > STREAK_TIMEOUT then
+                data.streak = 1
+            else
+                data.streak = data.streak + 1
+            end
+            
+            data.lastInputTime = currentTime
+            
+            -- Calculate new target speed based on streak
+            data.targetSpeed = getSpeedFromStreak(data.streak)
+            
+            -- Send streak update to player
+            remoteEvent:FireClient(player, "UpdateStreak", data.streak)
+            
         else
-            -- Decrease speed for incorrect input
-            data.currentSpeed = math.max(data.currentSpeed - SPEED_DECREASE_PER_INCORRECT, 0)
+            -- Wrong input
+            data.totalWrongInputs = data.totalWrongInputs + 1
+            
+            -- Reduce streak (but not to 0 to maintain some momentum)
+            data.streak = math.floor(data.streak * WRONG_KEY_STREAK_PENALTY)
+            
+            -- Apply immediate speed penalty
+            data.currentSpeed = math.max(0, data.currentSpeed - WRONG_KEY_SPEED_PENALTY)
+            
+            -- Recalculate target speed
+            data.targetSpeed = getSpeedFromStreak(data.streak)
+            
+            -- Send streak update to player
+            remoteEvent:FireClient(player, "UpdateStreak", data.streak)
         end
     end
 end
@@ -143,16 +210,39 @@ end
 local function updateBoatMovement()
     for boat, data in pairs(boatData) do
         if data.isOccupied and data.primaryPart and data.forwardDirection then
-            -- Apply speed decay
-            data.currentSpeed = data.currentSpeed * SPEED_DECAY_RATE
+            local currentTime = tick()
             
-            -- Ensure minimum speed when occupied
-            if data.currentSpeed < BASE_SPEED and data.isOccupied then
-                data.currentSpeed = BASE_SPEED
+            -- Check for streak timeout
+            if currentTime - data.lastInputTime > STREAK_TIMEOUT and data.streak > 0 then
+                data.streak = 0
+                data.targetSpeed = 0
+                
+                -- Notify all occupants
+                for player, _ in pairs(data.occupants) do
+                    remoteEvent:FireClient(player, "UpdateStreak", 0)
+                end
+            end
+            
+            -- Smooth speed transitions
+            if data.currentSpeed < data.targetSpeed then
+                -- Accelerate towards target
+                data.currentSpeed = math.min(data.targetSpeed, data.currentSpeed + 1)
+            elseif data.currentSpeed > data.targetSpeed then
+                -- Decelerate towards target
+                data.currentSpeed = math.max(data.targetSpeed, data.currentSpeed - 0.5)
+            end
+            
+            -- Apply decay based on input activity
+            if currentTime - data.lastInputTime > 0.5 then
+                -- No recent input - apply no-input decay
+                data.currentSpeed = data.currentSpeed * NO_INPUT_DECAY_RATE
+            else
+                -- Recent input - apply normal decay
+                data.currentSpeed = data.currentSpeed * SPEED_DECAY_RATE
             end
             
             -- Move the boat forward
-            if data.currentSpeed > 0 then
+            if data.currentSpeed > 0.1 then -- Threshold to prevent tiny movements
                 local deltaTime = RunService.Heartbeat:Wait()
                 local movement = data.forwardDirection * data.currentSpeed * deltaTime
                 
@@ -162,11 +252,15 @@ local function updateBoatMovement()
             end
             
             -- Send speed updates to occupants (throttled to every 0.1 seconds)
-            if not lastSpeedUpdate[boat] or tick() - lastSpeedUpdate[boat] > 0.1 then
+            if not lastSpeedUpdate[boat] or currentTime - lastSpeedUpdate[boat] > 0.1 then
                 for player, _ in pairs(data.occupants) do
-                    remoteEvent:FireClient(player, "UpdateSpeed", data.currentSpeed)
+                    remoteEvent:FireClient(player, "UpdateSpeed", {
+                        currentSpeed = data.currentSpeed,
+                        streak = data.streak,
+                        accuracy = data.totalCorrectInputs / math.max(1, data.totalCorrectInputs + data.totalWrongInputs)
+                    })
                 end
-                lastSpeedUpdate[boat] = tick()
+                lastSpeedUpdate[boat] = currentTime
             end
         end
     end
