@@ -194,11 +194,25 @@ function QuizController:EndQuizRound()
     -- Wait for results display
     wait(3)
     
-    -- Show next question countdown (3 seconds)
-    local countdownTime = 3
-    for i = countdownTime, 0, -0.1 do
-        self.updateNextQuestionRemote:FireAllClients(i)
-        wait(0.1)
+    -- Only show countdown if there are more questions coming
+    local anyPlayerContinuing = false
+    for _, player in ipairs(winners) do
+        local position = self.pathManager:GetPlayerPosition(player)
+        if position and position.footstepIndex < 6 then
+            anyPlayerContinuing = true
+            break
+        end
+    end
+    
+    if anyPlayerContinuing then
+        -- Show next question countdown (3 seconds)
+        print("[QuizController] Showing next question countdown")
+        for i = 3, 1, -1 do
+            self.updateNextQuestionRemote:FireAllClients(i)
+            wait(1)
+        end
+        self.updateNextQuestionRemote:FireAllClients(0)
+        wait(0.2)
     end
     
     -- Advance winners

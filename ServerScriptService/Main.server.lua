@@ -162,14 +162,12 @@ function onIntermissionEnd()
     local updateNextQuestionRemote = remoteEvents:WaitForChild("UpdateNextQuestion")
     
     print("[Main] Starting countdown before first question")
-    local countdownTime = 3
-    for i = countdownTime, 0, -0.1 do
+    for i = 3, 1, -1 do
         updateNextQuestionRemote:FireAllClients(i)
-        wait(0.1)
+        wait(1)
     end
-    
-    -- Ensure countdown is hidden before starting quiz
-    wait(0.2)
+    updateNextQuestionRemote:FireAllClients(0)
+    wait(0.5)
     
     -- Start the quiz system
     quizController:StartQuizRound()

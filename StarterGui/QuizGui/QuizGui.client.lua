@@ -476,6 +476,9 @@ function ShowQuestion(question, totalTime)
     maxTime = totalTime
     lastTickSecond = -1 -- Reset tick tracking
     
+    -- Hide countdown immediately if visible
+    nextQuestionFrame.Visible = false
+    
     -- Reset UI
     gui.Enabled = true
     BG.Visible = true
@@ -844,42 +847,46 @@ function AnnounceWinner(winner)
 end
 
 function ShowNextQuestionCountdown(timeLeft)
-    print("[QuizUI] ShowNextQuestionCountdown called with timeLeft:", timeLeft)
+    -- Round to nearest integer for cleaner display
+    local displayTime = math.max(0, math.floor(timeLeft + 0.5))
     
     -- Enable GUI if not already enabled
     if not gui.Enabled then
         gui.Enabled = true
-        print("[QuizUI] Enabled GUI for countdown")
     end
     
-    -- Show the next question frame
-    nextQuestionFrame.Visible = true
-    
     -- Update timer text
-    nextQuestionTimer.Text = tostring(math.ceil(math.max(0, timeLeft)))
+    nextQuestionTimer.Text = tostring(displayTime)
     
-    -- Animate in if just became visible
-    if timeLeft >= 2.9 and timeLeft <= 3 then
+    -- Show and animate in on first call (when timeLeft is 3)
+    if timeLeft == 3 and not nextQuestionFrame.Visible then
+        -- Hide any existing quiz elements first
+        questionFrame.Visible = false
+        for _, frame in ipairs(answerFrames) do
+            frame.Visible = false
+        end
+        
+        -- Show countdown frame
+        nextQuestionFrame.Visible = true
+        nextQuestionFrame.BackgroundTransparency = 0
+        
         -- Start off-screen
         nextQuestionFrame.Position = UDim2.new(0.5, -200, 1.2, 0)
-        nextQuestionFrame.Size = UDim2.new(0, 400, 0, 100)
         
         -- Animate in
         TweenService:Create(nextQuestionFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Position = UDim2.new(0.5, -200, 0.85, 0)
         }):Play()
         
-        -- Play appear sound (only during countdown, not when timer hits 0)
-        if timeLeft > 0.5 then
-            sounds.appear:Play()
-        end
+        -- Play appear sound
+        sounds.appear:Play()
     end
     
     -- Change color as time runs out
-    if timeLeft <= 1 then
+    if displayTime <= 1 then
         nextQuestionTimer.TextColor3 = Colors.Incorrect
         nextQuestionBorder.Color = Colors.Incorrect
-    elseif timeLeft <= 2 then
+    elseif displayTime <= 2 then
         nextQuestionTimer.TextColor3 = Color3.fromRGB(241, 196, 15) -- Yellow
         nextQuestionBorder.Color = Color3.fromRGB(241, 196, 15)
     else
@@ -888,7 +895,7 @@ function ShowNextQuestionCountdown(timeLeft)
     end
     
     -- Pulse effect on each second
-    if timeLeft == math.ceil(timeLeft) and timeLeft > 0 then
+    if timeLeft == math.floor(timeLeft) and timeLeft > 0 then
         TweenService:Create(nextQuestionFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 420, 0, 105)
         }):Play()
@@ -898,6 +905,12 @@ function ShowNextQuestionCountdown(timeLeft)
                 Size = UDim2.new(0, 400, 0, 100)
             }):Play()
         end)
+    end
+    
+    -- Auto-hide when countdown reaches 0
+    if timeLeft == 0 then
+        task.wait(0.3)
+        HideNextQuestionCountdown()
     end
 end
 
@@ -918,7 +931,6 @@ end
 
 -- Connect RemoteEvents
 showQuestionRemote.OnClientEvent:Connect(function(question, totalTime)
-    HideNextQuestionCountdown() -- Hide countdown when new question appears
     ShowQuestion(question, totalTime)
 end)
 updateQuizTimerRemote.OnClientEvent:Connect(UpdateTimer)
