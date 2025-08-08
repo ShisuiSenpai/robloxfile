@@ -116,10 +116,13 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         return false
     end
     
-    -- Calculate target position (on the footstep surface, accounting for character height)
+    -- Calculate target position (center of footstep, with proper height)
+    -- MoveTo uses the character's feet position, not HumanoidRootPart center
+    -- So we need to target the exact center of the footstep
+    local footstepTop = footstep.Position.Y + footstep.Size.Y/2
     local targetPosition = Vector3.new(
         footstep.Position.X,
-        footstep.Position.Y + footstep.Size.Y/2 + (humanoidRootPart.Size.Y/2) + 0.1,
+        footstepTop + 0.1, -- Small offset above the footstep surface
         footstep.Position.Z
     )
     
@@ -158,12 +161,20 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
             timeoutConnection:Disconnect()
         end
         
-        -- If didn't reach naturally, force position
-        if not reached then
-            local lookDirection = (targetPosition - humanoidRootPart.Position)
-            lookDirection = Vector3.new(lookDirection.X, 0, lookDirection.Z).Unit
-            humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
-        end
+        -- Always ensure player is perfectly centered on the footstep
+        -- Calculate the proper position for the HumanoidRootPart
+        local finalPosition = Vector3.new(
+            footstep.Position.X,
+            footstep.Position.Y + footstep.Size.Y/2 + humanoidRootPart.Size.Y/2 + 0.1,
+            footstep.Position.Z
+        )
+        
+        -- Keep the player's current rotation
+        local currentLookDirection = humanoidRootPart.CFrame.LookVector
+        humanoidRootPart.CFrame = CFrame.lookAt(finalPosition, finalPosition + currentLookDirection)
+        
+        -- Debug: Show exact positioning
+        print("[PathManager] Footstep center:", footstep.Position, "Player position:", humanoidRootPart.Position)
         
         -- Re-freeze the player on server
         humanoid.WalkSpeed = 0
