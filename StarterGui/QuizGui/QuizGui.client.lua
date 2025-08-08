@@ -47,34 +47,41 @@ local hasAnswered = false
 local maxTime = 15
 local floatingConnections = {}
 
--- Timer display (create it)
-local timerFrame = Instance.new("Frame")
-timerFrame.Name = "TimerFrame"
-timerFrame.Size = UDim2.new(0, 200, 0, 80)
-timerFrame.Position = UDim2.new(0.5, -100, 0.05, 0)
-timerFrame.BackgroundColor3 = Colors.White
-timerFrame.BorderSizePixel = 0
-timerFrame.Parent = BG
+-- Timer display (create it or find existing)
+local timerFrame = BG:FindFirstChild("TimerFrame")
+local timerText
 
-local timerCorner = Instance.new("UICorner")
-timerCorner.CornerRadius = UDim.new(0, 40)
-timerCorner.Parent = timerFrame
+if not timerFrame then
+    timerFrame = Instance.new("Frame")
+    timerFrame.Name = "TimerFrame"
+    timerFrame.Size = UDim2.new(0, 200, 0, 80)
+    timerFrame.Position = UDim2.new(0.5, -100, 0.05, 0)
+    timerFrame.BackgroundColor3 = Colors.White
+    timerFrame.BorderSizePixel = 0
+    timerFrame.Parent = BG
 
-local timerBorder = Instance.new("UIStroke")
-timerBorder.Color = Colors.Blue
-timerBorder.Thickness = 3
-timerBorder.Parent = timerFrame
+    local timerCorner = Instance.new("UICorner")
+    timerCorner.CornerRadius = UDim.new(0, 40)
+    timerCorner.Parent = timerFrame
 
-local timerText = Instance.new("TextLabel")
-timerText.Name = "TimerText"
-timerText.Size = UDim2.new(1, 0, 1, 0)
-timerText.BackgroundTransparency = 1
-timerText.Text = "15"
-timerText.TextColor3 = Colors.Blue
-timerText.TextScaled = false
-timerText.TextSize = 36
-timerText.Font = Enum.Font.GothamBold
-timerText.Parent = timerFrame
+    local timerBorder = Instance.new("UIStroke")
+    timerBorder.Color = Colors.Blue
+    timerBorder.Thickness = 3
+    timerBorder.Parent = timerFrame
+
+    timerText = Instance.new("TextLabel")
+    timerText.Name = "TimerText"
+    timerText.Size = UDim2.new(1, 0, 1, 0)
+    timerText.BackgroundTransparency = 1
+    timerText.Text = "15"
+    timerText.TextColor3 = Colors.Blue
+    timerText.TextScaled = false
+    timerText.TextSize = 36
+    timerText.Font = Enum.Font.GothamBold
+    timerText.Parent = timerFrame
+else
+    timerText = timerFrame:FindFirstChild("TimerText")
+end
 
 -- Helper functions
 local function clearFloatingEffects()
@@ -147,7 +154,7 @@ end
 
 local function resetAnswerButtons()
     for _, answerFrame in ipairs(answerFrames) do
-        -- Reset colors
+        -- Reset colors and transparency
         answerFrame.BackgroundColor3 = Colors.White
         answerFrame.BackgroundTransparency = 0
         
@@ -155,16 +162,21 @@ local function resetAnswerButtons()
         if border then
             border.Color = Colors.Blue
             border.Thickness = 2
+            border.Transparency = 0
         end
         
         local contentFrame = answerFrame:FindFirstChild("Frame")
         if contentFrame then
+            contentFrame.BackgroundTransparency = contentFrame.BackgroundTransparency or 1 -- Keep transparent if it was
+            
             local letterCircle = contentFrame:FindFirstChild("LetterCircle")
             if letterCircle then
                 letterCircle.BackgroundColor3 = Colors.Blue
+                letterCircle.BackgroundTransparency = 0
                 local letter = letterCircle:FindFirstChild("Letter")
                 if letter then
                     letter.TextColor3 = Colors.White
+                    letter.TextTransparency = 0
                 end
             end
             
@@ -172,6 +184,15 @@ local function resetAnswerButtons()
             if answerText then
                 answerText.TextColor3 = Colors.Blue
                 answerText.TextTransparency = 0
+            end
+            
+            -- Reset all descendants transparency
+            for _, descendant in pairs(contentFrame:GetDescendants()) do
+                if descendant:IsA("Frame") and descendant.Name ~= "Frame" then
+                    descendant.BackgroundTransparency = descendant.Name == "Frame" and 1 or 0
+                elseif descendant:IsA("TextLabel") then
+                    descendant.TextTransparency = 0
+                end
             end
         end
         
@@ -260,7 +281,47 @@ function ShowQuestion(question, totalTime)
     -- Reset UI
     gui.Enabled = true
     BG.Visible = true
+    
+    -- Reset all elements to their original state
+    -- Reset question frame
+    questionFrame.Visible = true
+    questionFrame.BackgroundTransparency = 0
+    questionFrame.Position = UDim2.new(0.5, -400, 0.55, 0) -- Original position
+    questionText.TextTransparency = 0
+    
+    -- Reset timer frame
+    if timerFrame then
+        timerFrame.Visible = true
+        timerFrame.BackgroundTransparency = 0
+        timerFrame.Position = UDim2.new(0.5, -100, 0.05, 0) -- Original position
+        timerFrame.Size = UDim2.new(0, 200, 0, 80) -- Original size
+        timerText.TextTransparency = 0
+    end
+    
+    -- Reset answer frames to original positions
+    local originalPositions = {
+        UDim2.new(0.5, -390, 0.72, 0),   -- A
+        UDim2.new(0.5, 10, 0.72, 0),     -- B
+        UDim2.new(0.5, -390, 0.72, 85),  -- C
+        UDim2.new(0.5, 10, 0.72, 85)     -- D
+    }
+    
+    for i, answerFrame in ipairs(answerFrames) do
+        answerFrame.Visible = true
+        answerFrame.Position = originalPositions[i]
+        answerFrame.Size = UDim2.new(0, 380, 0, 70) -- Original size
+        answerFrame.BackgroundTransparency = 0
+    end
+    
+    -- Now reset button states
     resetAnswerButtons()
+    
+    -- Clean up any leftover frames
+    for _, child in pairs(BG:GetChildren()) do
+        if child.Name == "WinnerFrame" or child.Name == "ResultFrame" then
+            child:Destroy()
+        end
+    end
     
     -- Update question text
     questionText.Text = question.question
