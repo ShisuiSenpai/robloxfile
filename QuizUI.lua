@@ -27,7 +27,7 @@ BG.Parent = screenGui
 local questionFrame = Instance.new("Frame")
 questionFrame.Name = "QuestionFrame"
 questionFrame.Size = UDim2.new(0, 800, 0, 120)
-questionFrame.Position = UDim2.new(0.5, -400, 0.45, 0)  -- Moved lower
+questionFrame.Position = UDim2.new(0.5, -400, 0.55, 0)  -- Moved even lower
 questionFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 questionFrame.BorderSizePixel = 0
 questionFrame.Parent = BG
@@ -51,7 +51,7 @@ questionText.BackgroundTransparency = 1
 questionText.Text = "What is the capital of France?"
 questionText.TextColor3 = Color3.fromRGB(100, 150, 250) -- Blue text
 questionText.TextScaled = false
-questionText.TextSize = 24  -- Bigger text
+questionText.TextSize = 28  -- Even bigger text
 questionText.Font = Enum.Font.Gotham
 questionText.TextWrapped = true
 questionText.TextXAlignment = Enum.TextXAlignment.Center
@@ -189,21 +189,21 @@ local function createAnswerButton(position, letter, text)
     return buttonFrame
 end
 
--- Create answer buttons - Closer together and lower
+-- Create answer buttons - Much closer to question and lower
 -- Top row (A and B)
-createAnswerButton(UDim2.new(0.5, -390, 0.65, 0), "A", "Paris")   -- Closer to center
-createAnswerButton(UDim2.new(0.5, 10, 0.65, 0), "B", "London")
+createAnswerButton(UDim2.new(0.5, -390, 0.72, 0), "A", "Paris")   -- Much closer to question
+createAnswerButton(UDim2.new(0.5, 10, 0.72, 0), "B", "London")
 
 -- Bottom row (C and D) - Less gap between rows
-createAnswerButton(UDim2.new(0.5, -390, 0.65, 85), "C", "Berlin")
-createAnswerButton(UDim2.new(0.5, 10, 0.65, 85), "D", "Madrid")
+createAnswerButton(UDim2.new(0.5, -390, 0.72, 85), "C", "Berlin")
+createAnswerButton(UDim2.new(0.5, 10, 0.72, 85), "D", "Madrid")
 
 -- Entrance animations for floating effect
 local function animateIn()
     -- Animate question
     questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -400, 0.45, 0)
+        Position = UDim2.new(0.5, -400, 0.55, 0)
     })
     questionTween:Play()
     
