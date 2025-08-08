@@ -137,6 +137,15 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     -- Debug: Check initial state
     print("[PathManager] Pre-move state - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "PlatformStand:", humanoid.PlatformStand)
     
+    -- IMPORTANT: Force freeze first if player isn't frozen
+    if not humanoidRootPart.Anchored or humanoid.WalkSpeed > 0 then
+        warn("[PathManager] Player", player.Name, "wasn't properly frozen! Forcing freeze before movement.")
+        humanoidRootPart.Anchored = true
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        task.wait(0.1) -- Let it settle
+    end
+    
     -- STEP 1: Tell client we're about to move (stop enforcing freeze)
     -- Use pcall in case client isn't ready
     local success = pcall(function()

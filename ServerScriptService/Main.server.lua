@@ -50,6 +50,12 @@ local function onPlayerAdded(player)
                 wait(0.1) -- Small delay to ensure character is ready
                 spawnManager:SpawnPlayer(player, spawnIndex)
                 
+                -- If game is in intermission, freeze the new player
+                if gameManager:GetState() == GameConstants.GameState.INTERMISSION then
+                    print("[Main] Freezing late-joining player during intermission:", player.Name)
+                    intermissionManager:FreezePlayer(player, true)
+                end
+                
                 -- Check if we should start the game
                 checkGameStart()
             else
