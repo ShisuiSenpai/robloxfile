@@ -325,45 +325,83 @@ end
 
 -- Look for NPCs in workspace
 local function FindAllNPCs()
-	-- Look in common locations
-	local searchLocations = {
-		workspace:FindFirstChild("NPCS"),
-		workspace:FindFirstChild("NPCs"),
-		workspace:FindFirstChild("Enemies"),
-		workspace
-	}
+	print("Searching for NPCs...")
 	
-	for _, location in ipairs(searchLocations) do
-		if location then
-			for _, child in ipairs(location:GetDescendants()) do
-				if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") and child ~= game.Players.LocalPlayer then
-					-- Check if it's not a player character
-					local isPlayer = false
-					for _, player in ipairs(Players:GetPlayers()) do
-						if player.Character == child then
-							isPlayer = true
-							break
-						end
+	-- Look in NPCS folder first
+	local npcsFolder = workspace:FindFirstChild("NPCS")
+	if npcsFolder then
+		print("Found NPCS folder")
+		for _, child in ipairs(npcsFolder:GetChildren()) do
+			if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") then
+				-- Check if it's not a player character
+				local isPlayer = false
+				for _, player in ipairs(Players:GetPlayers()) do
+					if player.Character == child then
+						isPlayer = true
+						break
 					end
-					
-					if not isPlayer and child.Name:lower():find("npc") or child.Name:lower():find("noob") or child.Name:lower():find("enemy") then
-						SetupNPC(child)
+				end
+				
+				if not isPlayer then
+					print("Found NPC:", child.Name)
+					SetupNPC(child)
+				end
+			end
+		end
+	else
+		print("NPCS folder not found, searching workspace...")
+		-- Search entire workspace as fallback
+		for _, child in ipairs(workspace:GetDescendants()) do
+			if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") then
+				-- Check if it's not a player character
+				local isPlayer = false
+				for _, player in ipairs(Players:GetPlayers()) do
+					if player.Character == child then
+						isPlayer = true
+						break
 					end
+				end
+				
+				-- Check if name suggests it's an NPC
+				local name = child.Name:lower()
+				if not isPlayer and (name:find("npc") or name:find("noob") or name:find("enemy") or name:find("bot")) then
+					print("Found NPC:", child.Name)
+					SetupNPC(child)
 				end
 			end
 		end
 	end
+	
+	local npcCount = 0
+	for _ in pairs(NPCs) do
+		npcCount = npcCount + 1
+	end
+	print("Total NPCs found:", npcCount)
 end
 
--- Initial setup
+-- Initial setup with delay to ensure workspace is loaded
+task.wait(1)
 FindAllNPCs()
 
 -- Listen for new NPCs
 workspace.DescendantAdded:Connect(function(obj)
 	if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
 		task.wait(0.1) -- Let model load
-		if obj.Name:lower():find("npc") or obj.Name:lower():find("noob") then
-			SetupNPC(obj)
+		local name = obj.Name:lower()
+		if name:find("npc") or name:find("noob") or name:find("bot") or name:find("enemy") then
+			-- Make sure it's not a player
+			local isPlayer = false
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player.Character == obj then
+					isPlayer = true
+					break
+				end
+			end
+			
+			if not isPlayer then
+				print("New NPC added:", obj.Name)
+				SetupNPC(obj)
+			end
 		end
 	end
 end)
@@ -386,4 +424,4 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
-print("NPC Combat System loaded! Found", #NPCs, "NPCs")
+print("NPC Combat System loaded!")
