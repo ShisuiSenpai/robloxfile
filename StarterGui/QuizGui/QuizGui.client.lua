@@ -10,6 +10,9 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local gui = script.Parent
 
+-- Load sound configuration
+local SoundConfig = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("SoundConfig"))
+
 -- Wait for UI elements
 local BG = gui:WaitForChild("BG")
 local questionFrame = BG:WaitForChild("QuestionFrame")
@@ -46,6 +49,16 @@ local currentQuestion = nil
 local hasAnswered = false
 local maxTime = 15
 local floatingConnections = {}
+local lastTickSecond = -1
+
+-- Create timer tick sound
+local timerTickSound = Instance.new("Sound")
+timerTickSound.Name = "TimerTickSound"
+timerTickSound.SoundId = SoundConfig.TimerTick.SoundId
+timerTickSound.Volume = SoundConfig.TimerTick.Volume
+timerTickSound.Pitch = SoundConfig.TimerTick.Pitch
+timerTickSound.EmitterSize = SoundConfig.TimerTick.EmitterSize
+timerTickSound.Parent = gui
 
 -- Timer display (create it or find existing)
 local timerFrame = BG:FindFirstChild("TimerFrame")
@@ -396,6 +409,7 @@ function ShowQuestion(question, totalTime)
     currentQuestion = question
     hasAnswered = false
     maxTime = totalTime
+    lastTickSecond = -1 -- Reset tick tracking
     
     -- Reset UI
     gui.Enabled = true
@@ -469,7 +483,9 @@ function ShowQuestion(question, totalTime)
 end
 
 function UpdateTimer(timeLeft)
-    timerText.Text = tostring(math.ceil(timeLeft))
+    -- Fix display to show 0 instead of -0
+    local displayTime = math.max(0, math.ceil(timeLeft))
+    timerText.Text = tostring(displayTime)
     
     -- Change color based on time
     local percentage = timeLeft / maxTime
@@ -479,9 +495,14 @@ function UpdateTimer(timeLeft)
         timerText.TextColor3 = Color3.fromRGB(241, 196, 15) -- Yellow
     else
         timerText.TextColor3 = Colors.Incorrect -- Red
-        -- Smooth pulse effect when low on time (without wait)
-        if math.ceil(timeLeft) <= 3 and math.ceil(timeLeft) == timeLeft then
-            -- Only pulse on whole seconds
+        
+        -- Play tick sound on last 3 seconds (once per second)
+        local currentSecond = math.ceil(timeLeft)
+        if currentSecond <= 3 and currentSecond > 0 and currentSecond ~= lastTickSecond then
+            lastTickSecond = currentSecond
+            timerTickSound:Play()
+            
+            -- Pulse effect with the tick
             TweenService:Create(timerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = UDim2.new(0, 210, 0, 84)
             }):Play()
