@@ -142,27 +142,31 @@ local function animateIn()
     -- Clear any existing floating effects
     clearFloatingEffects()
     
-    -- Animate question
-    questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0)
+    -- Store final positions
+    local finalPositions = {
+        UDim2.new(0.5, -390, 0.72, 0),   -- A
+        UDim2.new(0.5, 10, 0.72, 0),     -- B
+        UDim2.new(0.5, -390, 0.72, 85),  -- C
+        UDim2.new(0.5, 10, 0.72, 85)     -- D
+    }
+    
+    -- Animate question (already at off-screen position)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
         Position = UDim2.new(0.5, -400, 0.55, 0)
     })
     questionTween:Play()
     
-    -- Animate timer
-    timerFrame.Position = UDim2.new(0.5, -100, -0.2, 0)
+    -- Animate timer (already at off-screen position)
     local timerTween = TweenService:Create(timerFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
         Position = UDim2.new(0.5, -100, 0.05, 0)
     })
     timerTween:Play()
     
-    -- Animate answer buttons
+    -- Animate answer buttons (already at off-screen positions)
     task.wait(0.2)
     for i, answerFrame in ipairs(answerFrames) do
-        local originalPos = answerFrame.Position
-        answerFrame.Position = UDim2.new(answerFrame.Position.X.Scale, answerFrame.Position.X.Offset, 1.2, 0)
         local answerTween = TweenService:Create(answerFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-            Position = originalPos
+            Position = finalPositions[i]
         })
         task.wait(0.1)
         answerTween:Play()
@@ -433,22 +437,22 @@ function ShowQuestion(question, totalTime)
     BG.Visible = true
     
     -- Reset all elements to their original state
-    -- Reset question frame
+    -- Reset question frame (START OFF-SCREEN)
     questionFrame.Visible = true
     questionFrame.BackgroundTransparency = 0
-    questionFrame.Position = UDim2.new(0.5, -400, 0.55, 0) -- Original position
+    questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0) -- Start above screen
     questionText.TextTransparency = 0
     
-    -- Reset timer frame
+    -- Reset timer frame (START OFF-SCREEN)
     if timerFrame then
         timerFrame.Visible = true
         timerFrame.BackgroundTransparency = 0
-        timerFrame.Position = UDim2.new(0.5, -100, 0.05, 0) -- Original position
+        timerFrame.Position = UDim2.new(0.5, -100, -0.2, 0) -- Start above screen
         timerFrame.Size = UDim2.new(0, 200, 0, 80) -- Original size
         timerText.TextTransparency = 0
     end
     
-    -- Reset answer frames to original positions
+    -- Reset answer frames (START OFF-SCREEN)
     local originalPositions = {
         UDim2.new(0.5, -390, 0.72, 0),   -- A
         UDim2.new(0.5, 10, 0.72, 0),     -- B
@@ -458,7 +462,8 @@ function ShowQuestion(question, totalTime)
     
     for i, answerFrame in ipairs(answerFrames) do
         answerFrame.Visible = true
-        answerFrame.Position = originalPositions[i]
+        -- Start below screen
+        answerFrame.Position = UDim2.new(originalPositions[i].X.Scale, originalPositions[i].X.Offset, 1.2, 0)
         answerFrame.Size = UDim2.new(0, 380, 0, 70) -- Original size
         answerFrame.BackgroundTransparency = 0
     end
