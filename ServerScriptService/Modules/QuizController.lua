@@ -218,7 +218,14 @@ function QuizController:EndQuizRound()
     end
     
     -- Show results to all players
-    self.showQuizResultRemote:FireAllClients(results, self.currentQuestion.correct)
+    -- Convert player instances to a format that works better with RemoteEvents
+    local serializedResults = {}
+    for player, data in pairs(results) do
+        serializedResults[player.Name] = data
+    end
+    
+    print("[QuizController] Sending results:", serializedResults)
+    self.showQuizResultRemote:FireAllClients(serializedResults, self.currentQuestion.correct)
     
     -- Wait for results display
     wait(3)

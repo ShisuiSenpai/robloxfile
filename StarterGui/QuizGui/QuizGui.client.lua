@@ -495,11 +495,12 @@ function ShowQuestion(question, totalTime)
     timerText.Text = tostring(maxTime)
     timerText.TextColor3 = Colors.Blue
     
-    -- Animate in
-    animateIn()
-    
-    -- Play question appear sound
+    -- Play question appear sound early
     sounds.appear:Play()
+    
+    -- Animate in (with slight delay after sound)
+    task.wait(0.1)
+    animateIn()
 end
 
 function UpdateTimer(timeLeft)
@@ -537,19 +538,29 @@ function UpdateTimer(timeLeft)
 end
 
 function ShowResults(results, correctAnswer)
+    print("[QuizUI] ShowResults called. Results:", results, "Correct answer:", correctAnswer)
+    
+    -- Get player result using player name
+    local playerResult = results[player.Name]
+    print("[QuizUI] Player result for", player.Name, ":", playerResult)
+    
     -- Play sound based on player's result
-    if results[player] then
-        if results[player].correct then
+    if playerResult then
+        if playerResult.correct then
+            print("[QuizUI] Playing correct sound")
             sounds.correct:Play()
         else
+            print("[QuizUI] Playing wrong sound")
             sounds.wrong:Play()
         end
+    else
+        warn("[QuizUI] No result found for player", player.Name)
     end
     
     -- Show correct/incorrect answers
     for i, answerFrame in ipairs(answerFrames) do
         local isCorrect = (i == correctAnswer)
-        local isPlayerAnswer = hasAnswered and results[player] and results[player].answer == i
+        local isPlayerAnswer = hasAnswered and playerResult and playerResult.answer == i
         
         if isCorrect then
             -- Correct answer - always green
@@ -586,7 +597,7 @@ function ShowResults(results, correctAnswer)
                 Size = answerFrame.Size + UDim2.new(0, 10, 0, 5)
             }):Play()
             
-        elseif isPlayerAnswer and not results[player].correct then
+        elseif isPlayerAnswer and not playerResult.correct then
             -- Player's wrong answer - red
             answerFrame.BackgroundColor3 = Colors.Incorrect
             answerFrame.BackgroundTransparency = 0
