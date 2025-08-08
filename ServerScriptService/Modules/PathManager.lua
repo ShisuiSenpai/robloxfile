@@ -157,7 +157,7 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
             moveConnection:Disconnect()
         end
         if timeoutConnection then
-            timeoutConnection:Disconnect()
+            task.cancel(timeoutConnection)  -- task.delay returns a thread, not a connection
         end
         
         -- First, stop any movement
@@ -172,9 +172,10 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         humanoidRootPart.Anchored = true
         
         -- Calculate the proper position for centering on footstep
+        -- Test with a more obvious offset first to see if positioning works
         local finalPosition = Vector3.new(
             footstep.Position.X,
-            footstep.Position.Y + footstep.Size.Y/2 + humanoidRootPart.Size.Y/2 + 0.1,
+            footstep.Position.Y + footstep.Size.Y/2 + humanoidRootPart.Size.Y/2 + 5,  -- 5 studs above to test
             footstep.Position.Z
         )
         
@@ -238,7 +239,9 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     timeoutConnection = task.delay(10, function()
         if moveConnection then
             moveConnection:Disconnect()
+            moveConnection = nil  -- Prevent double disconnect
         end
+        timeoutConnection = nil  -- Clear self reference
         onMoveFinished(false)
     end)
     
