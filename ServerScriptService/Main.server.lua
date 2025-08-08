@@ -12,6 +12,8 @@ local GameManager = require(Modules:WaitForChild("GameManager"))
 local SpawnManager = require(Modules:WaitForChild("SpawnManager"))
 local IntermissionManager = require(Modules:WaitForChild("IntermissionManager"))
 local PathManager = require(Modules:WaitForChild("PathManager"))
+local QuestionManager = require(Modules:WaitForChild("QuestionManager"))
+local QuizController = require(Modules:WaitForChild("QuizController"))
 
 local GameConstants = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("GameConstants"))
 
@@ -20,6 +22,8 @@ local gameManager = GameManager.new()
 local spawnManager = SpawnManager.new()
 local intermissionManager = IntermissionManager.new()
 local pathManager = PathManager.new()
+local questionManager = QuestionManager.new()
+local quizController = QuizController.new(gameManager, pathManager, questionManager)
 
 -- Game flow functions
 local function onPlayerAdded(player)
@@ -126,15 +130,9 @@ function onIntermissionEnd()
     -- Game is now ready for questions phase
     print("[Main] Players positioned, ready for game phase")
     
-    -- TODO: Start question phase here
-    -- For now, we'll just wait a few seconds and advance players as a test
-    wait(3)
-    
-    -- Test advancement
-    print("[Main] Testing player advancement...")
-    for _, player in ipairs(activePlayers) do
-        pathManager:AdvancePlayer(player)
-    end
+    -- Start the quiz system
+    wait(2) -- Small delay before first question
+    quizController:StartQuizRound()
 end
 
 function resetGame()
@@ -144,8 +142,9 @@ function resetGame()
     gameManager:ResetGame()
     spawnManager:ResetSpawns()
     pathManager:ResetAllPositions()
+    quizController:ResetQuiz()
     
-    -- TODO: Reset any other game state
+    -- TODO: Add any additional reset logic
 end
 
 -- Connect player events
