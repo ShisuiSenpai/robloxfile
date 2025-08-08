@@ -15,7 +15,7 @@ local moveToFootstepRemote = remoteEvents:WaitForChild("MoveToFootstep")
 local setMovementStateRemote = remoteEvents:WaitForChild("SetMovementState")
 
 -- Player state
-local isFrozen = false
+local isFrozen = true -- Start frozen by default (important for multiplayer)
 local isMoving = false -- New state to track when we're moving between footsteps
 local currentPath = nil
 local currentFootstep = nil

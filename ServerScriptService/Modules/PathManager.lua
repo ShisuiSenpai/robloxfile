@@ -138,22 +138,41 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     print("[PathManager] Pre-move state - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "PlatformStand:", humanoid.PlatformStand)
     
     -- STEP 1: Tell client we're about to move (stop enforcing freeze)
-    self.setMovementStateRemote:FireClient(player, "moving")
+    -- Use pcall in case client isn't ready
+    local success = pcall(function()
+        self.setMovementStateRemote:FireClient(player, "moving")
+    end)
+    
+    if not success then
+        warn("[PathManager] Failed to notify client about movement state for", player.Name)
+    end
     
     -- STEP 2: Fully unfreeze the player on server
+    -- Force unanchor multiple times to ensure it sticks
     humanoidRootPart.Anchored = false
+    task.wait()
+    humanoidRootPart.Anchored = false
+    
     humanoid.WalkSpeed = 16 -- Standard walking speed
     humanoid.JumpPower = 0 -- Still no jumping
     humanoid.PlatformStand = false -- Ensure PlatformStand is off
+    humanoid.AutoRotate = true -- Allow rotation during movement
     
-    -- STEP 3: Wait for client to process the movement state change
-    task.wait(0.1) -- Give client time to stop overriding WalkSpeed
+    -- STEP 3: Wait longer for client to process (especially for multiple players)
+    task.wait(0.3) -- Give more time for client to be ready
     
     -- Debug: Check state after unfreeze
     print("[PathManager] Post-unfreeze - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "Distance to target:", (targetPosition - humanoidRootPart.Position).Magnitude)
     
     -- STEP 4: Now call MoveTo when both server and client agree on movement
     humanoid:MoveTo(targetPosition)
+    
+    -- Extra check after MoveTo
+    task.wait(0.1)
+    if humanoidRootPart.Anchored then
+        warn("[PathManager] Player", player.Name, "is still anchored after MoveTo! Force unanchoring...")
+        humanoidRootPart.Anchored = false
+    end
     
     -- Monitor movement using MoveToFinished event
     local moveConnection

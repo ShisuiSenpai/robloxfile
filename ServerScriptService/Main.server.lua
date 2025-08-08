@@ -128,9 +128,9 @@ function onIntermissionEnd()
         if spawnIndex then
             print("[Main] Moving player", player.Name, "from spawn", spawnIndex, "to first footstep")
             
-            -- Add small delay between players to avoid conflicts
+            -- Add delay between players to avoid conflicts
             if i > 1 then
-                task.wait(0.1)
+                task.wait(0.5) -- Increased delay for better synchronization
             end
             
             local success = pathManager:MovePlayerToFirstFootstep(player, spawnIndex)
