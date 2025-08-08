@@ -32,6 +32,22 @@ local SoundConfig = {
         Volume = 0.8,
         Pitch = 1.0,
         EmitterSize = 15
+    },
+    
+    -- Button hover sound
+    ButtonHover = {
+        SoundId = "rbxassetid://CHANGE_ME_HOVER", -- Change this to your hover sound ID
+        Volume = 0.3,
+        Pitch = 1.5,
+        EmitterSize = 10
+    },
+    
+    -- Question appear sound
+    QuestionAppear = {
+        SoundId = "rbxassetid://CHANGE_ME_APPEAR", -- Change this to your question appear sound ID
+        Volume = 0.4,
+        Pitch = 1.0,
+        EmitterSize = 10
     }
 }
 

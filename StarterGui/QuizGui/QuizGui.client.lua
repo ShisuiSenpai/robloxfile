@@ -51,14 +51,28 @@ local maxTime = 15
 local floatingConnections = {}
 local lastTickSecond = -1
 
--- Create timer tick sound
-local timerTickSound = Instance.new("Sound")
-timerTickSound.Name = "TimerTickSound"
-timerTickSound.SoundId = SoundConfig.TimerTick.SoundId
-timerTickSound.Volume = SoundConfig.TimerTick.Volume
-timerTickSound.Pitch = SoundConfig.TimerTick.Pitch
-timerTickSound.EmitterSize = SoundConfig.TimerTick.EmitterSize
-timerTickSound.Parent = gui
+-- Create all game sounds
+local sounds = {}
+
+-- Helper function to create sounds
+local function createSound(name, config)
+    local sound = Instance.new("Sound")
+    sound.Name = name
+    sound.SoundId = config.SoundId
+    sound.Volume = config.Volume
+    sound.Pitch = config.Pitch
+    sound.EmitterSize = config.EmitterSize
+    sound.Parent = gui
+    return sound
+end
+
+-- Create all sounds
+sounds.timerTick = createSound("TimerTickSound", SoundConfig.TimerTick)
+sounds.correct = createSound("CorrectSound", SoundConfig.CorrectAnswer)
+sounds.wrong = createSound("WrongSound", SoundConfig.WrongAnswer)
+sounds.victory = createSound("VictorySound", SoundConfig.Victory)
+sounds.hover = createSound("HoverSound", SoundConfig.ButtonHover)
+sounds.appear = createSound("AppearSound", SoundConfig.QuestionAppear)
 
 -- Timer display (create it or find existing)
 local timerFrame = BG:FindFirstChild("TimerFrame")
@@ -221,6 +235,9 @@ for i, answerFrame in ipairs(answerFrames) do
         -- Mouse enter - smooth scale up
         button.MouseEnter:Connect(function()
             if not hasAnswered then
+                -- Play hover sound
+                sounds.hover:Play()
+                
                 TweenService:Create(answerFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Size = hoverSize
                 }):Play()
@@ -480,6 +497,9 @@ function ShowQuestion(question, totalTime)
     
     -- Animate in
     animateIn()
+    
+    -- Play question appear sound
+    sounds.appear:Play()
 end
 
 function UpdateTimer(timeLeft)
@@ -500,7 +520,7 @@ function UpdateTimer(timeLeft)
         local currentSecond = math.ceil(timeLeft)
         if currentSecond <= 3 and currentSecond > 0 and currentSecond ~= lastTickSecond then
             lastTickSecond = currentSecond
-            timerTickSound:Play()
+            sounds.timerTick:Play()
             
             -- Pulse effect with the tick
             TweenService:Create(timerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -517,6 +537,15 @@ function UpdateTimer(timeLeft)
 end
 
 function ShowResults(results, correctAnswer)
+    -- Play sound based on player's result
+    if results[player] then
+        if results[player].correct then
+            sounds.correct:Play()
+        else
+            sounds.wrong:Play()
+        end
+    end
+    
     -- Show correct/incorrect answers
     for i, answerFrame in ipairs(answerFrames) do
         local isCorrect = (i == correctAnswer)
@@ -651,6 +680,9 @@ function AnnounceWinner(winner)
     clearFloatingEffects()
     gui.Enabled = true
     BG.Visible = true
+    
+    -- Play victory sound
+    sounds.victory:Play()
     
     -- Hide all elements except BG
     for _, child in pairs(BG:GetChildren()) do
