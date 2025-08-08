@@ -25,7 +25,9 @@ local intermissionManager = IntermissionManager.new()
 local pathManager = PathManager.new()
 local questionManager = QuestionManager.new()
 local quizController = QuizController.new(gameManager, pathManager, questionManager)
-local movementController = MovementController.new() -- This will lock all player movement
+-- MovementController disabled - it was interfering with PathManager's MoveTo
+-- Movement is controlled by IntermissionManager and PathManager instead
+-- local movementController = MovementController.new()
 
 -- Game flow functions
 local function onPlayerAdded(player)
@@ -119,10 +121,24 @@ function onIntermissionEnd()
     wait(0.2)
     
     -- Move all players to their first footsteps
-    for _, player in ipairs(activePlayers) do
+    print("[Main] Moving", #activePlayers, "players to their first footsteps")
+    
+    for i, player in ipairs(activePlayers) do
         local spawnIndex = gameManager:GetPlayerSpawnIndex(player)
         if spawnIndex then
-            pathManager:MovePlayerToFirstFootstep(player, spawnIndex)
+            print("[Main] Moving player", player.Name, "from spawn", spawnIndex, "to first footstep")
+            
+            -- Add small delay between players to avoid conflicts
+            if i > 1 then
+                task.wait(0.1)
+            end
+            
+            local success = pathManager:MovePlayerToFirstFootstep(player, spawnIndex)
+            if not success then
+                warn("[Main] Failed to move player", player.Name)
+            end
+        else
+            warn("[Main] Player", player.Name, "has no spawn index!")
         end
     end
     

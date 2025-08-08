@@ -90,16 +90,23 @@ function PathManager:MovePlayerToFirstFootstep(player, pathIndex)
         return false
     end
     
+    print("[PathManager] Moving", player.Name, "to first footstep of path", pathIndex)
+    
     -- Move player to first footstep
-    self:MovePlayerToFootstep(player, pathIndex, 1)
+    local success = self:MovePlayerToFootstep(player, pathIndex, 1)
     
-    -- Track player position
-    self.playerPositions[player] = {
-        pathIndex = pathIndex,
-        footstepIndex = 1
-    }
+    if success then
+        -- Track player position
+        self.playerPositions[player] = {
+            pathIndex = pathIndex,
+            footstepIndex = 1
+        }
+        print("[PathManager] Successfully initiated movement for", player.Name)
+    else
+        warn("[PathManager] Failed to initiate movement for", player.Name)
+    end
     
-    return true
+    return success
 end
 
 function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, callback)
