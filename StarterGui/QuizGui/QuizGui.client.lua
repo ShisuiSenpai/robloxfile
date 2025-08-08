@@ -226,11 +226,15 @@ function SelectAnswer(index, answerFrame)
         if btn then btn.Active = false end
     end
     
-    -- Pulse animation
+    -- Determine correct answer (assuming it's in the question data)
+    local correctAnswerIndex = currentQuestion.correct
+    local isCorrect = (index == correctAnswerIndex)
+    
+    -- Pulse animation first
     local originalSize = answerFrame.Size
     local border = answerFrame:FindFirstChild("UIStroke")
     
-    -- Visual feedback
+    -- Initial selection feedback (still blue during pulse)
     answerFrame.BackgroundColor3 = Colors.BlueDark
     if border then
         border.Thickness = 4
@@ -249,10 +253,79 @@ function SelectAnswer(index, answerFrame)
         task.wait(0.15)
     end
     
-    -- Grey out non-selected answers
+    -- Now show the results colors
+    -- Selected answer turns red if wrong
+    if not isCorrect then
+        TweenService:Create(answerFrame, TweenInfo.new(0.3), {
+            BackgroundColor3 = Colors.Incorrect
+        }):Play()
+        
+        local contentFrame = answerFrame:FindFirstChild("Frame")
+        if contentFrame then
+            local letterCircle = contentFrame:FindFirstChild("LetterCircle")
+            if letterCircle then
+                TweenService:Create(letterCircle, TweenInfo.new(0.3), {
+                    BackgroundColor3 = Colors.White
+                }):Play()
+                local letter = letterCircle:FindFirstChild("Letter")
+                if letter then
+                    TweenService:Create(letter, TweenInfo.new(0.3), {
+                        TextColor3 = Colors.Incorrect
+                    }):Play()
+                end
+            end
+            
+            local answerText = contentFrame:FindFirstChild("AnswerText")
+            if answerText then
+                TweenService:Create(answerText, TweenInfo.new(0.3), {
+                    TextColor3 = Colors.White
+                }):Play()
+            end
+        end
+    end
+    
+    -- Show correct answer in green and grey out others
     for i, frame in ipairs(answerFrames) do
-        if frame ~= answerFrame then
-            -- Make non-selected answers grey
+        if i == correctAnswerIndex then
+            -- Correct answer - green
+            TweenService:Create(frame, TweenInfo.new(0.3), {
+                BackgroundColor3 = Colors.Correct,
+                BackgroundTransparency = 0
+            }):Play()
+            
+            local border = frame:FindFirstChild("UIStroke")
+            if border then
+                TweenService:Create(border, TweenInfo.new(0.3), {
+                    Color = Colors.White,
+                    Thickness = 3
+                }):Play()
+            end
+            
+            local contentFrame = frame:FindFirstChild("Frame")
+            if contentFrame then
+                local letterCircle = contentFrame:FindFirstChild("LetterCircle")
+                if letterCircle then
+                    TweenService:Create(letterCircle, TweenInfo.new(0.3), {
+                        BackgroundColor3 = Colors.White
+                    }):Play()
+                    local letter = letterCircle:FindFirstChild("Letter")
+                    if letter then
+                        TweenService:Create(letter, TweenInfo.new(0.3), {
+                            TextColor3 = Colors.Correct
+                        }):Play()
+                    end
+                end
+                
+                local answerText = contentFrame:FindFirstChild("AnswerText")
+                if answerText then
+                    TweenService:Create(answerText, TweenInfo.new(0.3), {
+                        TextColor3 = Colors.White
+                    }):Play()
+                end
+            end
+            
+        elseif frame ~= answerFrame then
+            -- Other answers - grey
             TweenService:Create(frame, TweenInfo.new(0.3), {
                 BackgroundColor3 = Color3.fromRGB(200, 200, 200),
                 BackgroundTransparency = 0.3
@@ -261,7 +334,8 @@ function SelectAnswer(index, answerFrame)
             local border = frame:FindFirstChild("UIStroke")
             if border then
                 TweenService:Create(border, TweenInfo.new(0.3), {
-                    Color = Color3.fromRGB(150, 150, 150)
+                    Color = Color3.fromRGB(150, 150, 150),
+                    Thickness = 2
                 }):Play()
             end
             
