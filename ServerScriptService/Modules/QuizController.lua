@@ -31,54 +31,17 @@ function QuizController.new(gameManager, pathManager, questionManager)
 end
 
 function QuizController:CreateRemoteEvents()
-    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents", 5)
-    if not remoteEvents then
-        remoteEvents = Instance.new("Folder")
-        remoteEvents.Name = "RemoteEvents"
-        remoteEvents.Parent = ReplicatedStorage
-    end
+    -- Use existing RemoteEvents from the folder
+    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
     
-    -- Quiz related events
-    local showQuestion = remoteEvents:FindFirstChild("ShowQuestion")
-    if not showQuestion then
-        showQuestion = Instance.new("RemoteEvent")
-        showQuestion.Name = "ShowQuestion"
-        showQuestion.Parent = remoteEvents
-    end
+    -- Get existing RemoteEvents
+    self.showQuestionRemote = remoteEvents:WaitForChild("ShowQuestion")
+    self.submitAnswerRemote = remoteEvents:WaitForChild("SubmitAnswer")
+    self.updateQuizTimerRemote = remoteEvents:WaitForChild("UpdateQuizTimer")
+    self.showQuizResultRemote = remoteEvents:WaitForChild("ShowQuizResult")
+    self.announceWinnerRemote = remoteEvents:WaitForChild("AnnounceWinner")
     
-    local submitAnswer = remoteEvents:FindFirstChild("SubmitAnswer")
-    if not submitAnswer then
-        submitAnswer = Instance.new("RemoteEvent")
-        submitAnswer.Name = "SubmitAnswer"
-        submitAnswer.Parent = remoteEvents
-    end
-    
-    local updateQuizTimer = remoteEvents:FindFirstChild("UpdateQuizTimer")
-    if not updateQuizTimer then
-        updateQuizTimer = Instance.new("RemoteEvent")
-        updateQuizTimer.Name = "UpdateQuizTimer"
-        updateQuizTimer.Parent = remoteEvents
-    end
-    
-    local showQuizResult = remoteEvents:FindFirstChild("ShowQuizResult")
-    if not showQuizResult then
-        showQuizResult = Instance.new("RemoteEvent")
-        showQuizResult.Name = "ShowQuizResult"
-        showQuizResult.Parent = remoteEvents
-    end
-    
-    local announceWinner = remoteEvents:FindFirstChild("AnnounceWinner")
-    if not announceWinner then
-        announceWinner = Instance.new("RemoteEvent")
-        announceWinner.Name = "AnnounceWinner"
-        announceWinner.Parent = remoteEvents
-    end
-    
-    self.showQuestionRemote = showQuestion
-    self.submitAnswerRemote = submitAnswer
-    self.updateQuizTimerRemote = updateQuizTimer
-    self.showQuizResultRemote = showQuizResult
-    self.announceWinnerRemote = announceWinner
+    print("[QuizController] Connected to existing RemoteEvents")
     
     -- Connect answer submission
     self.submitAnswerRemote.OnServerEvent:Connect(function(player, answerIndex)

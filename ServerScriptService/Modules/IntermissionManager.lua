@@ -24,30 +24,14 @@ function IntermissionManager.new()
 end
 
 function IntermissionManager:CreateRemoteEvents()
-    local remoteEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
-    if not remoteEvents then
-        remoteEvents = Instance.new("Folder")
-        remoteEvents.Name = "RemoteEvents"
-        remoteEvents.Parent = ReplicatedStorage
-    end
+    -- Use existing RemoteEvents from the folder
+    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
     
-    -- Create individual remote events
-    local updateIntermission = remoteEvents:FindFirstChild("UpdateIntermission")
-    if not updateIntermission then
-        updateIntermission = Instance.new("RemoteEvent")
-        updateIntermission.Name = "UpdateIntermission"
-        updateIntermission.Parent = remoteEvents
-    end
+    -- Get existing RemoteEvents
+    self.updateIntermissionRemote = remoteEvents:WaitForChild("UpdateIntermission")
+    self.freezePlayerRemote = remoteEvents:WaitForChild("FreezePlayer")
     
-    local freezePlayer = remoteEvents:FindFirstChild("FreezePlayer")
-    if not freezePlayer then
-        freezePlayer = Instance.new("RemoteEvent")
-        freezePlayer.Name = "FreezePlayer"
-        freezePlayer.Parent = remoteEvents
-    end
-    
-    self.updateIntermissionRemote = updateIntermission
-    self.freezePlayerRemote = freezePlayer
+    print("[IntermissionManager] Connected to existing RemoteEvents")
 end
 
 function IntermissionManager:StartIntermission(players, callback)

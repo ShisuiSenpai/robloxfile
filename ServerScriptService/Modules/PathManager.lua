@@ -24,30 +24,14 @@ function PathManager.new()
 end
 
 function PathManager:CreateRemoteEvents()
-    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents", 5)
-    if not remoteEvents then
-        remoteEvents = Instance.new("Folder")
-        remoteEvents.Name = "RemoteEvents"
-        remoteEvents.Parent = ReplicatedStorage
-    end
+    -- Use existing RemoteEvents from the folder
+    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
     
-    local moveToFootstep = remoteEvents:FindFirstChild("MoveToFootstep")
-    if not moveToFootstep then
-        moveToFootstep = Instance.new("RemoteEvent")
-        moveToFootstep.Name = "MoveToFootstep"
-        moveToFootstep.Parent = remoteEvents
-    end
+    -- Get existing RemoteEvents
+    self.moveToFootstepRemote = remoteEvents:WaitForChild("MoveToFootstep")
+    self.setMovementStateRemote = remoteEvents:WaitForChild("SetMovementState")
     
-    -- New remote for movement state
-    local setMovementState = remoteEvents:FindFirstChild("SetMovementState")
-    if not setMovementState then
-        setMovementState = Instance.new("RemoteEvent")
-        setMovementState.Name = "SetMovementState"
-        setMovementState.Parent = remoteEvents
-    end
-    
-    self.moveToFootstepRemote = moveToFootstep
-    self.setMovementStateRemote = setMovementState
+    print("[PathManager] Connected to existing RemoteEvents")
 end
 
 function PathManager:Initialize()
