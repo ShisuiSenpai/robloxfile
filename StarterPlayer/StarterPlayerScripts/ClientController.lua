@@ -79,53 +79,86 @@ end
 -- Character spawned handler
 player.CharacterAdded:Connect(function(character)
     -- Reset state
-    isFrozen = false
+    isFrozen = true -- Start frozen!
+    isMoving = false
     currentPath = nil
     currentFootstep = nil
     
     -- Immediately disable controls when character spawns
-    wait(0.1) -- Small wait to ensure PlayerModule is ready
-    local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
-    local controls = playerModule:GetControls()
-    controls:Disable()
+    task.spawn(function()
+        task.wait(0.1) -- Small wait to ensure PlayerModule is ready
+        local success, err = pcall(function()
+            local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+            local controls = playerModule:GetControls()
+            controls:Disable()
+        end)
+        
+        if not success then
+            warn("[Client] Failed to disable controls:", err)
+        else
+            print("[Client] Successfully disabled controls on spawn")
+        end
+    end)
     
     -- Setup camera if needed
     setupCameraSmoothing()
     
-    print("[Client] Character spawned - controls disabled")
+    print("[Client] Character spawned - initializing freeze")
 end)
 
--- Continuously enforce freeze state
+-- Control disable counter
+local controlDisableAttempts = 0
+
+-- Continuously enforce freeze state and control disable
 RunService.Heartbeat:Connect(function()
-    -- Always enforce freeze when frozen, regardless of movement state
-    if isFrozen then
-        local character = player.Character
-        if character then
-            local humanoid = character:FindFirstChild("Humanoid")
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            
-            if humanoid and humanoidRootPart then
-                -- Ensure player stays frozen
-                if humanoid.WalkSpeed > 0 and not isMoving then
-                    -- Only override WalkSpeed when not in server-controlled movement
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if humanoid and humanoidRootPart then
+            -- Always enforce movement restrictions
+            if not isMoving then
+                -- Player should never be able to move unless server is moving them
+                if humanoid.WalkSpeed > 0 then
                     humanoid.WalkSpeed = 0
                 end
                 if humanoid.JumpPower > 0 then
                     humanoid.JumpPower = 0
                 end
-                -- Note: Don't anchor on client side as it can cause issues
             end
         end
+    end
+    
+    -- Try to disable controls periodically if they somehow get re-enabled
+    controlDisableAttempts = controlDisableAttempts + 1
+    if controlDisableAttempts >= 60 then -- Every ~1 second at 60 FPS
+        controlDisableAttempts = 0
+        pcall(function()
+            local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+            local controls = playerModule:GetControls()
+            controls:Disable()
+        end)
     end
 end)
 
 -- Initialize
-if player.Character then
-    setupCameraSmoothing()
-    -- Disable controls on initialization
+-- Immediately try to disable controls on script start
+task.spawn(function()
     local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
     local controls = playerModule:GetControls()
     controls:Disable()
+    print("[Client] Initial control disable complete")
+end)
+
+if player.Character then
+    setupCameraSmoothing()
+    -- Also disable for existing character
+    pcall(function()
+        local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+        local controls = playerModule:GetControls()
+        controls:Disable()
+    end)
 end
 
 print("[Client] ClientController initialized - controls disabled")

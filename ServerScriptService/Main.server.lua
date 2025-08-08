@@ -14,6 +14,7 @@ local IntermissionManager = require(Modules:WaitForChild("IntermissionManager"))
 local PathManager = require(Modules:WaitForChild("PathManager"))
 local QuestionManager = require(Modules:WaitForChild("QuestionManager"))
 local QuizController = require(Modules:WaitForChild("QuizController"))
+local MovementController = require(Modules:WaitForChild("MovementController"))
 
 local GameConstants = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("GameConstants"))
 
@@ -24,6 +25,7 @@ local intermissionManager = IntermissionManager.new()
 local pathManager = PathManager.new()
 local questionManager = QuestionManager.new()
 local quizController = QuizController.new(gameManager, pathManager, questionManager)
+local movementController = MovementController.new() -- This will lock all player movement
 
 -- Game flow functions
 local function onPlayerAdded(player)
