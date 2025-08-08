@@ -1,5 +1,5 @@
--- Example Usage Script for Who Wants to Be a Millionaire Quiz UI
--- This demonstrates how to use the quiz UI and manager
+-- Example Usage Script for Minimal Quiz UI
+-- This demonstrates how to use the clean quiz interface
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,19 +33,23 @@ local questions = {
         question = "What is the largest ocean on Earth?",
         answers = {"Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"},
         correct = 4
+    },
+    {
+        question = "What year did World War II end?",
+        answers = {"1943", "1944", "1945", "1946"},
+        correct = 3
     }
 }
 
 -- Get UI elements
 local bg = quizUI:WaitForChild("BG")
-local mainContainer = bg:WaitForChild("MainContainer")
-local questionFrame = mainContainer:WaitForChild("QuestionFrame")
-local answersContainer = mainContainer:WaitForChild("AnswersContainer")
-local prizeList = mainContainer:WaitForChild("PrizeFrame"):WaitForChild("PrizeList")
-local timerFrame = mainContainer:WaitForChild("TimerFrame")
+local questionFrame = bg:WaitForChild("QuestionFrame")
+local answersContainer = bg:WaitForChild("AnswersContainer")
 
 -- Current question tracking
 local currentQuestion = 1
+local score = 0
+local isAnswering = false
 
 -- Load a question
 local function loadQuestion(questionIndex)
@@ -60,12 +64,15 @@ local function loadQuestion(questionIndex)
     local letters = {"A", "B", "C", "D"}
     for i, answer in ipairs(questionData.answers) do
         local answerFrame = answersContainer:WaitForChild("Answer" .. letters[i])
-        local answerText = answerFrame:WaitForChild("AnswerText")
+        local contentFrame = answerFrame:WaitForChild("Frame")
+        local answerText = contentFrame:WaitForChild("AnswerText")
         answerText.Text = answer
     end
     
-    -- Update prize ladder highlighting
-    -- QuizUIManager.UpdatePrizeLadder(prizeList, currentQuestion)
+    -- Reset answer states if using manager
+    -- QuizUIManager.ResetAnswers(answersContainer)
+    
+    isAnswering = false
 end
 
 -- Handle answer selection
@@ -77,128 +84,71 @@ local function setupAnswerButtons()
         local button = answerFrame:WaitForChild("TextButton")
         
         button.MouseButton1Click:Connect(function()
+            if isAnswering then return end
+            isAnswering = true
+            
             local questionData = questions[currentQuestion]
             local isCorrect = (i == questionData.correct)
             
-            -- Visual feedback
+            -- Visual feedback (if using manager)
             -- QuizUIManager.SelectAnswer(answerFrame, function()
             --     QuizUIManager.RevealAnswer(answerFrame, isCorrect)
             -- end)
             
+            -- Basic visual feedback without manager
+            if isCorrect then
+                answerFrame.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+                score = score + 1
+            else
+                answerFrame.BackgroundColor3 = Color3.fromRGB(250, 100, 100)
+                -- Show correct answer
+                local correctFrame = answersContainer:WaitForChild("Answer" .. letters[questionData.correct])
+                correctFrame.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+            end
+            
             -- Move to next question after delay
             wait(2)
-            if isCorrect and currentQuestion < #questions then
+            
+            if currentQuestion < #questions then
                 currentQuestion = currentQuestion + 1
+                -- QuizUIManager.TransitionToNextQuestion(bg, function()
+                --     loadQuestion(currentQuestion)
+                -- end)
+                
+                -- Simple transition without manager
                 loadQuestion(currentQuestion)
-            elseif isCorrect and currentQuestion == #questions then
-                -- Winner!
-                print("Congratulations! You've won!")
-                -- QuizUIManager.CreateConfetti(bg)
+                -- Reset colors
+                for _, l in ipairs(letters) do
+                    local frame = answersContainer:WaitForChild("Answer" .. l)
+                    frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                end
             else
-                -- Game over
-                print("Sorry, that's incorrect. Game Over!")
+                -- Quiz complete!
+                print("Quiz Complete! Score: " .. score .. "/" .. #questions)
+                
+                -- Show result (if using manager)
+                -- QuizUIManager.ShowResult(bg, score == #questions, score)
+                -- if score == #questions then
+                --     QuizUIManager.Celebrate(bg)
+                -- end
+                
+                -- Simple completion message
+                local title = bg:WaitForChild("Title")
+                title.Text = score == #questions and "PERFECT SCORE!" or "QUIZ COMPLETE!"
+                title.TextColor3 = score == #questions and Color3.fromRGB(100, 200, 100) or Color3.fromRGB(100, 150, 250)
             end
         end)
     end
 end
 
--- Setup lifeline buttons
-local function setupLifelines()
-    local lifelinesFrame = mainContainer:WaitForChild("LifelinesFrame")
-    
-    -- 50:50
-    local fiftyFifty = lifelinesFrame:WaitForChild("FiftyFifty"):WaitForChild("TextButton")
-    fiftyFifty.MouseButton1Click:Connect(function()
-        print("50:50 lifeline used!")
-        -- Remove two incorrect answers
-        local questionData = questions[currentQuestion]
-        local correctAnswer = questionData.correct
-        local letters = {"A", "B", "C", "D"}
-        local removed = 0
-        
-        for i = 1, 4 do
-            if i ~= correctAnswer and removed < 2 then
-                local answerFrame = answersContainer:WaitForChild("Answer" .. letters[i])
-                answerFrame.Visible = false
-                removed = removed + 1
-            end
-        end
-        
-        -- Disable lifeline
-        fiftyFifty.Parent.BackgroundTransparency = 0.7
-        fiftyFifty.Active = false
-    end)
-    
-    -- Phone a Friend
-    local phoneFriend = lifelinesFrame:WaitForChild("PhoneFriend"):WaitForChild("TextButton")
-    phoneFriend.MouseButton1Click:Connect(function()
-        print("Phone a Friend lifeline used!")
-        -- Show friend's suggestion
-        local questionData = questions[currentQuestion]
-        local letters = {"A", "B", "C", "D"}
-        print("Your friend thinks the answer is " .. letters[questionData.correct])
-        
-        -- Disable lifeline
-        phoneFriend.Parent.BackgroundTransparency = 0.7
-        phoneFriend.Active = false
-    end)
-    
-    -- Ask the Audience
-    local askAudience = lifelinesFrame:WaitForChild("AskAudience"):WaitForChild("TextButton")
-    askAudience.MouseButton1Click:Connect(function()
-        print("Ask the Audience lifeline used!")
-        -- Show audience poll
-        local questionData = questions[currentQuestion]
-        print("Audience Poll:")
-        print("A: 15%, B: 25%, C: 45%, D: 15%") -- Example percentages
-        
-        -- Disable lifeline
-        askAudience.Parent.BackgroundTransparency = 0.7
-        askAudience.Active = false
-    end)
-end
-
--- Timer functionality
-local timerRunning = false
-local timeLeft = 30
-
-local function startTimer()
-    timerRunning = true
-    timeLeft = 30
-    
-    spawn(function()
-        while timerRunning and timeLeft > 0 do
-            local timerText = timerFrame:WaitForChild("TimerText")
-            timerText.Text = tostring(timeLeft)
-            
-            -- Change color when time is running out
-            if timeLeft <= 10 then
-                timerText.TextColor3 = Color3.fromRGB(255, 100, 100)
-            else
-                timerText.TextColor3 = Color3.fromRGB(255, 255, 255)
-            end
-            
-            wait(1)
-            timeLeft = timeLeft - 1
-        end
-        
-        if timeLeft == 0 then
-            print("Time's up!")
-            -- Handle timeout
-        end
-    end)
-end
-
 -- Initialize the quiz
 local function initializeQuiz()
     setupAnswerButtons()
-    setupLifelines()
     loadQuestion(currentQuestion)
-    startTimer()
 end
 
 -- Start the quiz
-wait(2) -- Wait for animations to complete
+wait(1) -- Wait for entrance animation
 initializeQuiz()
 
-print("Quiz UI Example loaded! Click on answers to play.")
+print("Minimal Quiz UI loaded! Click on answers to play.")
