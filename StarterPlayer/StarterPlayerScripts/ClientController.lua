@@ -28,11 +28,21 @@ freezePlayerRemote.OnClientEvent:Connect(function(freeze)
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return end
     
-    -- Visual feedback when frozen
+    -- Extra client-side protection against movement
     if freeze then
-        print("[Client] Player frozen")
+        -- Disable player controls
+        local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+        local controls = playerModule:GetControls()
+        controls:Disable()
+        
+        print("[Client] Player frozen - controls disabled")
     else
-        print("[Client] Player unfrozen")
+        -- Re-enable player controls
+        local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+        local controls = playerModule:GetControls()
+        controls:Enable()
+        
+        print("[Client] Player unfrozen - controls enabled")
     end
 end)
 
@@ -66,6 +76,28 @@ player.CharacterAdded:Connect(function(character)
     setupCameraSmoothing()
     
     print("[Client] Character spawned")
+end)
+
+-- Continuously enforce freeze state
+RunService.Heartbeat:Connect(function()
+    if isFrozen then
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and humanoidRootPart then
+                -- Ensure player stays frozen
+                if humanoid.WalkSpeed > 0 then
+                    humanoid.WalkSpeed = 0
+                end
+                if humanoid.JumpPower > 0 then
+                    humanoid.JumpPower = 0
+                end
+                -- Note: Don't anchor on client side as it can cause issues
+            end
+        end
+    end
 end)
 
 -- Initialize

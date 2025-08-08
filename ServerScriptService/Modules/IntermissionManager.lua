@@ -95,15 +95,19 @@ end
 function IntermissionManager:EndIntermission(players)
     self.intermissionActive = false
     
-    -- Unfreeze all players
+    -- Don't unfreeze players - they stay frozen during gameplay
+    -- Just hide the intermission UI
+    self.updateIntermissionRemote:FireAllClients(false, 0)
+    
+    print("[IntermissionManager] Ended intermission (players remain frozen)")
+end
+
+function IntermissionManager:UnfreezeAllPlayers(players)
+    -- Separate method to unfreeze players when needed (e.g., round end)
     for _, player in ipairs(players) do
         self:FreezePlayer(player, false)
     end
-    
-    -- Hide intermission UI
-    self.updateIntermissionRemote:FireAllClients(false, 0)
-    
-    print("[IntermissionManager] Ended intermission")
+    print("[IntermissionManager] Unfroze all players")
 end
 
 function IntermissionManager:FreezePlayer(player, freeze)

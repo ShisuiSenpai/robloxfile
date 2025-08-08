@@ -97,8 +97,9 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex)
     local character = player.Character
     if not character then return false end
     
+    local humanoid = character:FindFirstChild("Humanoid")
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return false end
+    if not humanoid or not humanoidRootPart then return false end
     
     local footstep = self.footstepPaths[pathIndex][footstepIndex]
     if not footstep then
@@ -106,28 +107,50 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex)
         return false
     end
     
-    -- Calculate target position (slightly above the footstep)
-    local targetPosition = footstep.Position + Vector3.new(0, 3, 0)
+    -- Calculate target position (on the footstep surface)
+    local targetPosition = footstep.Position + Vector3.new(0, footstep.Size.Y/2 + 3, 0)
     
-    -- Create smooth movement
-    local tweenInfo = TweenInfo.new(
-        0.5, -- Duration
-        Enum.EasingStyle.Quad,
-        Enum.EasingDirection.Out
-    )
+    -- Make player face the footstep before walking
+    local lookDirection = (footstep.Position - humanoidRootPart.Position)
+    lookDirection = Vector3.new(lookDirection.X, 0, lookDirection.Z).Unit
+    humanoidRootPart.CFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + lookDirection)
     
-    local tween = TweenService:Create(
-        humanoidRootPart,
-        tweenInfo,
-        {CFrame = CFrame.new(targetPosition, targetPosition + humanoidRootPart.CFrame.LookVector)}
-    )
+    -- Temporarily unanchor and restore walkspeed for movement
+    humanoidRootPart.Anchored = false
+    local originalWalkSpeed = humanoid.WalkSpeed
+    humanoid.WalkSpeed = 16 -- Standard walking speed
+    humanoid.JumpPower = 0 -- Still no jumping
     
-    tween:Play()
+    -- Use Humanoid:MoveTo() to make the player walk
+    humanoid:MoveTo(targetPosition)
     
-    -- Notify client
-    self.moveToFootstepRemote:FireClient(player, pathIndex, footstepIndex)
+    -- Wait for the player to reach the destination
+    local startTime = tick()
+    local timeout = 10 -- Maximum 10 seconds to reach destination
     
-    print("[PathManager] Moved", player.Name, "to footstep", footstepIndex, "on path", pathIndex)
+    spawn(function()
+        while (humanoidRootPart.Position - targetPosition).Magnitude > 4 and 
+              tick() - startTime < timeout do
+            wait(0.1)
+        end
+        
+        -- Ensure player is exactly on the footstep
+        humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
+        
+        -- Stop any residual movement
+        humanoid:MoveTo(humanoidRootPart.Position)
+        
+        -- Re-freeze the player
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        humanoidRootPart.Anchored = true
+        
+        -- Notify client
+        self.moveToFootstepRemote:FireClient(player, pathIndex, footstepIndex)
+        
+        print("[PathManager] Player", player.Name, "walked to footstep", footstepIndex, "on path", pathIndex)
+    end)
+    
     return true
 end
 
