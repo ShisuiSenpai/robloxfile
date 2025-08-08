@@ -158,14 +158,18 @@ function onIntermissionEnd()
     wait(2) -- Small delay
     
     -- Show next question countdown for first question
+    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
+    local updateNextQuestionRemote = remoteEvents:WaitForChild("UpdateNextQuestion")
+    
+    print("[Main] Starting countdown before first question")
     local countdownTime = 3
     for i = countdownTime, 0, -0.1 do
-        -- Need to get the remote event
-        local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
-        local updateNextQuestionRemote = remoteEvents:WaitForChild("UpdateNextQuestion")
         updateNextQuestionRemote:FireAllClients(i)
         wait(0.1)
     end
+    
+    -- Ensure countdown is hidden before starting quiz
+    wait(0.2)
     
     -- Start the quiz system
     quizController:StartQuizRound()

@@ -544,11 +544,7 @@ function ShowQuestion(question, totalTime)
     timerText.Text = tostring(maxTime)
     timerText.TextColor3 = Colors.Blue
     
-    -- Play question appear sound early
-    sounds.appear:Play()
-    
-    -- Animate in (with slight delay after sound)
-    task.wait(0.1)
+    -- Animate in
     animateIn()
 end
 
@@ -848,6 +844,14 @@ function AnnounceWinner(winner)
 end
 
 function ShowNextQuestionCountdown(timeLeft)
+    print("[QuizUI] ShowNextQuestionCountdown called with timeLeft:", timeLeft)
+    
+    -- Enable GUI if not already enabled
+    if not gui.Enabled then
+        gui.Enabled = true
+        print("[QuizUI] Enabled GUI for countdown")
+    end
+    
     -- Show the next question frame
     nextQuestionFrame.Visible = true
     
@@ -855,7 +859,7 @@ function ShowNextQuestionCountdown(timeLeft)
     nextQuestionTimer.Text = tostring(math.ceil(math.max(0, timeLeft)))
     
     -- Animate in if just became visible
-    if timeLeft == 3 then
+    if timeLeft >= 2.9 and timeLeft <= 3 then
         -- Start off-screen
         nextQuestionFrame.Position = UDim2.new(0.5, -200, 1.2, 0)
         nextQuestionFrame.Size = UDim2.new(0, 400, 0, 100)
@@ -865,8 +869,10 @@ function ShowNextQuestionCountdown(timeLeft)
             Position = UDim2.new(0.5, -200, 0.85, 0)
         }):Play()
         
-        -- Play appear sound
-        sounds.appear:Play()
+        -- Play appear sound (only during countdown, not when timer hits 0)
+        if timeLeft > 0.5 then
+            sounds.appear:Play()
+        end
     end
     
     -- Change color as time runs out
@@ -896,6 +902,7 @@ function ShowNextQuestionCountdown(timeLeft)
 end
 
 function HideNextQuestionCountdown()
+    print("[QuizUI] HideNextQuestionCountdown called")
     if nextQuestionFrame.Visible then
         -- Animate out
         TweenService:Create(nextQuestionFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
