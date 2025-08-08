@@ -116,15 +116,12 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         return false
     end
     
-    -- Calculate target position (center of footstep, with proper height)
-    -- MoveTo uses the character's feet position, not HumanoidRootPart center
-    -- So we need to target the exact center of the footstep
-    local footstepTop = footstep.Position.Y + footstep.Size.Y/2
-    local targetPosition = Vector3.new(
-        footstep.Position.X,
-        footstepTop + 0.1, -- Small offset above the footstep surface
-        footstep.Position.Z
-    )
+    -- Calculate target position
+    -- MoveTo moves the character's feet to the position, so we target the footstep center
+    -- The Y coordinate should be the top surface of the footstep
+    local targetPosition = footstep.Position  -- Use the exact center of the part
+    
+    print("[PathManager] Footstep info - Position:", footstep.Position, "Size:", footstep.Size)
     
     -- Debug: Check initial state
     print("[PathManager] Pre-move state - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "PlatformStand:", humanoid.PlatformStand)
@@ -153,6 +150,8 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     local moveStarted = false
     
     local function onMoveFinished(reached)
+        print("[PathManager] onMoveFinished called! Reached:", reached)
+        
         -- Clean up connections
         if moveConnection then
             moveConnection:Disconnect()
@@ -161,25 +160,44 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
             timeoutConnection:Disconnect()
         end
         
-        -- Always ensure player is perfectly centered on the footstep
-        -- Calculate the proper position for the HumanoidRootPart
+        -- First, stop any movement
+        humanoid:MoveTo(humanoidRootPart.Position) -- Stop MoveTo
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        
+        -- Wait a frame for movement to fully stop
+        task.wait()
+        
+        -- Now anchor BEFORE setting position
+        humanoidRootPart.Anchored = true
+        
+        -- Calculate the proper position for centering on footstep
         local finalPosition = Vector3.new(
             footstep.Position.X,
             footstep.Position.Y + footstep.Size.Y/2 + humanoidRootPart.Size.Y/2 + 0.1,
             footstep.Position.Z
         )
         
+        -- Debug before setting
+        print("[PathManager] BEFORE SET - Current position:", humanoidRootPart.Position)
+        print("[PathManager] BEFORE SET - Target position:", finalPosition)
+        print("[PathManager] BEFORE SET - Anchored:", humanoidRootPart.Anchored)
+        
         -- Keep the player's current rotation
         local currentLookDirection = humanoidRootPart.CFrame.LookVector
+        
+        -- Set the final position
         humanoidRootPart.CFrame = CFrame.lookAt(finalPosition, finalPosition + currentLookDirection)
         
-        -- Debug: Show exact positioning
-        print("[PathManager] Footstep center:", footstep.Position, "Player position:", humanoidRootPart.Position)
+        -- Force update with a second method
+        humanoidRootPart.Position = finalPosition
         
-        -- Re-freeze the player on server
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
-        humanoidRootPart.Anchored = true
+        -- Wait and check again
+        task.wait(0.1)
+        
+        -- Debug after setting
+        print("[PathManager] AFTER SET - Actual position:", humanoidRootPart.Position)
+        print("[PathManager] AFTER SET - Distance from target:", (humanoidRootPart.Position - finalPosition).Magnitude)
         
         -- Tell client movement is done (resume freeze enforcement)
         self.setMovementStateRemote:FireClient(player, "frozen")
