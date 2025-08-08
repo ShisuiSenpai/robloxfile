@@ -7,109 +7,158 @@ local Config = require(game.ReplicatedStorage:WaitForChild("NPCFollowModules"):W
 
 print("[AnimationDiagnostic] Starting NPC Animation Diagnostic...")
 
--- Function to check if an NPC has proper animation setup
-local function checkNPCAnimation(npcModel)
-	print("\n=== Checking NPC:", npcModel.Name, "===")
-	
-	-- Check for Humanoid
-	local humanoid = npcModel:FindFirstChild("Humanoid")
-	if not humanoid then
-		print("❌ No Humanoid found!")
-		return
-	end
-	print("✓ Humanoid found")
-	
-	-- Check for HumanoidRootPart
-	local rootPart = npcModel:FindFirstChild("HumanoidRootPart")
-	if not rootPart then
-		print("❌ No HumanoidRootPart found!")
-		return
-	end
-	print("✓ HumanoidRootPart found")
-	
-	-- Check for Animate script
-	local animateScript = npcModel:FindFirstChild("Animate")
-	if not animateScript then
-		print("❌ No Animate script found!")
-	else
-		print("✓ Animate script found - Type:", animateScript.ClassName)
-		
-		-- Check for animation StringValues
-		local animations = {
-			"idle", "walk", "run", "jump", "climb", "sit", "toolnone", "toolslash", "toollunge", "wave", "point", "dance", "dance2", "dance3", "laugh", "cheer"
-		}
-		
-		for _, animName in ipairs(animations) do
-			local animValue = animateScript:FindFirstChild(animName)
-			if animValue then
-				print("  ✓ Found animation:", animName)
-			end
-		end
-	end
-	
-	-- Check for Animator
-	local animator = humanoid:FindFirstChild("Animator")
-	if not animator then
-		print("⚠ No Animator found - creating one...")
-		animator = Instance.new("Animator")
-		animator.Parent = humanoid
-	end
-	print("✓ Animator present")
-	
-	-- Monitor movement for this NPC
-	local lastPosition = rootPart.Position
-	local connection
-	connection = RunService.Heartbeat:Connect(function()
-		if not rootPart.Parent then
-			connection:Disconnect()
-			return
-		end
-		
-		local currentPosition = rootPart.Position
-		local deltaPosition = (currentPosition - lastPosition)
-		local speed = deltaPosition.Magnitude * 30 -- Convert to studs/second
-		
-		if speed > 0.1 then
-			print("\n[", npcModel.Name, "] Movement detected:")
-			print("  - Speed:", speed, "studs/second")
-			print("  - Humanoid WalkSpeed:", humanoid.WalkSpeed)
-			print("  - Humanoid MoveDirection:", humanoid.MoveDirection)
-			print("  - Humanoid Moving:", humanoid.MoveDirection.Magnitude > 0)
-			
-			-- Instead of firing the event, we need to ensure MoveDirection is set
-			-- The Animate script should automatically detect movement through MoveDirection
-			if humanoid.MoveDirection.Magnitude == 0 then
-				print("  ⚠ MoveDirection is zero despite movement!")
-				print("  ⚠ This prevents the Animate script from detecting movement")
-				
-				-- Calculate and set move direction based on velocity
-				local moveDir = deltaPosition.Unit
-				if moveDir.Magnitude > 0 then
-					-- We can't directly set MoveDirection, but we can ensure MoveTo is being called properly
-					print("  💡 NPCFollowServer should be using Humanoid:MoveTo() to ensure proper MoveDirection")
-				end
-			end
-		end
-		
-		lastPosition = currentPosition
-	end)
-	
-	-- Wait a moment then disconnect to avoid spam
-	task.wait(5)
-	connection:Disconnect()
-	print("[", npcModel.Name, "] Diagnostic complete")
+-- Diagnostic script to debug NPC animation issues
+local function setupDiagnostics()
+    local npcsFolder = workspace:WaitForChild("NPCS", 5)
+    if not npcsFolder then
+        warn("[NPCAnimationDiagnostic] NPCS folder not found")
+        return
+    end
+    
+    local diagnosticData = {}
+    
+    local function monitorNPC(npc)
+        if diagnosticData[npc] then return end
+        
+        local humanoid = npc:FindFirstChildOfClass("Humanoid")
+        local rootPart = npc:FindFirstChild("HumanoidRootPart")
+        local animateScript = npc:FindFirstChild("Animate")
+        local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+        
+        if not humanoid or not rootPart then
+            warn("[NPCAnimationDiagnostic] " .. npc.Name .. " missing Humanoid or HumanoidRootPart")
+            return
+        end
+        
+        diagnosticData[npc] = {
+            lastPosition = rootPart.Position,
+            lastVelocity = Vector3.new(0, 0, 0),
+            lastMoveDirection = Vector3.new(0, 0, 0),
+            lastSpeed = 0,
+            animateScriptExists = animateScript ~= nil,
+            animatorExists = animator ~= nil,
+            lastDebugTime = 0
+        }
+        
+        -- Monitor animation tracks
+        if animator then
+            animator.AnimationPlayed:Connect(function(animTrack)
+                print("[NPCAnimationDiagnostic] " .. npc.Name .. " playing animation: " .. tostring(animTrack.Animation.AnimationId))
+            end)
+        end
+        
+        -- Monitor humanoid events
+        humanoid.Running:Connect(function(speed)
+            diagnosticData[npc].lastSpeed = speed
+            if speed > 0.1 then
+                print("[NPCAnimationDiagnostic] " .. npc.Name .. " Running event fired with speed: " .. speed)
+            end
+        end)
+        
+        humanoid.StateChanged:Connect(function(old, new)
+            print("[NPCAnimationDiagnostic] " .. npc.Name .. " state changed from " .. tostring(old) .. " to " .. tostring(new))
+        end)
+    end
+    
+    -- Monitor existing NPCs
+    for _, npc in pairs(npcsFolder:GetChildren()) do
+        if npc:IsA("Model") then
+            monitorNPC(npc)
+        end
+    end
+    
+    -- Monitor new NPCs
+    npcsFolder.ChildAdded:Connect(function(child)
+        if child:IsA("Model") then
+            task.wait(0.1) -- Wait for NPC to be fully set up
+            monitorNPC(child)
+        end
+    end)
+    
+    -- Diagnostic heartbeat
+    local lastDiagnosticPrint = 0
+    RunService.Heartbeat:Connect(function()
+        local now = tick()
+        
+        for npc, data in pairs(diagnosticData) do
+            if npc.Parent and npc:FindFirstChild("HumanoidRootPart") and npc:FindFirstChildOfClass("Humanoid") then
+                local humanoid = npc:FindFirstChildOfClass("Humanoid")
+                local rootPart = npc.HumanoidRootPart
+                local animateScript = npc:FindFirstChild("Animate")
+                
+                -- Calculate actual velocity
+                local currentPosition = rootPart.Position
+                local velocity = (currentPosition - data.lastPosition) / RunService.Heartbeat:Wait()
+                local speed = velocity.Magnitude
+                
+                -- Calculate movement direction
+                local moveDirection = humanoid.MoveDirection
+                local lookDirection = rootPart.CFrame.LookVector
+                
+                -- Update data
+                data.lastPosition = currentPosition
+                data.lastVelocity = velocity
+                data.lastMoveDirection = moveDirection
+                
+                -- Check if Animate script exists and has proper values
+                if animateScript then
+                    local walkAnim = animateScript:FindFirstChild("walk")
+                    local runAnim = animateScript:FindFirstChild("run")
+                    local idleAnim = animateScript:FindFirstChild("idle")
+                    
+                    -- Print detailed diagnostic every 2 seconds if moving
+                    if now - data.lastDebugTime > 2 and speed > 0.1 then
+                        data.lastDebugTime = now
+                        print(string.format(
+                            "[NPCAnimationDiagnostic] %s - Speed: %.2f, MoveDirection: %s, WalkSpeed: %.1f, Animator: %s, AnimateScript: %s",
+                            npc.Name,
+                            speed,
+                            tostring(moveDirection),
+                            humanoid.WalkSpeed,
+                            tostring(data.animatorExists),
+                            tostring(data.animateScriptExists)
+                        ))
+                        
+                        -- Check animation values
+                        if walkAnim then
+                            print("  - Walk animation found: " .. tostring(walkAnim:FindFirstChild("WalkAnim")))
+                        end
+                        if runAnim then
+                            print("  - Run animation found: " .. tostring(runAnim:FindFirstChild("RunAnim")))
+                        end
+                        if idleAnim then
+                            print("  - Idle animation found: " .. tostring(idleAnim:FindFirstChild("Animation1")))
+                        end
+                        
+                        -- Check if movement state is correct
+                        print("  - Humanoid State: " .. tostring(humanoid:GetState()))
+                        print("  - RootPart Velocity: " .. tostring(rootPart.AssemblyLinearVelocity))
+                    end
+                end
+                
+                -- Manually update MoveDirection based on velocity if it's not being set
+                if speed > 0.1 and moveDirection.Magnitude < 0.1 then
+                    -- Calculate move direction from velocity
+                    local flatVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+                    if flatVelocity.Magnitude > 0.1 then
+                        local normalizedVelocity = flatVelocity.Unit
+                        -- This is diagnostic only - we'll fix this in the fixer script
+                        print(string.format(
+                            "[NPCAnimationDiagnostic] %s - MoveDirection is zero but velocity is %.2f. Calculated direction: %s",
+                            npc.Name,
+                            speed,
+                            tostring(normalizedVelocity)
+                        ))
+                    end
+                end
+            else
+                -- NPC was removed
+                diagnosticData[npc] = nil
+            end
+        end
+    end)
 end
 
--- Check all NPCs
-task.wait(2) -- Wait for NPCs to load
-local npcFolder = workspace:WaitForChild(Config.NPC_FOLDER_NAME, 10)
-if npcFolder then
-	for _, npcModel in pairs(npcFolder:GetChildren()) do
-		if npcModel:IsA("Model") then
-			checkNPCAnimation(npcModel)
-			task.wait(1)
-		end
-	end
-end
+setupDiagnostics()
 
-print("\n[AnimationDiagnostic] Diagnostic complete!")
+print("[NPCAnimationDiagnostic] Diagnostic system initialized - monitoring NPC animations")

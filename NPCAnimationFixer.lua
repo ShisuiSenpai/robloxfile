@@ -3,172 +3,136 @@
 -- Place in ServerScriptService
 
 local RunService = game:GetService("RunService")
-local Config = require(game.ReplicatedStorage:WaitForChild("NPCFollowModules"):WaitForChild("NPCFollowConfig"))
 
-local monitoredNPCs = {}
-
--- Function to ensure NPC has required components
-local function setupNPCComponents(npcModel)
-	local humanoid = npcModel:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return false end
-	
-	-- Ensure Animator exists
-	local animator = humanoid:FindFirstChild("Animator")
-	if not animator then
-		animator = Instance.new("Animator")
-		animator.Parent = humanoid
-		print("[AnimationFixer] Created Animator for:", npcModel.Name)
-	end
-	
-	-- Check for Animate script
-	local animateScript = npcModel:FindFirstChild("Animate")
-	if animateScript then
-		-- Ensure the msg StringValue exists (required by Animate script)
-		local msg = animateScript:FindFirstChild("msg")
-		if not msg then
-			msg = Instance.new("StringValue")
-			msg.Name = "msg"
-			msg.Parent = animateScript
-			print("[AnimationFixer] Created msg StringValue for:", npcModel.Name)
-		end
-		
-		-- If it's a LocalScript and we're on the server, we need to handle this differently
-		if animateScript:IsA("LocalScript") then
-			print("[AnimationFixer] Warning: Animate is a LocalScript in", npcModel.Name, "- animations may not work on server")
-		end
-	else
-		print("[AnimationFixer] Warning: No Animate script found in", npcModel.Name)
-	end
-	
-	return true
+-- This script ensures NPC animations work properly with the default Animate script
+local function setupAnimationFixer()
+    local npcsFolder = workspace:WaitForChild("NPCS", 5)
+    if not npcsFolder then
+        warn("[NPCAnimationFixer] NPCS folder not found")
+        return
+    end
+    
+    local npcData = {}
+    
+    local function fixNPCAnimation(npc)
+        if npcData[npc] then return end
+        
+        local humanoid = npc:FindFirstChildOfClass("Humanoid")
+        local rootPart = npc:FindFirstChild("HumanoidRootPart")
+        local animateScript = npc:FindFirstChild("Animate")
+        
+        if not humanoid or not rootPart then
+            return
+        end
+        
+        -- Ensure Animator exists
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if not animator then
+            animator = Instance.new("Animator")
+            animator.Parent = humanoid
+            print("[NPCAnimationFixer] Added Animator to " .. npc.Name)
+        end
+        
+        npcData[npc] = {
+            humanoid = humanoid,
+            rootPart = rootPart,
+            animator = animator,
+            animateScript = animateScript,
+            lastPosition = rootPart.Position,
+            lastVelocity = Vector3.new(0, 0, 0),
+            currentState = "idle",
+            stateStartTime = tick()
+        }
+        
+        -- If Animate script exists, ensure it has the msg StringValue
+        if animateScript then
+            local msgValue = animateScript:FindFirstChild("msg")
+            if not msgValue then
+                msgValue = Instance.new("StringValue")
+                msgValue.Name = "msg"
+                msgValue.Parent = animateScript
+                print("[NPCAnimationFixer] Added msg StringValue to " .. npc.Name .. "'s Animate script")
+            end
+        end
+    end
+    
+    -- Setup existing NPCs
+    for _, npc in pairs(npcsFolder:GetChildren()) do
+        if npc:IsA("Model") then
+            fixNPCAnimation(npc)
+        end
+    end
+    
+    -- Setup new NPCs
+    npcsFolder.ChildAdded:Connect(function(child)
+        if child:IsA("Model") then
+            task.wait(0.1)
+            fixNPCAnimation(child)
+        end
+    end)
+    
+    -- Main update loop
+    RunService.Heartbeat:Connect(function(deltaTime)
+        for npc, data in pairs(npcData) do
+            if npc.Parent and data.humanoid.Parent and data.rootPart.Parent then
+                local currentPosition = data.rootPart.Position
+                local velocity = (currentPosition - data.lastPosition) / deltaTime
+                local speed = velocity.Magnitude
+                
+                -- Update stored data
+                data.lastPosition = currentPosition
+                data.lastVelocity = velocity
+                
+                -- Determine animation state based on movement
+                local newState = "idle"
+                if speed > 0.5 then
+                    if speed > data.humanoid.WalkSpeed * 1.5 then
+                        newState = "run"
+                    else
+                        newState = "walk"
+                    end
+                end
+                
+                -- If state changed and we have an Animate script with msg value
+                if newState ~= data.currentState and data.animateScript then
+                    local msgValue = data.animateScript:FindFirstChild("msg")
+                    if msgValue then
+                        -- The Animate script listens to msg.Changed
+                        if newState == "walk" or newState == "run" then
+                            -- Trigger movement animation
+                            msgValue.Value = ""
+                            task.wait()
+                            msgValue.Value = "PlayAnimation"
+                        end
+                    end
+                    
+                    data.currentState = newState
+                    data.stateStartTime = tick()
+                end
+                
+                -- For server-side NPCs, we need to ensure physics velocity is set
+                -- This helps the Animate script detect movement
+                if speed > 0.1 and data.rootPart.AssemblyLinearVelocity.Magnitude < 0.1 then
+                    -- Set a small physics velocity to trigger movement detection
+                    local moveDirection = velocity.Unit
+                    if moveDirection.Magnitude > 0 then
+                        data.rootPart.AssemblyLinearVelocity = moveDirection * data.humanoid.WalkSpeed
+                    end
+                end
+                
+                -- Clean up physics velocity when stopped
+                if speed < 0.1 and data.rootPart.AssemblyLinearVelocity.Magnitude > 0 then
+                    data.rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+            else
+                -- NPC was removed
+                npcData[npc] = nil
+            end
+        end
+    end)
+    
+    print("[NPCAnimationFixer] Animation fixer initialized - monitoring " .. #npcData .. " NPCs")
 end
 
--- Function to help animations work by monitoring movement
-local function monitorNPCMovement(npcModel)
-	if monitoredNPCs[npcModel] then return end
-	
-	local humanoid = npcModel:FindFirstChildOfClass("Humanoid")
-	local rootPart = npcModel:FindFirstChild("HumanoidRootPart")
-	
-	if not humanoid or not rootPart then return end
-	
-	-- Setup components
-	if not setupNPCComponents(npcModel) then return end
-	
-	-- Store monitoring data
-	local monitorData = {
-		lastPosition = rootPart.Position,
-		lastMoveToPosition = nil,
-		isMoving = false,
-		connection = nil
-	}
-	
-	-- Create a helper part to visualize movement direction (for debugging)
-	if Config.DEBUG_MODE then
-		local debugPart = Instance.new("Part")
-		debugPart.Name = "MoveDirectionDebug"
-		debugPart.Size = Vector3.new(0.5, 0.5, 2)
-		debugPart.Material = Enum.Material.Neon
-		debugPart.BrickColor = BrickColor.new("Lime green")
-		debugPart.CanCollide = false
-		debugPart.Anchored = true
-		debugPart.Parent = workspace
-		monitorData.debugPart = debugPart
-	end
-	
-	-- Monitor movement and ensure animations trigger
-	monitorData.connection = RunService.Heartbeat:Connect(function()
-		if not rootPart.Parent or not humanoid.Parent then
-			monitorData.connection:Disconnect()
-			if monitorData.debugPart then
-				monitorData.debugPart:Destroy()
-			end
-			monitoredNPCs[npcModel] = nil
-			return
-		end
-		
-		local currentPosition = rootPart.Position
-		local deltaPosition = currentPosition - monitorData.lastPosition
-		
-		-- Calculate actual movement speed
-		local horizontalVelocity = Vector3.new(deltaPosition.X, 0, deltaPosition.Z) * 30
-		local speed = horizontalVelocity.Magnitude
-		
-		-- The key issue: MoveDirection might not update properly with MoveTo
-		-- We need to ensure the Animate script can detect movement
-		local moveDirection = humanoid.MoveDirection
-		
-		-- Debug visualization
-		if Config.DEBUG_MODE and monitorData.debugPart then
-			if moveDirection.Magnitude > 0 then
-				monitorData.debugPart.CFrame = CFrame.lookAt(
-					rootPart.Position + Vector3.new(0, -2, 0),
-					rootPart.Position + Vector3.new(0, -2, 0) + moveDirection * 3
-				)
-				monitorData.debugPart.Transparency = 0
-			else
-				monitorData.debugPart.Transparency = 1
-			end
-		end
-		
-		-- If NPC is moving but MoveDirection is zero, there's an issue
-		if speed > 0.5 and moveDirection.Magnitude == 0 then
-			-- This is the core problem - MoveTo doesn't always update MoveDirection on server
-			-- The Animate script relies on MoveDirection to play walk/run animations
-			if Config.DEBUG_MODE then
-				print("[AnimationFixer]", npcModel.Name, "moving but MoveDirection is zero!")
-				print("  Speed:", speed, "MoveDirection:", moveDirection)
-			end
-			
-			-- Unfortunately, we cannot directly set MoveDirection
-			-- The best solution is to ensure NPCFollowServer uses proper movement methods
-		end
-		
-		monitorData.lastPosition = currentPosition
-	end)
-	
-	-- Store in tracked NPCs
-	monitoredNPCs[npcModel] = monitorData
-	
-	-- Clean up when NPC is removed
-	npcModel.AncestryChanged:Connect(function()
-		if not npcModel.Parent and monitoredNPCs[npcModel] then
-			if monitoredNPCs[npcModel].connection then
-				monitoredNPCs[npcModel].connection:Disconnect()
-			end
-			if monitoredNPCs[npcModel].debugPart then
-				monitoredNPCs[npcModel].debugPart:Destroy()
-			end
-			monitoredNPCs[npcModel] = nil
-		end
-	end)
-	
-	print("[AnimationFixer] Now monitoring:", npcModel.Name)
-end
-
--- Setup existing NPCs
-task.wait(2) -- Wait for NPCs to load
-
-local npcFolder = workspace:WaitForChild(Config.NPC_FOLDER_NAME, 10)
-if npcFolder then
-	-- Monitor existing NPCs
-	for _, npcModel in pairs(npcFolder:GetChildren()) do
-		if npcModel:IsA("Model") then
-			monitorNPCMovement(npcModel)
-		end
-	end
-	
-	-- Monitor new NPCs
-	npcFolder.ChildAdded:Connect(function(child)
-		if child:IsA("Model") then
-			task.wait(0.5) -- Give time for NPC to fully load
-			monitorNPCMovement(child)
-		end
-	end)
-end
-
-print("[NPCAnimationFixer] Animation fixing system active")
-print("[NPCAnimationFixer] Note: If animations still don't work, ensure:")
-print("  1. The Animate script is a Script (not LocalScript) for NPCs")
-print("  2. NPCs have all required body parts (Head, Torso/UpperTorso, etc.)")
-print("  3. Animation IDs in the Animate script are valid")
+-- Initialize the fixer
+setupAnimationFixer()
