@@ -18,6 +18,16 @@ local BG = gui:WaitForChild("BG")
 local questionFrame = BG:WaitForChild("QuestionFrame")
 local questionText = questionFrame:WaitForChild("QuestionText")
 
+-- Color scheme (moved up before UI creation)
+local Colors = {
+    Correct = Color3.fromRGB(50, 200, 100),
+    Incorrect = Color3.fromRGB(250, 100, 100),
+    Blue = Color3.fromRGB(100, 150, 250),
+    BlueLight = Color3.fromRGB(120, 170, 255),
+    BlueDark = Color3.fromRGB(80, 130, 230),
+    White = Color3.fromRGB(255, 255, 255)
+}
+
 -- Get answer buttons
 local answerFrames = {
     BG:WaitForChild("AnswerA"),
@@ -68,16 +78,6 @@ nextQuestionTimer.TextScaled = false
 nextQuestionTimer.TextSize = 36
 nextQuestionTimer.Font = Enum.Font.GothamBold
 nextQuestionTimer.Parent = nextQuestionFrame
-
--- Color scheme
-local Colors = {
-    Correct = Color3.fromRGB(50, 200, 100),
-    Incorrect = Color3.fromRGB(250, 100, 100),
-    Blue = Color3.fromRGB(100, 150, 250),
-    BlueLight = Color3.fromRGB(120, 170, 255),
-    BlueDark = Color3.fromRGB(80, 130, 230),
-    White = Color3.fromRGB(255, 255, 255)
-}
 
 -- RemoteEvents
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
