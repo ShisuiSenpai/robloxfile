@@ -122,6 +122,7 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     local targetPosition = footstep.Position  -- Use the exact center of the part
     
     print("[PathManager] Footstep info - Position:", footstep.Position, "Size:", footstep.Size)
+    print("[PathManager] Current player position:", humanoidRootPart.Position)
     
     -- Debug: Check initial state
     print("[PathManager] Pre-move state - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "PlatformStand:", humanoid.PlatformStand)
@@ -172,15 +173,16 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         humanoidRootPart.Anchored = true
         
         -- Calculate the proper position for centering on footstep
-        -- Test with a more obvious offset first to see if positioning works
+        -- The HumanoidRootPart should be positioned so the feet are on the footstep
         local finalPosition = Vector3.new(
             footstep.Position.X,
-            footstep.Position.Y + footstep.Size.Y/2 + humanoidRootPart.Size.Y/2 + 5,  -- 5 studs above to test
+            footstep.Position.Y + footstep.Size.Y/2 + humanoidRootPart.Size.Y/2 + 0.1,
             footstep.Position.Z
         )
         
         -- Debug before setting
         print("[PathManager] BEFORE SET - Current position:", humanoidRootPart.Position)
+        print("[PathManager] BEFORE SET - Footstep center:", footstep.Position)
         print("[PathManager] BEFORE SET - Target position:", finalPosition)
         print("[PathManager] BEFORE SET - Anchored:", humanoidRootPart.Anchored)
         
