@@ -1,4 +1,4 @@
--- Who Wants to Be a Millionaire Quiz UI - Clean White & Blue Theme
+-- Quiz UI - Clean White & Blue Theme
 -- Floating elements design with no background frame
 
 local Players = game:GetService("Players")
@@ -23,36 +23,11 @@ BG.BackgroundTransparency = 1 -- Fully transparent
 BG.BorderSizePixel = 0
 BG.Parent = screenGui
 
--- Title at the top
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Name = "Title"
-titleLabel.Size = UDim2.new(0, 800, 0, 60)
-titleLabel.Position = UDim2.new(0.5, -400, 0.1, 0)
-titleLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.BorderSizePixel = 0
-titleLabel.Text = "WHO WANTS TO BE A MILLIONAIRE?"
-titleLabel.TextColor3 = Color3.fromRGB(100, 150, 250) -- Blue
-titleLabel.TextScaled = false
-titleLabel.TextSize = 28
-titleLabel.Font = Enum.Font.Montserrat
-titleLabel.Parent = BG
-
--- Add rounded corners to title
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = titleLabel
-
--- Add blue border to title
-local titleBorder = Instance.new("UIStroke")
-titleBorder.Color = Color3.fromRGB(100, 150, 250)
-titleBorder.Thickness = 3
-titleBorder.Parent = titleLabel
-
--- Question Frame (floating)
+-- Question Frame (floating) - Bigger and lower
 local questionFrame = Instance.new("Frame")
 questionFrame.Name = "QuestionFrame"
-questionFrame.Size = UDim2.new(0, 700, 0, 100)
-questionFrame.Position = UDim2.new(0.5, -350, 0.3, 0)
+questionFrame.Size = UDim2.new(0, 800, 0, 120)
+questionFrame.Position = UDim2.new(0.5, -400, 0.45, 0)  -- Moved lower
 questionFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 questionFrame.BorderSizePixel = 0
 questionFrame.Parent = BG
@@ -76,7 +51,7 @@ questionText.BackgroundTransparency = 1
 questionText.Text = "What is the capital of France?"
 questionText.TextColor3 = Color3.fromRGB(100, 150, 250) -- Blue text
 questionText.TextScaled = false
-questionText.TextSize = 22
+questionText.TextSize = 24  -- Bigger text
 questionText.Font = Enum.Font.Gotham
 questionText.TextWrapped = true
 questionText.TextXAlignment = Enum.TextXAlignment.Center
@@ -87,14 +62,14 @@ questionText.Parent = questionFrame
 local function createAnswerButton(position, letter, text)
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Name = "Answer" .. letter
-    buttonFrame.Size = UDim2.new(0, 340, 0, 60)
+    buttonFrame.Size = UDim2.new(0, 380, 0, 70)  -- Bigger buttons
     buttonFrame.Position = position
     buttonFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     buttonFrame.BorderSizePixel = 0
     buttonFrame.Parent = BG
     
     local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 30) -- Pill shape like the show
+    buttonCorner.CornerRadius = UDim.new(0, 35) -- Pill shape like the show
     buttonCorner.Parent = buttonFrame
     
     -- Button border
@@ -112,8 +87,8 @@ local function createAnswerButton(position, letter, text)
     -- Letter indicator (circular like the show)
     local letterCircle = Instance.new("Frame")
     letterCircle.Name = "LetterCircle"
-    letterCircle.Size = UDim2.new(0, 40, 0, 40)
-    letterCircle.Position = UDim2.new(0, 10, 0.5, -20)
+    letterCircle.Size = UDim2.new(0, 50, 0, 50)  -- Bigger circle
+    letterCircle.Position = UDim2.new(0, 10, 0.5, -25)
     letterCircle.BackgroundColor3 = Color3.fromRGB(100, 150, 250)
     letterCircle.BorderSizePixel = 0
     letterCircle.Parent = contentFrame
@@ -129,20 +104,20 @@ local function createAnswerButton(position, letter, text)
     letterLabel.Text = letter
     letterLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     letterLabel.TextScaled = false
-    letterLabel.TextSize = 20
+    letterLabel.TextSize = 24  -- Bigger letter
     letterLabel.Font = Enum.Font.GothamBold
     letterLabel.Parent = letterCircle
     
     -- Answer text
     local answerLabel = Instance.new("TextLabel")
     answerLabel.Name = "AnswerText"
-    answerLabel.Size = UDim2.new(1, -70, 1, 0)
-    answerLabel.Position = UDim2.new(0, 60, 0, 0)
+    answerLabel.Size = UDim2.new(1, -80, 1, 0)
+    answerLabel.Position = UDim2.new(0, 70, 0, 0)
     answerLabel.BackgroundTransparency = 1
     answerLabel.Text = text
     answerLabel.TextColor3 = Color3.fromRGB(100, 150, 250)
     answerLabel.TextScaled = false
-    answerLabel.TextSize = 18
+    answerLabel.TextSize = 20  -- Bigger text
     answerLabel.Font = Enum.Font.Gotham
     answerLabel.TextXAlignment = Enum.TextXAlignment.Left
     answerLabel.Parent = contentFrame
@@ -214,29 +189,21 @@ local function createAnswerButton(position, letter, text)
     return buttonFrame
 end
 
--- Create answer buttons in Who Wants to Be a Millionaire layout
+-- Create answer buttons - Closer together and lower
 -- Top row (A and B)
-createAnswerButton(UDim2.new(0.5, -350, 0.5, 0), "A", "Paris")
-createAnswerButton(UDim2.new(0.5, 10, 0.5, 0), "B", "London")
+createAnswerButton(UDim2.new(0.5, -390, 0.65, 0), "A", "Paris")   -- Closer to center
+createAnswerButton(UDim2.new(0.5, 10, 0.65, 0), "B", "London")
 
--- Bottom row (C and D)
-createAnswerButton(UDim2.new(0.5, -350, 0.5, 80), "C", "Berlin")
-createAnswerButton(UDim2.new(0.5, 10, 0.5, 80), "D", "Madrid")
+-- Bottom row (C and D) - Less gap between rows
+createAnswerButton(UDim2.new(0.5, -390, 0.65, 85), "C", "Berlin")
+createAnswerButton(UDim2.new(0.5, 10, 0.65, 85), "D", "Madrid")
 
 -- Entrance animations for floating effect
 local function animateIn()
-    -- Animate title
-    titleLabel.Position = UDim2.new(0.5, -400, -0.2, 0)
-    local titleTween = TweenService:Create(titleLabel, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -400, 0.1, 0)
-    })
-    titleTween:Play()
-    
     -- Animate question
-    questionFrame.Position = UDim2.new(0.5, -350, -0.3, 0)
-    wait(0.2)
+    questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -350, 0.3, 0)
+        Position = UDim2.new(0.5, -400, 0.45, 0)
     })
     questionTween:Play()
     
@@ -278,7 +245,6 @@ end
 local RunService = game:GetService("RunService")
 spawn(function()
     wait(2) -- Wait for entrance animations
-    addFloatingEffect(titleLabel, 0, 3)
     addFloatingEffect(questionFrame, 0.5, 4)
     for _, child in pairs(BG:GetChildren()) do
         if child.Name:match("Answer") then
@@ -290,4 +256,4 @@ end)
 -- Start animations
 animateIn()
 
-print("Who Wants to Be a Millionaire Quiz UI loaded!")
+print("Quiz UI loaded!")
