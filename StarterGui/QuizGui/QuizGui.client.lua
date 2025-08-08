@@ -249,21 +249,36 @@ function SelectAnswer(index, answerFrame)
         task.wait(0.15)
     end
     
-    -- Fade out non-selected answers
+    -- Grey out non-selected answers
     for i, frame in ipairs(answerFrames) do
         if frame ~= answerFrame then
+            -- Make non-selected answers grey
             TweenService:Create(frame, TweenInfo.new(0.3), {
-                BackgroundTransparency = 0.5
+                BackgroundColor3 = Color3.fromRGB(200, 200, 200),
+                BackgroundTransparency = 0.3
             }):Play()
+            
+            local border = frame:FindFirstChild("UIStroke")
+            if border then
+                TweenService:Create(border, TweenInfo.new(0.3), {
+                    Color = Color3.fromRGB(150, 150, 150)
+                }):Play()
+            end
             
             local contentFrame = frame:FindFirstChild("Frame")
             if contentFrame then
-                for _, child in pairs(contentFrame:GetDescendants()) do
-                    if child:IsA("TextLabel") then
-                        TweenService:Create(child, TweenInfo.new(0.3), {
-                            TextTransparency = 0.5
-                        }):Play()
-                    end
+                local letterCircle = contentFrame:FindFirstChild("LetterCircle")
+                if letterCircle then
+                    TweenService:Create(letterCircle, TweenInfo.new(0.3), {
+                        BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+                    }):Play()
+                end
+                
+                local answerText = contentFrame:FindFirstChild("AnswerText")
+                if answerText then
+                    TweenService:Create(answerText, TweenInfo.new(0.3), {
+                        TextColor3 = Color3.fromRGB(150, 150, 150)
+                    }):Play()
                 end
             end
         end
@@ -377,18 +392,11 @@ function ShowResults(results, correctAnswer)
     -- Show correct/incorrect answers
     for i, answerFrame in ipairs(answerFrames) do
         local isCorrect = (i == correctAnswer)
-        local targetColor = isCorrect and Colors.Correct or answerFrame.BackgroundColor3
+        local isPlayerAnswer = hasAnswered and results[player] and results[player].answer == i
         
-        if isCorrect or (hasAnswered and results[player] and results[player].answer == i) then
-            -- This is either the correct answer or the player's answer
-            if isCorrect then
-                -- Correct answer - always green
-                answerFrame.BackgroundColor3 = Colors.Correct
-            elseif results[player] and not results[player].correct then
-                -- Player's wrong answer - red
-                answerFrame.BackgroundColor3 = Colors.Incorrect
-            end
-            
+        if isCorrect then
+            -- Correct answer - always green
+            answerFrame.BackgroundColor3 = Colors.Correct
             answerFrame.BackgroundTransparency = 0
             
             -- Update border
@@ -398,7 +406,7 @@ function ShowResults(results, correctAnswer)
                 border.Thickness = 3
             end
             
-            -- Update text colors
+            -- Update text colors for correct answer
             local contentFrame = answerFrame:FindFirstChild("Frame")
             if contentFrame then
                 local letterCircle = contentFrame:FindFirstChild("LetterCircle")
@@ -406,7 +414,7 @@ function ShowResults(results, correctAnswer)
                     letterCircle.BackgroundColor3 = Colors.White
                     local letter = letterCircle:FindFirstChild("Letter")
                     if letter then
-                        letter.TextColor3 = answerFrame.BackgroundColor3
+                        letter.TextColor3 = Colors.Correct
                     end
                 end
                 
@@ -416,22 +424,79 @@ function ShowResults(results, correctAnswer)
                 end
             end
             
-            -- Add animation
-            if isCorrect then
-                -- Bounce effect for correct answer
-                TweenService:Create(answerFrame, TweenInfo.new(0.5, Enum.EasingStyle.Bounce), {
-                    Size = answerFrame.Size + UDim2.new(0, 10, 0, 5)
-                }):Play()
-            elseif results[player] and results[player].answer == i and not results[player].correct then
-                -- Shake effect for wrong answer
-                local originalPos = answerFrame.Position
-                for j = 1, 3 do
-                    answerFrame.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset + 5, originalPos.Y.Scale, originalPos.Y.Offset)
-                    task.wait(0.05)
-                    answerFrame.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset - 5, originalPos.Y.Scale, originalPos.Y.Offset)
-                    task.wait(0.05)
+            -- Bounce effect for correct answer
+            TweenService:Create(answerFrame, TweenInfo.new(0.5, Enum.EasingStyle.Bounce), {
+                Size = answerFrame.Size + UDim2.new(0, 10, 0, 5)
+            }):Play()
+            
+        elseif isPlayerAnswer and not results[player].correct then
+            -- Player's wrong answer - red
+            answerFrame.BackgroundColor3 = Colors.Incorrect
+            answerFrame.BackgroundTransparency = 0
+            
+            -- Update border
+            local border = answerFrame:FindFirstChild("UIStroke")
+            if border then
+                border.Color = Colors.White
+                border.Thickness = 3
+            end
+            
+            -- Update text colors for wrong answer
+            local contentFrame = answerFrame:FindFirstChild("Frame")
+            if contentFrame then
+                local letterCircle = contentFrame:FindFirstChild("LetterCircle")
+                if letterCircle then
+                    letterCircle.BackgroundColor3 = Colors.White
+                    local letter = letterCircle:FindFirstChild("Letter")
+                    if letter then
+                        letter.TextColor3 = Colors.Incorrect
+                    end
                 end
-                answerFrame.Position = originalPos
+                
+                local answerText = contentFrame:FindFirstChild("AnswerText")
+                if answerText then
+                    answerText.TextColor3 = Colors.White
+                end
+            end
+            
+            -- Shake effect for wrong answer
+            local originalPos = answerFrame.Position
+            for j = 1, 3 do
+                answerFrame.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset + 5, originalPos.Y.Scale, originalPos.Y.Offset)
+                task.wait(0.05)
+                answerFrame.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset - 5, originalPos.Y.Scale, originalPos.Y.Offset)
+                task.wait(0.05)
+            end
+            answerFrame.Position = originalPos
+            
+        else
+            -- Other answers - stay grey/faded
+            answerFrame.BackgroundColor3 = Color3.fromRGB(200, 200, 200) -- Light grey
+            answerFrame.BackgroundTransparency = 0.3
+            
+            -- Update border to grey
+            local border = answerFrame:FindFirstChild("UIStroke")
+            if border then
+                border.Color = Color3.fromRGB(150, 150, 150)
+                border.Thickness = 2
+            end
+            
+            -- Update text colors to grey
+            local contentFrame = answerFrame:FindFirstChild("Frame")
+            if contentFrame then
+                local letterCircle = contentFrame:FindFirstChild("LetterCircle")
+                if letterCircle then
+                    letterCircle.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+                    local letter = letterCircle:FindFirstChild("Letter")
+                    if letter then
+                        letter.TextColor3 = Colors.White
+                    end
+                end
+                
+                local answerText = contentFrame:FindFirstChild("AnswerText")
+                if answerText then
+                    answerText.TextColor3 = Color3.fromRGB(150, 150, 150)
+                end
             end
         end
     end
