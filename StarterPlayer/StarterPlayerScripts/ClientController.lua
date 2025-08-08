@@ -12,9 +12,11 @@ local GameConstants = require(ReplicatedStorage:WaitForChild("Modules"):WaitForC
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 local freezePlayerRemote = remoteEvents:WaitForChild("FreezePlayer")
 local moveToFootstepRemote = remoteEvents:WaitForChild("MoveToFootstep")
+local setMovementStateRemote = remoteEvents:WaitForChild("SetMovementState")
 
 -- Player state
 local isFrozen = false
+local isMoving = false -- New state to track when we're moving between footsteps
 local currentPath = nil
 local currentFootstep = nil
 
@@ -57,6 +59,27 @@ moveToFootstepRemote.OnClientEvent:Connect(function(pathIndex, footstepIndex)
     -- For example, highlighting the current footstep
 end)
 
+-- Handle movement state changes
+setMovementStateRemote.OnClientEvent:Connect(function(state)
+    if state == "moving" then
+        isMoving = true
+        print("[Client] Movement state: moving - stopping freeze enforcement")
+        
+        -- Re-enable controls for movement
+        local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+        local controls = playerModule:GetControls()
+        controls:Enable()
+    elseif state == "frozen" then
+        isMoving = false
+        print("[Client] Movement state: frozen - resuming freeze enforcement")
+        
+        -- Re-disable controls
+        local playerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+        local controls = playerModule:GetControls()
+        controls:Disable()
+    end
+end)
+
 -- Optional: Add camera smoothing during movement
 local function setupCameraSmoothing()
     local camera = workspace.CurrentCamera
@@ -78,9 +101,10 @@ player.CharacterAdded:Connect(function(character)
     print("[Client] Character spawned")
 end)
 
--- Continuously enforce freeze state
+-- Continuously enforce freeze state (but respect movement state)
 RunService.Heartbeat:Connect(function()
-    if isFrozen then
+    -- Only enforce freeze if we're frozen AND not currently moving
+    if isFrozen and not isMoving then
         local character = player.Character
         if character then
             local humanoid = character:FindFirstChild("Humanoid")

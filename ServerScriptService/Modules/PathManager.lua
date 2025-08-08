@@ -38,7 +38,16 @@ function PathManager:CreateRemoteEvents()
         moveToFootstep.Parent = remoteEvents
     end
     
+    -- New remote for movement state
+    local setMovementState = remoteEvents:FindFirstChild("SetMovementState")
+    if not setMovementState then
+        setMovementState = Instance.new("RemoteEvent")
+        setMovementState.Name = "SetMovementState"
+        setMovementState.Parent = remoteEvents
+    end
+    
     self.moveToFootstepRemote = moveToFootstep
+    self.setMovementStateRemote = setMovementState
 end
 
 function PathManager:Initialize()
@@ -117,19 +126,22 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     -- Debug: Check initial state
     print("[PathManager] Pre-move state - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "PlatformStand:", humanoid.PlatformStand)
     
-    -- STEP 1: Fully unfreeze the player first
+    -- STEP 1: Tell client we're about to move (stop enforcing freeze)
+    self.setMovementStateRemote:FireClient(player, "moving")
+    
+    -- STEP 2: Fully unfreeze the player on server
     humanoidRootPart.Anchored = false
     humanoid.WalkSpeed = 16 -- Standard walking speed
     humanoid.JumpPower = 0 -- Still no jumping
     humanoid.PlatformStand = false -- Ensure PlatformStand is off
     
-    -- STEP 2: Wait a frame for physics to re-enable
-    task.wait() -- Wait one frame for Roblox to register the unfreeze
+    -- STEP 3: Wait for client to process the movement state change
+    task.wait(0.1) -- Give client time to stop overriding WalkSpeed
     
     -- Debug: Check state after unfreeze
     print("[PathManager] Post-unfreeze - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "Distance to target:", (targetPosition - humanoidRootPart.Position).Magnitude)
     
-    -- STEP 3: Now call MoveTo when the character can actually move
+    -- STEP 4: Now call MoveTo when both server and client agree on movement
     humanoid:MoveTo(targetPosition)
     
     -- Monitor movement using MoveToFinished event
@@ -153,12 +165,15 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
             humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
         end
         
-        -- Re-freeze the player
+        -- Re-freeze the player on server
         humanoid.WalkSpeed = 0
         humanoid.JumpPower = 0
         humanoidRootPart.Anchored = true
         
-        -- Notify client
+        -- Tell client movement is done (resume freeze enforcement)
+        self.setMovementStateRemote:FireClient(player, "frozen")
+        
+        -- Notify client about position
         self.moveToFootstepRemote:FireClient(player, pathIndex, footstepIndex)
         
         print("[PathManager] Player", player.Name, reached and "walked" or "teleported", "to footstep", footstepIndex, "on path", pathIndex)
