@@ -141,15 +141,8 @@ local function animateIn()
         answerTween:Play()
     end
     
-    -- Start floating effect after animations
-    task.spawn(function()
-        task.wait(1.5)
-        addFloatingEffect(questionFrame, 0, 4)
-        addFloatingEffect(timerFrame, 0.2, 3)
-        for _, answerFrame in ipairs(answerFrames) do
-            addFloatingEffect(answerFrame, math.random() * 0.5, 2)
-        end
-    end)
+    -- Floating effect removed for cleaner look
+    -- (No more up/down movement)
 end
 
 local function resetAnswerButtons()
@@ -204,10 +197,47 @@ local function resetAnswerButtons()
     end
 end
 
--- Handle answer button clicks
+-- Handle answer button clicks and hover effects
 for i, answerFrame in ipairs(answerFrames) do
     local button = answerFrame:FindFirstChildOfClass("TextButton")
     if button then
+        -- Store original size for hover effect
+        local originalSize = UDim2.new(0, 380, 0, 70)
+        local hoverSize = UDim2.new(0, 385, 0, 72)
+        
+        -- Mouse enter - smooth scale up
+        button.MouseEnter:Connect(function()
+            if not hasAnswered then
+                TweenService:Create(answerFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = hoverSize
+                }):Play()
+                
+                local border = answerFrame:FindFirstChild("UIStroke")
+                if border then
+                    TweenService:Create(border, TweenInfo.new(0.2), {
+                        Thickness = 3
+                    }):Play()
+                end
+            end
+        end)
+        
+        -- Mouse leave - smooth scale down
+        button.MouseLeave:Connect(function()
+            if not hasAnswered then
+                TweenService:Create(answerFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = originalSize
+                }):Play()
+                
+                local border = answerFrame:FindFirstChild("UIStroke")
+                if border then
+                    TweenService:Create(border, TweenInfo.new(0.2), {
+                        Thickness = 2
+                    }):Play()
+                end
+            end
+        end)
+        
+        -- Click handler
         button.MouseButton1Click:Connect(function()
             if not hasAnswered and currentQuestion then
                 SelectAnswer(i, answerFrame)
@@ -449,15 +479,18 @@ function UpdateTimer(timeLeft)
         timerText.TextColor3 = Color3.fromRGB(241, 196, 15) -- Yellow
     else
         timerText.TextColor3 = Colors.Incorrect -- Red
-        -- Pulse effect when low on time
-        if math.ceil(timeLeft) <= 3 then
-            TweenService:Create(timerFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-                Size = UDim2.new(0, 220, 0, 88)
+        -- Smooth pulse effect when low on time (without wait)
+        if math.ceil(timeLeft) <= 3 and math.ceil(timeLeft) == timeLeft then
+            -- Only pulse on whole seconds
+            TweenService:Create(timerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 210, 0, 84)
             }):Play()
-            task.wait(0.5)
-            TweenService:Create(timerFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-                Size = UDim2.new(0, 200, 0, 80)
-            }):Play()
+            
+            task.delay(0.3, function()
+                TweenService:Create(timerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Size = UDim2.new(0, 200, 0, 80)
+                }):Play()
+            end)
         end
     end
 end
