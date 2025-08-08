@@ -116,11 +116,16 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         return false
     end
     
-    -- Calculate target position - exact center of footstep at ground level
+    -- Calculate direction from current position to footstep
+    local toFootstep = footstep.Position - humanoidRootPart.Position
+    local direction = Vector3.new(toFootstep.X, 0, toFootstep.Z).Unit
+    
+    -- Add a small overshoot to ensure we reach the center (MoveTo stops "close enough")
+    local overshootDistance = 1.5 -- studs past center
     local targetPosition = Vector3.new(
-        footstep.Position.X,
+        footstep.Position.X + (direction.X * overshootDistance),
         footstep.Position.Y + footstep.Size.Y/2 + 0.1, -- Just above footstep surface
-        footstep.Position.Z
+        footstep.Position.Z + (direction.Z * overshootDistance)
     )
     
     print("[PathManager] Footstep info - Position:", footstep.Position, "Size:", footstep.Size)
@@ -151,17 +156,23 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     -- Monitor movement using MoveToFinished event
     local moveConnection
     local timeoutConnection
-    local moveStarted = false
+    local hasFinished = false
     
     local function onMoveFinished(reached)
+        -- Prevent multiple calls
+        if hasFinished then return end
+        hasFinished = true
+        
         print("[PathManager] onMoveFinished called! Reached:", reached)
         
         -- Clean up connections
         if moveConnection then
             moveConnection:Disconnect()
+            moveConnection = nil
         end
         if timeoutConnection then
             task.cancel(timeoutConnection)  -- task.delay returns a thread, not a connection
+            timeoutConnection = nil
         end
         
         -- First, stop any movement
@@ -169,10 +180,22 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         humanoid.WalkSpeed = 0
         humanoid.JumpPower = 0
         
-        -- Re-freeze the player immediately where they stopped
+        -- Stop movement and freeze
+        humanoid:MoveTo(humanoidRootPart.Position)
         humanoid.WalkSpeed = 0
         humanoid.JumpPower = 0
+        
+        -- Wait a moment for physics to settle
+        task.wait(0.1)
+        
+        -- Now position exactly on footstep center
         humanoidRootPart.Anchored = true
+        local centerPosition = Vector3.new(
+            footstep.Position.X,
+            humanoidRootPart.Position.Y, -- Keep current Y height
+            footstep.Position.Z
+        )
+        humanoidRootPart.Position = centerPosition
         
         -- Debug final position
         print("[PathManager] Final position:", humanoidRootPart.Position)
@@ -194,43 +217,6 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     
     -- Connect to MoveToFinished event
     moveConnection = humanoid.MoveToFinished:Connect(onMoveFinished)
-    
-    -- Monitor movement and stop when centered on footstep
-    task.spawn(function()
-        local checkInterval = 0.1
-        local maxChecks = 100 -- 10 seconds max
-        local checks = 0
-        
-        while checks < maxChecks do
-            task.wait(checkInterval)
-            checks = checks + 1
-            
-            -- Check horizontal distance to footstep center (ignore Y)
-            local currentPos = humanoidRootPart.Position
-            local horizontalDistance = ((currentPos - footstep.Position) * Vector3.new(1, 0, 1)).Magnitude
-            
-            -- If we're within 0.5 studs of center, stop and position perfectly
-            if horizontalDistance < 0.5 then
-                print("[PathManager] Reached center, stopping at distance:", horizontalDistance)
-                
-                -- Cancel MoveTo
-                humanoid:MoveTo(humanoidRootPart.Position)
-                
-                -- Trigger completion
-                if moveConnection then
-                    moveConnection:Disconnect()
-                    moveConnection = nil
-                end
-                if timeoutConnection then
-                    task.cancel(timeoutConnection)
-                    timeoutConnection = nil
-                end
-                
-                onMoveFinished(true)
-                break
-            end
-        end
-    end)
     
     -- Add timeout in case something goes wrong
     timeoutConnection = task.delay(10, function()
