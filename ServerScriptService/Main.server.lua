@@ -103,6 +103,9 @@ function onIntermissionEnd()
     -- Change game state
     gameManager:SetState(GameConstants.GameState.IN_GAME)
     
+    -- Small delay to ensure everything is ready
+    wait(0.5)
+    
     -- Move all players to their first footsteps
     local activePlayers = gameManager:GetActivePlayers()
     
@@ -112,6 +115,9 @@ function onIntermissionEnd()
             pathManager:MovePlayerToFirstFootstep(player, spawnIndex)
         end
     end
+    
+    -- Wait for all players to reach their first footstep
+    wait(5) -- Give time for walking animation
     
     -- Game is now ready for questions phase
     print("[Main] Players positioned, ready for game phase")

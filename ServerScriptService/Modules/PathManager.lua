@@ -93,7 +93,7 @@ function PathManager:MovePlayerToFirstFootstep(player, pathIndex)
     return true
 end
 
-function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex)
+function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, callback)
     local character = player.Character
     if not character then return false end
     
@@ -107,38 +107,39 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex)
         return false
     end
     
-    -- Calculate target position (on the footstep surface)
-    local targetPosition = footstep.Position + Vector3.new(0, footstep.Size.Y/2 + 3, 0)
+    -- Calculate target position (on the footstep surface, accounting for character height)
+    local targetPosition = Vector3.new(
+        footstep.Position.X,
+        footstep.Position.Y + footstep.Size.Y/2 + (humanoidRootPart.Size.Y/2) + 0.1,
+        footstep.Position.Z
+    )
     
     -- Make player face the footstep before walking
-    local lookDirection = (footstep.Position - humanoidRootPart.Position)
+    local lookDirection = (targetPosition - humanoidRootPart.Position)
     lookDirection = Vector3.new(lookDirection.X, 0, lookDirection.Z).Unit
-    humanoidRootPart.CFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + lookDirection)
+    -- Don't set CFrame directly as it might interfere with walking animation
+    -- humanoidRootPart.CFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + lookDirection)
     
     -- Temporarily unanchor and restore walkspeed for movement
     humanoidRootPart.Anchored = false
-    local originalWalkSpeed = humanoid.WalkSpeed
     humanoid.WalkSpeed = 16 -- Standard walking speed
     humanoid.JumpPower = 0 -- Still no jumping
     
     -- Use Humanoid:MoveTo() to make the player walk
     humanoid:MoveTo(targetPosition)
     
-    -- Wait for the player to reach the destination
-    local startTime = tick()
-    local timeout = 10 -- Maximum 10 seconds to reach destination
+    -- Monitor movement using MoveToFinished event
+    local moveConnection
+    local timeoutConnection
     
-    spawn(function()
-        while (humanoidRootPart.Position - targetPosition).Magnitude > 4 and 
-              tick() - startTime < timeout do
-            wait(0.1)
+    local function onMoveFinished()
+        -- Clean up connections
+        if moveConnection then
+            moveConnection:Disconnect()
         end
-        
-        -- Ensure player is exactly on the footstep
-        humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
-        
-        -- Stop any residual movement
-        humanoid:MoveTo(humanoidRootPart.Position)
+        if timeoutConnection then
+            timeoutConnection:Disconnect()
+        end
         
         -- Re-freeze the player
         humanoid.WalkSpeed = 0
@@ -149,6 +150,24 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex)
         self.moveToFootstepRemote:FireClient(player, pathIndex, footstepIndex)
         
         print("[PathManager] Player", player.Name, "walked to footstep", footstepIndex, "on path", pathIndex)
+        
+        -- Call the callback if provided
+        if callback then
+            callback()
+        end
+    end
+    
+    -- Connect to MoveToFinished event
+    moveConnection = humanoid.MoveToFinished:Connect(onMoveFinished)
+    
+    -- Add timeout in case something goes wrong
+    timeoutConnection = task.delay(10, function()
+        if moveConnection then
+            moveConnection:Disconnect()
+        end
+        -- Force position if timeout
+        humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
+        onMoveFinished()
     end)
     
     return true
