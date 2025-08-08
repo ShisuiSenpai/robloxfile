@@ -114,31 +114,43 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         footstep.Position.Z
     )
     
-    -- Make player face the footstep before walking
-    local lookDirection = (targetPosition - humanoidRootPart.Position)
-    lookDirection = Vector3.new(lookDirection.X, 0, lookDirection.Z).Unit
-    -- Don't set CFrame directly as it might interfere with walking animation
-    -- humanoidRootPart.CFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + lookDirection)
+    -- Debug: Check initial state
+    print("[PathManager] Pre-move state - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "PlatformStand:", humanoid.PlatformStand)
     
-    -- Temporarily unanchor and restore walkspeed for movement
+    -- STEP 1: Fully unfreeze the player first
     humanoidRootPart.Anchored = false
     humanoid.WalkSpeed = 16 -- Standard walking speed
     humanoid.JumpPower = 0 -- Still no jumping
+    humanoid.PlatformStand = false -- Ensure PlatformStand is off
     
-    -- Use Humanoid:MoveTo() to make the player walk
+    -- STEP 2: Wait a frame for physics to re-enable
+    task.wait() -- Wait one frame for Roblox to register the unfreeze
+    
+    -- Debug: Check state after unfreeze
+    print("[PathManager] Post-unfreeze - Anchored:", humanoidRootPart.Anchored, "WalkSpeed:", humanoid.WalkSpeed, "Distance to target:", (targetPosition - humanoidRootPart.Position).Magnitude)
+    
+    -- STEP 3: Now call MoveTo when the character can actually move
     humanoid:MoveTo(targetPosition)
     
     -- Monitor movement using MoveToFinished event
     local moveConnection
     local timeoutConnection
+    local moveStarted = false
     
-    local function onMoveFinished()
+    local function onMoveFinished(reached)
         -- Clean up connections
         if moveConnection then
             moveConnection:Disconnect()
         end
         if timeoutConnection then
             timeoutConnection:Disconnect()
+        end
+        
+        -- If didn't reach naturally, force position
+        if not reached then
+            local lookDirection = (targetPosition - humanoidRootPart.Position)
+            lookDirection = Vector3.new(lookDirection.X, 0, lookDirection.Z).Unit
+            humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
         end
         
         -- Re-freeze the player
@@ -149,7 +161,7 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
         -- Notify client
         self.moveToFootstepRemote:FireClient(player, pathIndex, footstepIndex)
         
-        print("[PathManager] Player", player.Name, "walked to footstep", footstepIndex, "on path", pathIndex)
+        print("[PathManager] Player", player.Name, reached and "walked" or "teleported", "to footstep", footstepIndex, "on path", pathIndex)
         
         -- Call the callback if provided
         if callback then
@@ -160,14 +172,30 @@ function PathManager:MovePlayerToFootstep(player, pathIndex, footstepIndex, call
     -- Connect to MoveToFinished event
     moveConnection = humanoid.MoveToFinished:Connect(onMoveFinished)
     
+    -- Add a check to see if movement actually started
+    task.spawn(function()
+        task.wait(0.1)
+        local startPos = humanoidRootPart.Position
+        task.wait(0.5)
+        
+        -- Check if player has moved at all
+        if (humanoidRootPart.Position - startPos).Magnitude < 0.5 then
+            -- Movement didn't start, probably still frozen somehow
+            print("[PathManager] Movement didn't start, forcing walk")
+            
+            -- Try again with more aggressive unfreezing
+            humanoidRootPart.Anchored = false
+            humanoid.WalkSpeed = 16
+            humanoid:MoveTo(targetPosition)
+        end
+    end)
+    
     -- Add timeout in case something goes wrong
     timeoutConnection = task.delay(10, function()
         if moveConnection then
             moveConnection:Disconnect()
         end
-        -- Force position if timeout
-        humanoidRootPart.CFrame = CFrame.new(targetPosition, targetPosition + lookDirection)
-        onMoveFinished()
+        onMoveFinished(false)
     end)
     
     return true

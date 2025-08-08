@@ -103,12 +103,16 @@ function onIntermissionEnd()
     -- Change game state
     gameManager:SetState(GameConstants.GameState.IN_GAME)
     
-    -- Small delay to ensure everything is ready
-    wait(0.5)
-    
-    -- Move all players to their first footsteps
+    -- Get all active players
     local activePlayers = gameManager:GetActivePlayers()
     
+    -- IMPORTANT: The intermission manager already keeps players frozen
+    -- The PathManager will handle unfreezing temporarily for movement
+    
+    -- Small delay to ensure UI is hidden and state is settled
+    wait(0.2)
+    
+    -- Move all players to their first footsteps
     for _, player in ipairs(activePlayers) do
         local spawnIndex = gameManager:GetPlayerSpawnIndex(player)
         if spawnIndex then
