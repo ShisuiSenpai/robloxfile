@@ -49,8 +49,8 @@ local function setupResponsiveScaling()
         local heightScale = viewportSize.Y / baseHeight
         local scale = math.min(widthScale, heightScale)
         
-        -- Clamp scale to reasonable limits
-        scale = math.clamp(scale, 0.4, 1.2)
+        -- Clamp scale to reasonable limits - increased max for better desktop experience
+        scale = math.clamp(scale, 0.5, 1.5)
         
         -- Apply scale
         uiScale.Scale = scale
@@ -174,21 +174,21 @@ local function animateIn()
     
     -- Store final positions (centered with better spacing)
     local finalPositions = {
-        UDim2.new(0.5, -200, 0.65, 0),   -- A (moved right and up)
-        UDim2.new(0.5, 200, 0.65, 0),    -- B (moved left and up)
-        UDim2.new(0.5, -200, 0.75, 0),   -- C (moved right)
-        UDim2.new(0.5, 200, 0.75, 0)     -- D (moved left)
+        UDim2.new(0.5, -210, 0.68, 0),   -- A (increased spacing)
+        UDim2.new(0.5, 210, 0.68, 0),    -- B (increased spacing)
+        UDim2.new(0.5, -210, 0.8, 0),    -- C (increased spacing)
+        UDim2.new(0.5, 210, 0.8, 0)      -- D (increased spacing)
     }
     
     -- Animate question (centered)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, 0, 0.35, 0)  -- Centered horizontally
+        Position = UDim2.new(0.5, 0, 0.4, 0)  -- Moved down slightly
     })
     questionTween:Play()
     
     -- Animate timer (centered)
     local timerTween = TweenService:Create(timerFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, 0, 0.15, 0)  -- Centered horizontally
+        Position = UDim2.new(0.5, 0, 0.2, 0)  -- Moved down slightly
     })
     timerTween:Play()
     
@@ -469,14 +469,21 @@ function ShowQuestion(question, totalTime)
     gui.Enabled = true
     BG.Visible = true
     
-    -- Reset all elements to their original state
-    -- Reset question frame (START OFF-SCREEN)
+    -- Define original off-screen positions
+    local originalPositions = {
+        UDim2.new(0.5, -210, 0.68, 0),   -- A - final position
+        UDim2.new(0.5, 210, 0.68, 0),    -- B - final position
+        UDim2.new(0.5, -210, 0.8, 0),    -- C - final position
+        UDim2.new(0.5, 210, 0.8, 0)      -- D - final position
+    }
+    
+    -- Reset and show question frame
     questionFrame.Visible = true
     questionFrame.BackgroundTransparency = 0
     questionFrame.Position = UDim2.new(0.5, 0, -0.3, 0) -- Start above screen, centered
     questionText.TextTransparency = 0
     
-    -- Reset timer frame (START OFF-SCREEN)
+    -- Reset and show timer frame
     if timerFrame then
         timerFrame.Visible = true
         timerFrame.BackgroundTransparency = 0
@@ -495,13 +502,6 @@ function ShowQuestion(question, totalTime)
     end
     
     -- Reset answer frames (START OFF-SCREEN) - centered positions
-    local originalPositions = {
-        UDim2.new(0.5, -200, 0.65, 0),   -- A
-        UDim2.new(0.5, 200, 0.65, 0),    -- B
-        UDim2.new(0.5, -200, 0.75, 0),   -- C
-        UDim2.new(0.5, 200, 0.75, 0)     -- D
-    }
-    
     for i, answerFrame in ipairs(answerFrames) do
         answerFrame.Visible = true
         -- Start below screen
@@ -918,11 +918,11 @@ function ShowNextQuestionCountdown(timeLeft)
         nextQuestionFrame.BackgroundTransparency = 0
         
         -- Start off-screen
-        nextQuestionFrame.Position = UDim2.new(0.5, -200, 1.2, 0)
+        nextQuestionFrame.Position = UDim2.new(0.5, 0, 1.2, 0)
         
         -- Animate in
         TweenService:Create(nextQuestionFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0.5, -200, 0.85, 0)
+            Position = UDim2.new(0.5, 0, 0.5, 0)  -- Centered on screen
         }):Play()
         
         -- Don't play appear sound here - save it for actual question
@@ -977,7 +977,7 @@ function HideNextQuestionCountdown()
     if nextQuestionFrame.Visible then
         -- Animate out
         TweenService:Create(nextQuestionFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-            Position = UDim2.new(0.5, -200, 1.2, 0),
+            Position = UDim2.new(0.5, 0, 1.2, 0),
             BackgroundTransparency = 1
         }):Play()
         
