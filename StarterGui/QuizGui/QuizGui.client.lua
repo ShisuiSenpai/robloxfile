@@ -496,7 +496,16 @@ function ShowQuestion(question, totalTime)
         timerFrame.BackgroundTransparency = 0
         timerFrame.Position = UDim2.new(0.5, -100, -0.2, 0) -- Start above screen
         timerFrame.Size = UDim2.new(0, 200, 0, 80) -- Original size
-        timerText.TextTransparency = 0
+        
+        if timerText then
+            timerText.TextTransparency = 0
+        end
+        
+        -- Reset timer border
+        local timerBorder = timerFrame:FindFirstChild("UIStroke")
+        if timerBorder then
+            timerBorder.Transparency = 0
+        end
     end
     
     -- Reset answer frames (START OFF-SCREEN)
@@ -729,14 +738,44 @@ function ShowResults(results, correctAnswer)
             Position = questionFrame.Position + UDim2.new(0, 0, -0.3, 0),
             BackgroundTransparency = 1
         }):Play()
+        
+        -- Also fade out question text
+        if questionText then
+            TweenService:Create(questionText, TweenInfo.new(0.5), {
+                TextTransparency = 1
+            }):Play()
+        end
+        
+        -- Fade out question border
+        local questionBorder = questionFrame:FindFirstChild("UIStroke")
+        if questionBorder then
+            TweenService:Create(questionBorder, TweenInfo.new(0.5), {
+                Transparency = 1
+            }):Play()
+        end
     end
     
     -- Fade out timer
-    if timerFrame.Visible then
+    if timerFrame and timerFrame.Visible then
         TweenService:Create(timerFrame, TweenInfo.new(0.5), {
             Position = timerFrame.Position + UDim2.new(0, 0, -0.2, 0),
             BackgroundTransparency = 1
         }):Play()
+        
+        -- Also fade out timer text
+        if timerText then
+            TweenService:Create(timerText, TweenInfo.new(0.5), {
+                TextTransparency = 1
+            }):Play()
+        end
+        
+        -- Fade out timer border
+        local timerBorder = timerFrame:FindFirstChild("UIStroke")
+        if timerBorder then
+            TweenService:Create(timerBorder, TweenInfo.new(0.5), {
+                Transparency = 1
+            }):Play()
+        end
     end
     
     -- Fade out answer buttons

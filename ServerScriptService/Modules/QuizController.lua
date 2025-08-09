@@ -50,6 +50,16 @@ function QuizController:CreateRemoteEvents()
     end)
 end
 
+function QuizController:ShowNextQuestionCountdown()
+    print("[QuizController] Showing next question countdown")
+    for i = 3, 1, -1 do
+        self.updateNextQuestionRemote:FireAllClients(i)
+        wait(1)
+    end
+    self.updateNextQuestionRemote:FireAllClients(0)
+    wait(0.5)
+end
+
 function QuizController:StartQuizRound()
     if self.isQuizActive then
         warn("[QuizController] Quiz already active!")
@@ -194,27 +204,6 @@ function QuizController:EndQuizRound()
     -- Wait for results display
     wait(3)
     
-    -- Only show countdown if there are more questions coming
-    local anyPlayerContinuing = false
-    for _, player in ipairs(winners) do
-        local position = self.pathManager:GetPlayerPosition(player)
-        if position and position.footstepIndex < 6 then
-            anyPlayerContinuing = true
-            break
-        end
-    end
-    
-    if anyPlayerContinuing then
-        -- Show next question countdown (3 seconds)
-        print("[QuizController] Showing next question countdown")
-        for i = 3, 1, -1 do
-            self.updateNextQuestionRemote:FireAllClients(i)
-            wait(1)
-        end
-        self.updateNextQuestionRemote:FireAllClients(0)
-        wait(0.2)
-    end
-    
     -- Advance winners
     for _, player in ipairs(winners) do
         local position = self.pathManager:GetPlayerPosition(player)
@@ -230,12 +219,14 @@ function QuizController:EndQuizRound()
     end
     
     -- Wait for movement to complete
-    wait(3)
+    wait(4)
     
     -- Check if game should continue
     if self.gameManager:GetState() == GameConstants.GameState.IN_GAME then
-        -- Start next round after a short delay
-        wait(2)
+        -- Show countdown before next question
+        self:ShowNextQuestionCountdown()
+        
+        -- Start next round
         self:StartQuizRound()
     end
 end
