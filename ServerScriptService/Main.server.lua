@@ -154,20 +154,8 @@ function onIntermissionEnd()
     -- Game is now ready for questions phase
     print("[Main] Players positioned, ready for game phase")
     
-    -- Show countdown before first question
-    wait(2) -- Small delay
-    
-    -- Show next question countdown for first question
-    local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
-    local updateNextQuestionRemote = remoteEvents:WaitForChild("UpdateNextQuestion")
-    
-    print("[Main] Starting countdown before first question")
-    for i = 3, 1, -1 do
-        updateNextQuestionRemote:FireAllClients(i)
-        wait(1)
-    end
-    updateNextQuestionRemote:FireAllClients(0)
-    wait(0.5)
+    -- Small delay before starting first question (no countdown for first question)
+    wait(2)
     
     -- Start the quiz system
     quizController:StartQuizRound()

@@ -720,12 +720,30 @@ function ShowResults(results, correctAnswer)
     -- Wait before hiding
     task.wait(3)
     
-    -- Fade out all elements
+    -- Fade out all quiz elements
     clearFloatingEffects()
-    for _, element in pairs(BG:GetChildren()) do
-        if element:IsA("Frame") then
-            TweenService:Create(element, TweenInfo.new(0.5), {
-                Position = element.Position + UDim2.new(0, 0, 0.5, 0),
+    
+    -- Fade out question frame
+    if questionFrame.Visible then
+        TweenService:Create(questionFrame, TweenInfo.new(0.5), {
+            Position = questionFrame.Position + UDim2.new(0, 0, -0.3, 0),
+            BackgroundTransparency = 1
+        }):Play()
+    end
+    
+    -- Fade out timer
+    if timerFrame.Visible then
+        TweenService:Create(timerFrame, TweenInfo.new(0.5), {
+            Position = timerFrame.Position + UDim2.new(0, 0, -0.2, 0),
+            BackgroundTransparency = 1
+        }):Play()
+    end
+    
+    -- Fade out answer buttons
+    for _, answerFrame in ipairs(answerFrames) do
+        if answerFrame.Visible then
+            TweenService:Create(answerFrame, TweenInfo.new(0.5), {
+                Position = answerFrame.Position + UDim2.new(0, 0, 0.5, 0),
                 BackgroundTransparency = 1
             }):Play()
         end
@@ -909,8 +927,7 @@ function ShowNextQuestionCountdown(timeLeft)
     
     -- Auto-hide when countdown reaches 0
     if timeLeft == 0 then
-        task.wait(0.3)
-        HideNextQuestionCountdown()
+        -- Don't hide here, let the next question handle it
     end
 end
 
