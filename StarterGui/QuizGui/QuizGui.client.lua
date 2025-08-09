@@ -556,7 +556,11 @@ function ShowQuestion(question, totalTime)
     timerText.Text = tostring(maxTime)
     timerText.TextColor3 = Colors.Blue
     
-    -- Animate in
+    -- Play question appear sound
+    sounds.appear:Play()
+    
+    -- Animate in (with slight delay after sound)
+    task.wait(0.1)
     animateIn()
 end
 
@@ -935,8 +939,7 @@ function ShowNextQuestionCountdown(timeLeft)
             Position = UDim2.new(0.5, -200, 0.85, 0)
         }):Play()
         
-        -- Play appear sound
-        sounds.appear:Play()
+        -- Don't play appear sound here - save it for actual question
     end
     
     -- Change color as time runs out with smooth transition
@@ -958,8 +961,14 @@ function ShowNextQuestionCountdown(timeLeft)
         nextQuestionBorder.Color = Colors.Blue
     end
     
-    -- Pulse effect on each second
+    -- Pulse effect and tick sound on each second
     if timeLeft == math.floor(timeLeft) and timeLeft > 0 then
+        -- Play tick sound for countdown
+        if displayTime <= 3 and displayTime > 0 then
+            sounds.timerTick:Play()
+        end
+        
+        -- Visual pulse effect
         TweenService:Create(nextQuestionFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 420, 0, 105)
         }):Play()
