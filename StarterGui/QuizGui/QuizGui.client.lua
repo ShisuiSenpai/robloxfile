@@ -28,189 +28,34 @@ local Colors = {
     White = Color3.fromRGB(255, 255, 255)
 }
 
--- Responsive UI System
-local ResponsiveUI = {}
-local camera = workspace.CurrentCamera
-local baseResolution = Vector2.new(1920, 1080) -- Reference resolution for design
-local uiScale = nil
-local originalSizes = {}
-local originalPositions = {}
-local aspectConstraints = {}
-
-function ResponsiveUI:Initialize(elements)
-    -- Create and setup UIScale
-    uiScale = BG:FindFirstChild("ResponsiveScale") or Instance.new("UIScale")
-    uiScale.Name = "ResponsiveScale"
+-- Simple Responsive Scaling
+local function setupResponsiveScaling()
+    local camera = workspace.CurrentCamera
+    local uiScale = BG:FindFirstChild("UIScale") or Instance.new("UIScale")
     uiScale.Parent = BG
     
-    -- Store original properties and setup responsive elements
-    self:SetupElement(elements.questionFrame, {
-        size = UDim2.new(0.6, 0, 0.15, 0),
-        position = UDim2.new(0.5, 0, 0.3, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 6.667 -- 800/120
-    })
-    
-    self:SetupElement(elements.timerFrame, {
-        size = UDim2.new(0.15, 0, 0.08, 0),
-        position = UDim2.new(0.5, 0, 0.1, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 2.5 -- 200/80
-    })
-    
-    -- Answer buttons setup
-    if elements.answerFrames then
-        self:SetupElement(elements.answerFrames[1], { -- Answer A
-            size = UDim2.new(0.3, 0, 0.07, 0),
-            position = UDim2.new(0.35, 0, 0.55, 0),
-            anchorPoint = Vector2.new(0.5, 0.5),
-            aspectRatio = 5.429 -- 380/70
-        })
+    local function updateScale()
+        local viewportSize = camera.ViewportSize
+        -- Calculate scale based on viewport width (designed for 1920x1080)
+        local baseWidth = 1920
+        local scale = viewportSize.X / baseWidth
         
-        self:SetupElement(elements.answerFrames[2], { -- Answer B
-            size = UDim2.new(0.3, 0, 0.07, 0),
-            position = UDim2.new(0.65, 0, 0.55, 0),
-            anchorPoint = Vector2.new(0.5, 0.5),
-            aspectRatio = 5.429
-        })
+        -- Clamp scale to reasonable limits
+        scale = math.clamp(scale, 0.5, 1.5)
         
-        self:SetupElement(elements.answerFrames[3], { -- Answer C
-            size = UDim2.new(0.3, 0, 0.07, 0),
-            position = UDim2.new(0.35, 0, 0.65, 0),
-            anchorPoint = Vector2.new(0.5, 0.5),
-            aspectRatio = 5.429
-        })
-        
-        self:SetupElement(elements.answerFrames[4], { -- Answer D
-            size = UDim2.new(0.3, 0, 0.07, 0),
-            position = UDim2.new(0.65, 0, 0.65, 0),
-            anchorPoint = Vector2.new(0.5, 0.5),
-            aspectRatio = 5.429
-        })
-    end
-    
-    self:SetupElement(elements.nextQuestionFrame, {
-        size = UDim2.new(0.3, 0, 0.08, 0),
-        position = UDim2.new(0.5, 0, 0.85, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 4 -- 400/100
-    })
-    
-    -- Setup text scaling for all text labels
-    self:SetupTextScaling()
-    
-    -- Initial scale update
-    self:UpdateScale()
-    
-    -- Connect to viewport size changes
-    camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-        self:UpdateScale()
-    end)
-end
-
-function ResponsiveUI:SetupElement(element, config)
-    if not element then return end
-    
-    -- Store original properties
-    originalSizes[element] = element.Size
-    originalPositions[element] = element.Position
-    
-    -- Apply responsive properties
-    element.Size = config.size
-    element.Position = config.position
-    element.AnchorPoint = config.anchorPoint
-    
-    -- Add aspect ratio constraint if specified
-    if config.aspectRatio then
-        local constraint = element:FindFirstChild("UIAspectRatioConstraint") or Instance.new("UIAspectRatioConstraint")
-        constraint.AspectRatio = config.aspectRatio
-        constraint.AspectType = Enum.AspectType.ScaleWithParentSize
-        constraint.DominantAxis = Enum.DominantAxis.Width
-        constraint.Parent = element
-        aspectConstraints[element] = constraint
-    end
-end
-
-function ResponsiveUI:SetupTextScaling()
-    -- Setup text scaling for all text labels
-    for _, descendant in pairs(BG:GetDescendants()) do
-        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-            -- Enable text scaling
-            descendant.TextScaled = true
-            
-            -- Add text size constraint
-            local constraint = descendant:FindFirstChild("UITextSizeConstraint") or Instance.new("UITextSizeConstraint")
-            constraint.MaxTextSize = 36
-            constraint.MinTextSize = 12
-            
-            -- Special cases for different text elements
-            if descendant.Name == "QuestionText" then
-                constraint.MaxTextSize = 28
-                constraint.MinTextSize = 14
-            elseif descendant.Name == "TimerText" then
-                constraint.MaxTextSize = 36
-                constraint.MinTextSize = 18
-            elseif descendant.Name == "Timer" and descendant.Parent == nextQuestionFrame then
-                constraint.MaxTextSize = 36
-                constraint.MinTextSize = 18
-            elseif descendant.Name == "AnswerText" then
-                constraint.MaxTextSize = 20
-                constraint.MinTextSize = 10
-            end
-            
-            constraint.Parent = descendant
-        end
-    end
-end
-
-function ResponsiveUI:UpdateScale()
-    local currentResolution = camera.ViewportSize
-    local widthScale = currentResolution.X / baseResolution.X
-    local heightScale = currentResolution.Y / baseResolution.Y
-    local scale = math.min(widthScale, heightScale)
-    
-    -- Apply scale with limits to prevent UI from becoming too small or too large
-    scale = math.clamp(scale, 0.5, 2)
-    
-    -- Update main UI scale
-    if uiScale then
+        -- Apply scale
         uiScale.Scale = scale
     end
     
-    -- Update UIStroke thicknesses
-    for _, element in pairs(BG:GetDescendants()) do
-        if element:IsA("UIStroke") then
-            -- Scale stroke thickness based on screen size
-            local baseThickness = 3
-            if element.Parent == timerFrame then
-                baseThickness = 3
-            elseif element.Parent == questionFrame then
-                baseThickness = 3
-            elseif element.Parent.Name:match("Answer") then
-                baseThickness = 2
-            end
-            
-            element.Thickness = math.max(1, math.round(baseThickness * scale))
-        end
-    end
+    -- Update on viewport size change
+    camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
     
-    -- Adjust UICorner radius for smaller screens
-    for _, element in pairs(BG:GetDescendants()) do
-        if element:IsA("UICorner") then
-            local baseRadius = 15
-            if element.Parent == timerFrame then
-                baseRadius = 40
-            elseif element.Parent == nextQuestionFrame then
-                baseRadius = 20
-            elseif element.Parent.Name:match("Answer") then
-                baseRadius = 35
-            end
-            
-            -- Scale corner radius
-            element.CornerRadius = UDim.new(0, math.max(5, math.round(baseRadius * scale)))
-        end
-    end
+    -- Initial update
+    updateScale()
 end
+
+-- Setup scaling after a short delay
+task.defer(setupResponsiveScaling)
 
 -- Get answer buttons
 local answerFrames = {
@@ -301,23 +146,23 @@ local function animateIn()
     -- Clear any existing floating effects
     clearFloatingEffects()
     
-    -- Store responsive final positions
+    -- Store final positions
     local finalPositions = {
-        UDim2.new(0.35, 0, 0.55, 0),   -- A
-        UDim2.new(0.65, 0, 0.55, 0),   -- B
-        UDim2.new(0.35, 0, 0.65, 0),   -- C
-        UDim2.new(0.65, 0, 0.65, 0)    -- D
+        UDim2.new(0.5, -390, 0.72, 0),   -- A
+        UDim2.new(0.5, 10, 0.72, 0),     -- B
+        UDim2.new(0.5, -390, 0.72, 85),  -- C
+        UDim2.new(0.5, 10, 0.72, 85)     -- D
     }
     
     -- Animate question (already at off-screen position)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, 0, 0.3, 0)  -- Responsive position
+        Position = UDim2.new(0.5, -400, 0.55, 0)
     })
     questionTween:Play()
     
     -- Animate timer (already at off-screen position)
     local timerTween = TweenService:Create(timerFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, 0, 0.1, 0)  -- Responsive position
+        Position = UDim2.new(0.5, -100, 0.05, 0)
     })
     timerTween:Play()
     
@@ -602,15 +447,15 @@ function ShowQuestion(question, totalTime)
     -- Reset question frame (START OFF-SCREEN)
     questionFrame.Visible = true
     questionFrame.BackgroundTransparency = 0
-    questionFrame.Position = UDim2.new(0.5, 0, -0.3, 0) -- Start above screen
+    questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0) -- Start above screen
     questionText.TextTransparency = 0
     
     -- Reset timer frame (START OFF-SCREEN)
     if timerFrame then
         timerFrame.Visible = true
         timerFrame.BackgroundTransparency = 0
-        timerFrame.Position = UDim2.new(0.5, 0, -0.2, 0) -- Start above screen
-        -- Size is managed by responsive system
+        timerFrame.Position = UDim2.new(0.5, -100, -0.2, 0) -- Start above screen
+        timerFrame.Size = UDim2.new(0, 200, 0, 80) -- Original size
         
         if timerText then
             timerText.TextTransparency = 0
@@ -624,18 +469,18 @@ function ShowQuestion(question, totalTime)
     end
     
     -- Reset answer frames (START OFF-SCREEN)
-    local responsivePositions = {
-        UDim2.new(0.35, 0, 0.55, 0),   -- A
-        UDim2.new(0.65, 0, 0.55, 0),   -- B
-        UDim2.new(0.35, 0, 0.65, 0),   -- C
-        UDim2.new(0.65, 0, 0.65, 0)    -- D
+    local originalPositions = {
+        UDim2.new(0.5, -390, 0.72, 0),   -- A
+        UDim2.new(0.5, 10, 0.72, 0),     -- B
+        UDim2.new(0.5, -390, 0.72, 85),  -- C
+        UDim2.new(0.5, 10, 0.72, 85)     -- D
     }
     
     for i, answerFrame in ipairs(answerFrames) do
         answerFrame.Visible = true
         -- Start below screen
-        answerFrame.Position = UDim2.new(responsivePositions[i].X.Scale, 0, 1.2, 0)
-        -- Size is managed by responsive system
+        answerFrame.Position = UDim2.new(originalPositions[i].X.Scale, originalPositions[i].X.Offset, 1.2, 0)
+        answerFrame.Size = UDim2.new(0, 380, 0, 70) -- Original size
         answerFrame.BackgroundTransparency = 0
     end
     
@@ -1127,16 +972,4 @@ updateNextQuestionRemote.OnClientEvent:Connect(ShowNextQuestionCountdown)
 
 -- Initially hide
 gui.Enabled = false
-
--- Initialize responsive UI system after all elements are loaded
-task.defer(function()
-    ResponsiveUI:Initialize({
-        questionFrame = questionFrame,
-        timerFrame = timerFrame,
-        answerFrames = answerFrames,
-        nextQuestionFrame = nextQuestionFrame
-    })
-    print("[QuizUI] Responsive UI initialized")
-end)
-
 print("[QuizUI] Client script loaded")
