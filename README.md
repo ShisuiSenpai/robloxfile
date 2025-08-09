@@ -2,6 +2,15 @@
 
 A 4-player competitive game where players answer questions to advance along footstep paths.
 
+## Recent Updates
+
+### QuizUI Debug System
+Added comprehensive debug system to identify UI positioning issues:
+- **Client-side**: Automatic captures at key moments + F9 manual trigger
+- **Server-side**: Chat commands for UI inspection (`/debugui`, `/debugui me`, `/debugui start/stop`)
+- **Documentation**: See [`QUIZUI_DEBUG_GUIDE.md`](QUIZUI_DEBUG_GUIDE.md) for detailed usage
+- **Purpose**: Identify why UI shifts left in-game vs Studio
+
 ## Project Structure
 
 ```
