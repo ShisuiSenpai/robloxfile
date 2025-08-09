@@ -28,6 +28,43 @@ local Colors = {
     White = Color3.fromRGB(255, 255, 255)
 }
 
+-- Responsive UI Setup
+local function setupResponsiveUI()
+    local camera = workspace.CurrentCamera
+    local baseResolution = Vector2.new(1920, 1080) -- Reference resolution
+    
+    local function updateScale()
+        local currentResolution = camera.ViewportSize
+        local widthScale = currentResolution.X / baseResolution.X
+        local heightScale = currentResolution.Y / baseResolution.Y
+        local scale = math.min(widthScale, heightScale)
+        
+        -- Update main UI scale if it exists
+        local uiScale = BG:FindFirstChild("ResponsiveScale")
+        if uiScale then
+            uiScale.Scale = scale
+        end
+        
+        -- Update all UIStroke thicknesses
+        for _, element in pairs(BG:GetDescendants()) do
+            if element:IsA("UIStroke") then
+                -- Base thickness of 3, scaled
+                element.Thickness = math.max(1, math.floor(3 * scale))
+            end
+        end
+    end
+    
+    -- Update on screen size change
+    camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+    
+    -- Initial update
+    updateScale()
+end
+
+-- Call responsive setup after a short delay to ensure UI is loaded
+task.wait(0.1)
+setupResponsiveUI()
+
 -- Get answer buttons
 local answerFrames = {
     BG:WaitForChild("AnswerA"),
