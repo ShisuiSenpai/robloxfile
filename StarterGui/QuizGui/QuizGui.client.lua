@@ -117,6 +117,7 @@ sounds.wrong = createSound("WrongSound", SoundConfig.WrongAnswer)
 sounds.victory = createSound("VictorySound", SoundConfig.Victory)
 sounds.hover = createSound("HoverSound", SoundConfig.ButtonHover)
 sounds.appear = createSound("AppearSound", SoundConfig.QuestionAppear)
+sounds.timerEnd = createSound("TimerEndSound", SoundConfig.TimerEnd)
 
 -- Timer display (create it or find existing)
 local timerFrame = BG:FindFirstChild("TimerFrame")
@@ -980,8 +981,10 @@ function ShowNextQuestionCountdown(timeLeft)
         end)
     end
     
-    -- Auto-hide when countdown reaches 0
+    -- When countdown reaches 0
     if timeLeft == 0 then
+        -- Play timer end sound
+        sounds.timerEnd:Play()
         -- Don't hide here, let the next question handle it
     end
 end

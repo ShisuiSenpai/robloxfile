@@ -48,6 +48,14 @@ local SoundConfig = {
         Volume = 0.4,
         Pitch = 1.0,
         EmitterSize = 10
+    },
+    
+    -- Timer end sound (when countdown reaches 0)
+    TimerEnd = {
+        SoundId = "rbxassetid://CHANGE_ME_TIMER_END", -- Change this to your timer end sound ID
+        Volume = 0.5,
+        Pitch = 0.8,
+        EmitterSize = 10
     }
 }
 
