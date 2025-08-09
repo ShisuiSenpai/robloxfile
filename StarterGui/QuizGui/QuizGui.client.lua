@@ -118,20 +118,6 @@ sounds.victory = createSound("VictorySound", SoundConfig.Victory)
 sounds.hover = createSound("HoverSound", SoundConfig.ButtonHover)
 sounds.appear = createSound("AppearSound", SoundConfig.QuestionAppear)
 
--- Create timer end sound if config exists (for backwards compatibility)
-if SoundConfig.TimerEnd then
-    sounds.timerEnd = createSound("TimerEndSound", SoundConfig.TimerEnd)
-else
-    -- Create a default timer end sound if config is missing
-    sounds.timerEnd = Instance.new("Sound")
-    sounds.timerEnd.Name = "TimerEndSound"
-    sounds.timerEnd.SoundId = "rbxassetid://CHANGE_ME_TIMER_END"
-    sounds.timerEnd.Volume = 0.5
-    sounds.timerEnd.Pitch = 0.8
-    sounds.timerEnd.Parent = gui
-    warn("[QuizUI] TimerEnd sound config not found, using default")
-end
-
 -- Timer display (create it or find existing)
 local timerFrame = BG:FindFirstChild("TimerFrame")
 local timerText
@@ -996,10 +982,6 @@ function ShowNextQuestionCountdown(timeLeft)
     
     -- When countdown reaches 0
     if timeLeft == 0 then
-        -- Play timer end sound if it exists
-        if sounds.timerEnd then
-            sounds.timerEnd:Play()
-        end
         -- Don't hide here, let the next question handle it
     end
 end
