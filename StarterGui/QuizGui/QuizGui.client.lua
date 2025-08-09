@@ -133,6 +133,27 @@ local BG = gui:WaitForChild("BG")
 local questionFrame = BG:WaitForChild("QuestionFrame")
 local questionText = questionFrame:WaitForChild("QuestionText")
 
+-- Ensure BG frame is properly centered (safety check)
+-- This helps prevent left-shift issues between Studio and in-game
+task.defer(function()
+    -- Wait a frame to ensure everything is loaded
+    RunService.RenderStepped:Wait()
+    
+    -- Check if BG has proper centering
+    if BG.AnchorPoint ~= Vector2.new(0.5, 0.5) then
+        print("[QuizUI] WARNING: BG AnchorPoint is not centered. Current:", tostring(BG.AnchorPoint))
+        -- Don't modify it since user set it up manually
+    end
+    
+    -- Log initial state for debugging
+    print("[QuizUI] BG Initial State:")
+    print("  Position:", tostring(BG.Position))
+    print("  Size:", tostring(BG.Size))
+    print("  AnchorPoint:", tostring(BG.AnchorPoint))
+    print("  AbsolutePosition:", tostring(BG.AbsolutePosition))
+    print("  Parent AbsoluteSize:", tostring(BG.Parent.AbsoluteSize))
+end)
+
 -- Color scheme (moved up before UI creation)
 local Colors = {
     Correct = Color3.fromRGB(50, 200, 100),
@@ -232,23 +253,36 @@ local function animateIn()
     -- Clear any existing floating effects
     clearFloatingEffects()
     
-    -- Store final positions
+    -- Get screen info for proper centering
+    local camera = workspace.CurrentCamera
+    local viewportSize = camera.ViewportSize
+    local guiService = game:GetService("GuiService")
+    local inset = guiService:GetGuiInset()
+    
+    -- Calculate center position accounting for any insets
+    local centerX = 0.5
+    
+    -- Store final positions with better centering
+    -- Using scale-based positioning with minimal offsets
+    local answerSpacing = 400 -- Space between answer columns
+    local answerOffsetX = answerSpacing / viewportSize.X / 2 -- Convert to scale
+    
     local finalPositions = {
-        UDim2.new(0.5, -390, 0.72, 0),   -- A
-        UDim2.new(0.5, 10, 0.72, 0),     -- B
-        UDim2.new(0.5, -390, 0.72, 85),  -- C
-        UDim2.new(0.5, 10, 0.72, 85)     -- D
+        UDim2.new(centerX - answerOffsetX, 0, 0.72, 0),   -- A (left column)
+        UDim2.new(centerX + answerOffsetX, 0, 0.72, 0),   -- B (right column)
+        UDim2.new(centerX - answerOffsetX, 0, 0.72, 85),  -- C (left column, lower)
+        UDim2.new(centerX + answerOffsetX, 0, 0.72, 85)   -- D (right column, lower)
     }
     
-    -- Animate question (already at off-screen position)
+    -- Animate question (use pure scale positioning)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -400, 0.55, 0)
+        Position = UDim2.new(0.5, 0, 0.55, 0)  -- Pure center, no offset
     })
     questionTween:Play()
     
-    -- Animate timer (already at off-screen position)
+    -- Animate timer (use pure scale positioning)
     local timerTween = TweenService:Create(timerFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -100, 0.05, 0)
+        Position = UDim2.new(0.5, 0, 0.05, 0)  -- Pure center, no offset
     })
     timerTween:Play()
     
@@ -533,18 +567,24 @@ function ShowQuestion(question, totalTime)
     gui.Enabled = true
     BG.Visible = true
     
+    -- Get screen info for proper positioning
+    local camera = workspace.CurrentCamera
+    local viewportSize = camera.ViewportSize
+    local answerSpacing = 400 -- Space between answer columns
+    local answerOffsetX = answerSpacing / viewportSize.X / 2 -- Convert to scale
+    
     -- Reset all elements to their original state
     -- Reset question frame (START OFF-SCREEN)
     questionFrame.Visible = true
     questionFrame.BackgroundTransparency = 0
-    questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0) -- Start above screen
+    questionFrame.Position = UDim2.new(0.5, 0, -0.3, 0) -- Start above screen, centered horizontally
     questionText.TextTransparency = 0
     
     -- Reset timer frame (START OFF-SCREEN)
     if timerFrame then
         timerFrame.Visible = true
         timerFrame.BackgroundTransparency = 0
-        timerFrame.Position = UDim2.new(0.5, -100, -0.2, 0) -- Start above screen
+        timerFrame.Position = UDim2.new(0.5, 0, -0.2, 0) -- Start above screen, centered horizontally
         timerFrame.Size = UDim2.new(0, 200, 0, 80) -- Original size
         
         if timerText then
@@ -560,10 +600,10 @@ function ShowQuestion(question, totalTime)
     
     -- Reset answer frames (START OFF-SCREEN)
     local originalPositions = {
-        UDim2.new(0.5, -390, 0.72, 0),   -- A
-        UDim2.new(0.5, 10, 0.72, 0),     -- B
-        UDim2.new(0.5, -390, 0.72, 85),  -- C
-        UDim2.new(0.5, 10, 0.72, 85)     -- D
+        UDim2.new(0.5 - answerOffsetX, 0, 1.2, 0),   -- A (below screen)
+        UDim2.new(0.5 + answerOffsetX, 0, 1.2, 0),   -- B (below screen)
+        UDim2.new(0.5 - answerOffsetX, 0, 1.2, 85),  -- C (below screen)
+        UDim2.new(0.5 + answerOffsetX, 0, 1.2, 85)   -- D (below screen)
     }
     
     for i, answerFrame in ipairs(answerFrames) do
@@ -1078,4 +1118,53 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
+-- Chat commands
+player.Chatted:Connect(function(message)
+    if message:lower() == "/uidebug" then
+        debugUIProperties()
+    elseif message:lower() == "/uidebug monitor" then
+        print("[UIDebug] Starting position monitoring...")
+        local quizUI = player.PlayerGui:FindFirstChild("QuizUI")
+        if quizUI and quizUI:FindFirstChild("BG") then
+            local bg = quizUI.BG
+            for i = 1, 20 do
+                print(string.format("  [%d] BG Position: %s, AbsPos: %s", 
+                    i, tostring(bg.Position), tostring(bg.AbsolutePosition)))
+                task.wait(0.5)
+            end
+        end
+    elseif message:lower() == "/fixui" then
+        -- Emergency UI position fix
+        print("[QuizUI] Attempting to fix UI positioning...")
+        if BG then
+            local camera = workspace.CurrentCamera
+            local viewportSize = camera.ViewportSize
+            
+            -- Force BG to center
+            BG.AnchorPoint = Vector2.new(0.5, 0.5)
+            BG.Position = UDim2.new(0.5, 0, 0.5, 0)
+            
+            print("[QuizUI] UI position reset to center")
+            print("  New Position:", tostring(BG.Position))
+            print("  New AbsolutePosition:", tostring(BG.AbsolutePosition))
+        end
+    elseif message:lower():sub(1, 10) == "/uioffset " then
+        -- Manual offset adjustment
+        local offsetStr = message:sub(11)
+        local offsetX = tonumber(offsetStr)
+        if offsetX and BG then
+            BG.Position = UDim2.new(0.5, offsetX, BG.Position.Y.Scale, BG.Position.Y.Offset)
+            print("[QuizUI] Applied X offset:", offsetX)
+            print("  New Position:", tostring(BG.Position))
+        end
+    end
+end)
+
+-- Setup auto-capture
+
 print("[QuizUI] Press F9 at any time to capture current UI state")
+print("[QuizUI] Additional commands:")
+print("  /uidebug - Capture UI state")
+print("  /uidebug monitor - Monitor BG position for 10 seconds")
+print("  /fixui - Force UI to center position")
+print("  /uioffset X - Apply manual X offset (e.g. /uioffset 50)")
