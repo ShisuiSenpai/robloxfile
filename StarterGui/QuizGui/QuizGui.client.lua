@@ -939,14 +939,21 @@ function ShowNextQuestionCountdown(timeLeft)
         sounds.appear:Play()
     end
     
-    -- Change color as time runs out
-    if displayTime <= 1 then
+    -- Change color as time runs out with smooth transition
+    if displayTime == 0 then
+        -- Red at 0
         nextQuestionTimer.TextColor3 = Colors.Incorrect
         nextQuestionBorder.Color = Colors.Incorrect
-    elseif displayTime <= 2 then
+    elseif displayTime == 1 then
+        -- Orange at 1
+        nextQuestionTimer.TextColor3 = Color3.fromRGB(255, 140, 0) -- Orange
+        nextQuestionBorder.Color = Color3.fromRGB(255, 140, 0)
+    elseif displayTime == 2 then
+        -- Yellow at 2
         nextQuestionTimer.TextColor3 = Color3.fromRGB(241, 196, 15) -- Yellow
         nextQuestionBorder.Color = Color3.fromRGB(241, 196, 15)
     else
+        -- Blue at 3+
         nextQuestionTimer.TextColor3 = Colors.Blue
         nextQuestionBorder.Color = Colors.Blue
     end
