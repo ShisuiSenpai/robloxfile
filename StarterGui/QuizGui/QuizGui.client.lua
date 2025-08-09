@@ -36,48 +36,11 @@ local answerFrames = {
     BG:WaitForChild("AnswerD")
 }
 
--- Create Next Question UI (matching quiz style)
-local nextQuestionFrame = Instance.new("Frame")
-nextQuestionFrame.Name = "NextQuestionFrame"
-nextQuestionFrame.Size = UDim2.new(0, 400, 0, 100)
-nextQuestionFrame.Position = UDim2.new(0.5, -200, 0.85, 0)
-nextQuestionFrame.BackgroundColor3 = Colors.White
-nextQuestionFrame.BorderSizePixel = 0
-nextQuestionFrame.Visible = false
-nextQuestionFrame.Parent = BG
-
-local nextQuestionCorner = Instance.new("UICorner")
-nextQuestionCorner.CornerRadius = UDim.new(0, 20)
-nextQuestionCorner.Parent = nextQuestionFrame
-
-local nextQuestionBorder = Instance.new("UIStroke")
-nextQuestionBorder.Color = Colors.Blue
-nextQuestionBorder.Thickness = 3
-nextQuestionBorder.Parent = nextQuestionFrame
-
-local nextQuestionLabel = Instance.new("TextLabel")
-nextQuestionLabel.Name = "Label"
-nextQuestionLabel.Size = UDim2.new(1, 0, 0.5, 0)
-nextQuestionLabel.Position = UDim2.new(0, 0, 0, 0)
-nextQuestionLabel.BackgroundTransparency = 1
-nextQuestionLabel.Text = "Next question in:"
-nextQuestionLabel.TextColor3 = Colors.Blue
-nextQuestionLabel.TextScaled = false
-nextQuestionLabel.TextSize = 20
-nextQuestionLabel.Font = Enum.Font.Gotham
-nextQuestionLabel.Parent = nextQuestionFrame
-
-local nextQuestionTimer = Instance.new("TextLabel")
-nextQuestionTimer.Name = "Timer"
-nextQuestionTimer.Size = UDim2.new(1, 0, 0.5, 0)
-nextQuestionTimer.Position = UDim2.new(0, 0, 0.5, 0)
-nextQuestionTimer.BackgroundTransparency = 1
-nextQuestionTimer.Text = "3"
-nextQuestionTimer.TextColor3 = Colors.Blue
-nextQuestionTimer.TextScaled = false
-nextQuestionTimer.TextSize = 36
-nextQuestionTimer.Font = Enum.Font.GothamBold
-nextQuestionTimer.Parent = nextQuestionFrame
+-- Get Next Question UI elements (already created manually)
+local nextQuestionFrame = BG:WaitForChild("NextQuestionFrame")
+local nextQuestionBorder = nextQuestionFrame:WaitForChild("UIStroke")
+local nextQuestionLabel = nextQuestionFrame:WaitForChild("Label")
+local nextQuestionTimer = nextQuestionFrame:WaitForChild("Timer")
 
 -- RemoteEvents
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -118,41 +81,9 @@ sounds.victory = createSound("VictorySound", SoundConfig.Victory)
 sounds.hover = createSound("HoverSound", SoundConfig.ButtonHover)
 sounds.appear = createSound("AppearSound", SoundConfig.QuestionAppear)
 
--- Timer display (create it or find existing)
-local timerFrame = BG:FindFirstChild("TimerFrame")
-local timerText
-
-if not timerFrame then
-    timerFrame = Instance.new("Frame")
-    timerFrame.Name = "TimerFrame"
-    timerFrame.Size = UDim2.new(0, 200, 0, 80)
-    timerFrame.Position = UDim2.new(0.5, -100, 0.05, 0)
-    timerFrame.BackgroundColor3 = Colors.White
-    timerFrame.BorderSizePixel = 0
-    timerFrame.Parent = BG
-
-    local timerCorner = Instance.new("UICorner")
-    timerCorner.CornerRadius = UDim.new(0, 40)
-    timerCorner.Parent = timerFrame
-
-    local timerBorder = Instance.new("UIStroke")
-    timerBorder.Color = Colors.Blue
-    timerBorder.Thickness = 3
-    timerBorder.Parent = timerFrame
-
-    timerText = Instance.new("TextLabel")
-    timerText.Name = "TimerText"
-    timerText.Size = UDim2.new(1, 0, 1, 0)
-    timerText.BackgroundTransparency = 1
-    timerText.Text = "15"
-    timerText.TextColor3 = Colors.Blue
-    timerText.TextScaled = false
-    timerText.TextSize = 36
-    timerText.Font = Enum.Font.GothamBold
-    timerText.Parent = timerFrame
-else
-    timerText = timerFrame:FindFirstChild("TimerText")
-end
+-- Get Timer display (already created manually)
+local timerFrame = BG:WaitForChild("TimerFrame")
+local timerText = timerFrame:WaitForChild("TimerText")
 
 -- Helper functions
 local function clearFloatingEffects()
