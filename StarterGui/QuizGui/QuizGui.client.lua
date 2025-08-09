@@ -28,20 +28,29 @@ local Colors = {
     White = Color3.fromRGB(255, 255, 255)
 }
 
--- Simple Responsive Scaling
+-- Simple Responsive Scaling with Centering
 local function setupResponsiveScaling()
     local camera = workspace.CurrentCamera
     local uiScale = BG:FindFirstChild("UIScale") or Instance.new("UIScale")
     uiScale.Parent = BG
     
+    -- Ensure BG frame is properly centered and sized
+    BG.Size = UDim2.new(1, 0, 1, 0)
+    BG.Position = UDim2.new(0, 0, 0, 0)
+    BG.AnchorPoint = Vector2.new(0, 0)
+    
     local function updateScale()
         local viewportSize = camera.ViewportSize
-        -- Calculate scale based on viewport width (designed for 1920x1080)
+        -- Calculate scale based on the smaller dimension to ensure everything fits
         local baseWidth = 1920
-        local scale = viewportSize.X / baseWidth
+        local baseHeight = 1080
+        
+        local widthScale = viewportSize.X / baseWidth
+        local heightScale = viewportSize.Y / baseHeight
+        local scale = math.min(widthScale, heightScale)
         
         -- Clamp scale to reasonable limits
-        scale = math.clamp(scale, 0.5, 1.5)
+        scale = math.clamp(scale, 0.4, 1.2)
         
         -- Apply scale
         uiScale.Scale = scale
@@ -56,6 +65,23 @@ end
 
 -- Setup scaling after a short delay
 task.defer(setupResponsiveScaling)
+
+-- Ensure all elements have proper anchor points for centering
+task.defer(function()
+    -- Set anchor points for centered positioning
+    if questionFrame then
+        questionFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    end
+    if timerFrame then
+        timerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    end
+    if nextQuestionFrame then
+        nextQuestionFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    end
+    for _, answerFrame in ipairs(answerFrames) do
+        answerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    end
+end)
 
 -- Get answer buttons
 local answerFrames = {
@@ -146,23 +172,23 @@ local function animateIn()
     -- Clear any existing floating effects
     clearFloatingEffects()
     
-    -- Store final positions
+    -- Store final positions (centered with better spacing)
     local finalPositions = {
-        UDim2.new(0.5, -390, 0.72, 0),   -- A
-        UDim2.new(0.5, 10, 0.72, 0),     -- B
-        UDim2.new(0.5, -390, 0.72, 85),  -- C
-        UDim2.new(0.5, 10, 0.72, 85)     -- D
+        UDim2.new(0.5, -200, 0.65, 0),   -- A (moved right and up)
+        UDim2.new(0.5, 200, 0.65, 0),    -- B (moved left and up)
+        UDim2.new(0.5, -200, 0.75, 0),   -- C (moved right)
+        UDim2.new(0.5, 200, 0.75, 0)     -- D (moved left)
     }
     
-    -- Animate question (already at off-screen position)
+    -- Animate question (centered)
     local questionTween = TweenService:Create(questionFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -400, 0.55, 0)
+        Position = UDim2.new(0.5, 0, 0.35, 0)  -- Centered horizontally
     })
     questionTween:Play()
     
-    -- Animate timer (already at off-screen position)
+    -- Animate timer (centered)
     local timerTween = TweenService:Create(timerFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-        Position = UDim2.new(0.5, -100, 0.05, 0)
+        Position = UDim2.new(0.5, 0, 0.15, 0)  -- Centered horizontally
     })
     timerTween:Play()
     
@@ -447,14 +473,14 @@ function ShowQuestion(question, totalTime)
     -- Reset question frame (START OFF-SCREEN)
     questionFrame.Visible = true
     questionFrame.BackgroundTransparency = 0
-    questionFrame.Position = UDim2.new(0.5, -400, -0.3, 0) -- Start above screen
+    questionFrame.Position = UDim2.new(0.5, 0, -0.3, 0) -- Start above screen, centered
     questionText.TextTransparency = 0
     
     -- Reset timer frame (START OFF-SCREEN)
     if timerFrame then
         timerFrame.Visible = true
         timerFrame.BackgroundTransparency = 0
-        timerFrame.Position = UDim2.new(0.5, -100, -0.2, 0) -- Start above screen
+        timerFrame.Position = UDim2.new(0.5, 0, -0.2, 0) -- Start above screen, centered
         timerFrame.Size = UDim2.new(0, 200, 0, 80) -- Original size
         
         if timerText then
@@ -468,12 +494,12 @@ function ShowQuestion(question, totalTime)
         end
     end
     
-    -- Reset answer frames (START OFF-SCREEN)
+    -- Reset answer frames (START OFF-SCREEN) - centered positions
     local originalPositions = {
-        UDim2.new(0.5, -390, 0.72, 0),   -- A
-        UDim2.new(0.5, 10, 0.72, 0),     -- B
-        UDim2.new(0.5, -390, 0.72, 85),  -- C
-        UDim2.new(0.5, 10, 0.72, 85)     -- D
+        UDim2.new(0.5, -200, 0.65, 0),   -- A
+        UDim2.new(0.5, 200, 0.65, 0),    -- B
+        UDim2.new(0.5, -200, 0.75, 0),   -- C
+        UDim2.new(0.5, 200, 0.75, 0)     -- D
     }
     
     for i, answerFrame in ipairs(answerFrames) do
