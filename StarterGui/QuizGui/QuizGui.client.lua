@@ -37,21 +37,21 @@ local originalSizes = {}
 local originalPositions = {}
 local aspectConstraints = {}
 
-function ResponsiveUI:Initialize()
+function ResponsiveUI:Initialize(elements)
     -- Create and setup UIScale
     uiScale = BG:FindFirstChild("ResponsiveScale") or Instance.new("UIScale")
     uiScale.Name = "ResponsiveScale"
     uiScale.Parent = BG
     
     -- Store original properties and setup responsive elements
-    self:SetupElement(questionFrame, {
+    self:SetupElement(elements.questionFrame, {
         size = UDim2.new(0.6, 0, 0.15, 0),
         position = UDim2.new(0.5, 0, 0.3, 0),
         anchorPoint = Vector2.new(0.5, 0.5),
         aspectRatio = 6.667 -- 800/120
     })
     
-    self:SetupElement(timerFrame, {
+    self:SetupElement(elements.timerFrame, {
         size = UDim2.new(0.15, 0, 0.08, 0),
         position = UDim2.new(0.5, 0, 0.1, 0),
         anchorPoint = Vector2.new(0.5, 0.5),
@@ -59,35 +59,37 @@ function ResponsiveUI:Initialize()
     })
     
     -- Answer buttons setup
-    self:SetupElement(answerFrames[1], { -- Answer A
-        size = UDim2.new(0.3, 0, 0.07, 0),
-        position = UDim2.new(0.35, 0, 0.55, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 5.429 -- 380/70
-    })
+    if elements.answerFrames then
+        self:SetupElement(elements.answerFrames[1], { -- Answer A
+            size = UDim2.new(0.3, 0, 0.07, 0),
+            position = UDim2.new(0.35, 0, 0.55, 0),
+            anchorPoint = Vector2.new(0.5, 0.5),
+            aspectRatio = 5.429 -- 380/70
+        })
+        
+        self:SetupElement(elements.answerFrames[2], { -- Answer B
+            size = UDim2.new(0.3, 0, 0.07, 0),
+            position = UDim2.new(0.65, 0, 0.55, 0),
+            anchorPoint = Vector2.new(0.5, 0.5),
+            aspectRatio = 5.429
+        })
+        
+        self:SetupElement(elements.answerFrames[3], { -- Answer C
+            size = UDim2.new(0.3, 0, 0.07, 0),
+            position = UDim2.new(0.35, 0, 0.65, 0),
+            anchorPoint = Vector2.new(0.5, 0.5),
+            aspectRatio = 5.429
+        })
+        
+        self:SetupElement(elements.answerFrames[4], { -- Answer D
+            size = UDim2.new(0.3, 0, 0.07, 0),
+            position = UDim2.new(0.65, 0, 0.65, 0),
+            anchorPoint = Vector2.new(0.5, 0.5),
+            aspectRatio = 5.429
+        })
+    end
     
-    self:SetupElement(answerFrames[2], { -- Answer B
-        size = UDim2.new(0.3, 0, 0.07, 0),
-        position = UDim2.new(0.65, 0, 0.55, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 5.429
-    })
-    
-    self:SetupElement(answerFrames[3], { -- Answer C
-        size = UDim2.new(0.3, 0, 0.07, 0),
-        position = UDim2.new(0.35, 0, 0.65, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 5.429
-    })
-    
-    self:SetupElement(answerFrames[4], { -- Answer D
-        size = UDim2.new(0.3, 0, 0.07, 0),
-        position = UDim2.new(0.65, 0, 0.65, 0),
-        anchorPoint = Vector2.new(0.5, 0.5),
-        aspectRatio = 5.429
-    })
-    
-    self:SetupElement(nextQuestionFrame, {
+    self:SetupElement(elements.nextQuestionFrame, {
         size = UDim2.new(0.3, 0, 0.08, 0),
         position = UDim2.new(0.5, 0, 0.85, 0),
         anchorPoint = Vector2.new(0.5, 0.5),
@@ -209,10 +211,6 @@ function ResponsiveUI:UpdateScale()
         end
     end
 end
-
--- Initialize responsive UI system
-task.wait(0.1) -- Small delay to ensure all UI elements are loaded
-ResponsiveUI:Initialize()
 
 -- Get answer buttons
 local answerFrames = {
@@ -1129,4 +1127,16 @@ updateNextQuestionRemote.OnClientEvent:Connect(ShowNextQuestionCountdown)
 
 -- Initially hide
 gui.Enabled = false
+
+-- Initialize responsive UI system after all elements are loaded
+task.defer(function()
+    ResponsiveUI:Initialize({
+        questionFrame = questionFrame,
+        timerFrame = timerFrame,
+        answerFrames = answerFrames,
+        nextQuestionFrame = nextQuestionFrame
+    })
+    print("[QuizUI] Responsive UI initialized")
+end)
+
 print("[QuizUI] Client script loaded")
