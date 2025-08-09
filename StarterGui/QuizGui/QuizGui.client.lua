@@ -10,6 +10,121 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local gui = script.Parent
 
+-- Debug function to capture UI state
+local function debugUIProperties()
+    print("\n========== QUIZUI DEBUG INFORMATION ==========")
+    print("Time:", os.date("%X"))
+    print("Script Location:", script:GetFullName())
+    
+    local function printProperties(instance, indent)
+        indent = indent or ""
+        local className = instance.ClassName
+        
+        -- Print instance info
+        print(indent .. instance.Name .. " (" .. className .. ")")
+        
+        -- Properties to check based on class
+        local properties = {}
+        
+        if className == "Frame" or className == "TextLabel" or className == "TextButton" or className == "ImageLabel" then
+            properties = {
+                "Position", "Size", "AnchorPoint", "Visible", 
+                "BackgroundTransparency", "BackgroundColor3",
+                "BorderSizePixel", "ClipsDescendants", "ZIndex",
+                "Rotation", "LayoutOrder", "SizeConstraint"
+            }
+        elseif className == "ScreenGui" then
+            properties = {
+                "Enabled", "DisplayOrder", "IgnoreGuiInset", 
+                "ResetOnSpawn", "ZIndexBehavior"
+            }
+        elseif className == "UIScale" then
+            properties = {"Scale"}
+        elseif className == "UICorner" then
+            properties = {"CornerRadius"}
+        elseif className == "UIStroke" then
+            properties = {"Color", "Thickness", "Transparency", "ApplyStrokeMode"}
+        elseif className == "UIGradient" then
+            properties = {"Color", "Transparency", "Rotation", "Offset"}
+        elseif className == "UIListLayout" or className == "UIGridLayout" then
+            properties = {
+                "FillDirection", "HorizontalAlignment", "VerticalAlignment",
+                "SortOrder", "Padding"
+            }
+        end
+        
+        -- Print properties
+        for _, prop in ipairs(properties) do
+            local success, value = pcall(function()
+                return instance[prop]
+            end)
+            if success then
+                local valueStr = tostring(value)
+                if typeof(value) == "UDim2" then
+                    valueStr = string.format("UDim2.new(%g, %g, %g, %g)", 
+                        value.X.Scale, value.X.Offset, value.Y.Scale, value.Y.Offset)
+                elseif typeof(value) == "Vector2" then
+                    valueStr = string.format("Vector2.new(%g, %g)", value.X, value.Y)
+                elseif typeof(value) == "Color3" then
+                    valueStr = string.format("Color3.fromRGB(%d, %d, %d)", 
+                        math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255))
+                elseif typeof(value) == "UDim" then
+                    valueStr = string.format("UDim.new(%g, %g)", value.Scale, value.Offset)
+                end
+                print(indent .. "  " .. prop .. ": " .. valueStr)
+            end
+        end
+        
+        -- Special case for TextLabel/TextButton
+        if className == "TextLabel" or className == "TextButton" then
+            local textProps = {"Text", "TextColor3", "TextScaled", "TextSize", 
+                             "TextTransparency", "Font", "TextXAlignment", "TextYAlignment"}
+            for _, prop in ipairs(textProps) do
+                local success, value = pcall(function() return instance[prop] end)
+                if success then
+                    print(indent .. "  " .. prop .. ": " .. tostring(value))
+                end
+            end
+        end
+        
+        -- Print AbsolutePosition and AbsoluteSize
+        local success, absPos = pcall(function() return instance.AbsolutePosition end)
+        if success then
+            print(indent .. "  AbsolutePosition: Vector2.new(" .. absPos.X .. ", " .. absPos.Y .. ")")
+        end
+        
+        local success2, absSize = pcall(function() return instance.AbsoluteSize end)
+        if success2 then
+            print(indent .. "  AbsoluteSize: Vector2.new(" .. absSize.X .. ", " .. absSize.Y .. ")")
+        end
+        
+        -- Recurse through children
+        for _, child in ipairs(instance:GetChildren()) do
+            printProperties(child, indent .. "  ")
+        end
+    end
+    
+    -- Start from ScreenGui
+    printProperties(gui)
+    
+    -- Also print camera viewport size
+    local camera = workspace.CurrentCamera
+    if camera then
+        print("\nCamera ViewportSize:", camera.ViewportSize)
+    end
+    
+    print("========== END DEBUG INFORMATION ==========\n")
+end
+
+-- Run debug immediately
+print("[QuizUI] Initial state capture:")
+debugUIProperties()
+
+-- Run debug again after a short delay to catch any changes
+task.wait(0.1)
+print("[QuizUI] After 0.1s delay:")
+debugUIProperties()
+
 -- Load sound configuration
 local SoundConfig = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("SoundConfig"))
 
@@ -407,6 +522,10 @@ function ShowQuestion(question, totalTime)
     maxTime = totalTime
     lastTickSecond = -1 -- Reset tick tracking
     
+    -- Debug before making changes
+    print("[QuizUI] ShowQuestion called - capturing state BEFORE changes:")
+    debugUIProperties()
+    
     -- Hide countdown immediately if visible
     nextQuestionFrame.Visible = false
     
@@ -493,6 +612,11 @@ function ShowQuestion(question, totalTime)
     -- Animate in (with slight delay after sound)
     task.wait(0.1)
     animateIn()
+    
+    -- Debug after animations
+    task.wait(1)  -- Wait for animations to complete
+    print("[QuizUI] ShowQuestion - capturing state AFTER animations:")
+    debugUIProperties()
 end
 
 function UpdateTimer(timeLeft)
@@ -944,3 +1068,14 @@ updateNextQuestionRemote.OnClientEvent:Connect(ShowNextQuestionCountdown)
 -- Initially hide
 gui.Enabled = false
 print("[QuizUI] Client script loaded")
+
+-- Add debug keybind (F9 to debug)
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F9 then
+        print("\n[QuizUI] Manual debug triggered (F9 pressed):")
+        debugUIProperties()
+    end
+end)
+
+print("[QuizUI] Press F9 at any time to capture current UI state")
