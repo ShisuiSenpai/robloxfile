@@ -51,28 +51,28 @@ function DarkLightingSystem:ApplyDarkAtmosphere()
 	-- Set to night time
 	Lighting.ClockTime = 0 -- Midnight
 	
-	-- Very dark ambient lighting with slight blue tint
-	Lighting.Ambient = Color3.fromRGB(10, 10, 15) -- Almost black with slight blue
-	Lighting.OutdoorAmbient = Color3.fromRGB(15, 15, 20) -- Slightly lighter outdoor
+	-- EXTREMELY dark ambient lighting - almost pitch black
+	Lighting.Ambient = Color3.fromRGB(5, 5, 8) -- Near black with very faint blue
+	Lighting.OutdoorAmbient = Color3.fromRGB(8, 8, 10) -- Barely visible outdoor
 	
-	-- Low brightness for darkness
-	Lighting.Brightness = 0.1
+	-- Minimal brightness for near darkness
+	Lighting.Brightness = 0.05 -- Even darker
 	
-	-- Color shifts for eerie atmosphere
-	Lighting.ColorShift_Bottom = Color3.fromRGB(20, 20, 30) -- Dark blue bottom
-	Lighting.ColorShift_Top = Color3.fromRGB(10, 10, 20) -- Darker blue top
+	-- Color shifts for harsh interrogation atmosphere
+	Lighting.ColorShift_Bottom = Color3.fromRGB(10, 10, 15) -- Very dark blue bottom
+	Lighting.ColorShift_Top = Color3.fromRGB(5, 5, 10) -- Near black top
 	
-	-- Environmental lighting
-	Lighting.EnvironmentDiffuseScale = 0.2
-	Lighting.EnvironmentSpecularScale = 0.1
+	-- Minimal environmental lighting
+	Lighting.EnvironmentDiffuseScale = 0.1
+	Lighting.EnvironmentSpecularScale = 0.05
 	
 	-- Ensure shadows are on for dramatic effect
 	Lighting.GlobalShadows = true
 	
-	-- Add fog for atmosphere
-	Lighting.FogEnd = 200
-	Lighting.FogStart = 20
-	Lighting.FogColor = Color3.fromRGB(10, 10, 15) -- Match ambient for seamless blend
+	-- Closer fog for claustrophobic feel
+	Lighting.FogEnd = 150
+	Lighting.FogStart = 15
+	Lighting.FogColor = Color3.fromRGB(5, 5, 8) -- Match ambient for seamless blend
 	
 	-- Add atmospheric effects if not present
 	self:AddAtmosphericEffects()
@@ -86,36 +86,36 @@ function DarkLightingSystem:AddAtmosphericEffects()
 		atmosphere.Parent = Lighting
 	end
 	
-	-- Atmospheric settings for foggy/mysterious effect
-	atmosphere.Density = 0.5 -- Thick atmosphere
+	-- Atmospheric settings for oppressive interrogation room feel
+	atmosphere.Density = 0.7 -- Thicker atmosphere
 	atmosphere.Offset = 0
-	atmosphere.Color = Color3.fromRGB(30, 30, 40) -- Dark blue-grey
-	atmosphere.Decay = Color3.fromRGB(20, 20, 30) -- Dark decay
+	atmosphere.Color = Color3.fromRGB(20, 20, 25) -- Very dark blue-grey
+	atmosphere.Decay = Color3.fromRGB(10, 10, 15) -- Darker decay
 	atmosphere.Glare = 0 -- No glare in darkness
-	atmosphere.Haze = 2 -- Some haze for depth
+	atmosphere.Haze = 3 -- More haze for oppressive depth
 	
-	-- Add or update Bloom for light sources to glow
+	-- Add or update Bloom for harsh light contrast
 	local bloom = Lighting:FindFirstChild("Bloom")
 	if not bloom then
 		bloom = Instance.new("BloomEffect")
 		bloom.Parent = Lighting
 	end
 	
-	bloom.Intensity = 2 -- Make lights bloom/glow
-	bloom.Size = 24 -- Larger bloom radius
-	bloom.Threshold = 0.8 -- Lower threshold so more things bloom
+	bloom.Intensity = 3 -- Stronger bloom for harsh lights
+	bloom.Size = 20 -- Focused bloom
+	bloom.Threshold = 0.9 -- Higher threshold for only bright lights
 	
-	-- Add or update ColorCorrection for mood
+	-- Add or update ColorCorrection for harsh mood
 	local colorCorrection = Lighting:FindFirstChild("ColorCorrection")
 	if not colorCorrection then
 		colorCorrection = Instance.new("ColorCorrectionEffect")
 		colorCorrection.Parent = Lighting
 	end
 	
-	colorCorrection.Brightness = -0.1 -- Slightly darker
-	colorCorrection.Contrast = 0.2 -- More contrast
-	colorCorrection.Saturation = -0.3 -- Less saturation for grimmer feel
-	colorCorrection.TintColor = Color3.fromRGB(240, 240, 255) -- Slight blue tint
+	colorCorrection.Brightness = -0.2 -- Much darker
+	colorCorrection.Contrast = 0.4 -- Higher contrast for harsh shadows
+	colorCorrection.Saturation = -0.5 -- Very desaturated, almost black and white
+	colorCorrection.TintColor = Color3.fromRGB(245, 245, 250) -- Cold white tint
 end
 
 function DarkLightingSystem:CreatePlayerLight(character)
@@ -124,83 +124,81 @@ function DarkLightingSystem:CreatePlayerLight(character)
 	local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
 	if not humanoidRootPart then return end
 	
-	-- Create attachment for light
+	-- Create attachment for light positioned directly above head
 	local lightAttachment = Instance.new("Attachment")
 	lightAttachment.Name = "InterrogationLightAttachment"
-	lightAttachment.Position = Vector3.new(0, 6, 0) -- 6 studs above character
+	lightAttachment.Position = Vector3.new(0, 8, 0) -- 8 studs above character for more overhead feel
 	lightAttachment.Parent = humanoidRootPart
 	
-	-- Create main interrogation light
-	local pointLight = Instance.new("PointLight")
-	pointLight.Name = "InterrogationLight"
-	pointLight.Brightness = 3 -- Bright spotlight effect
-	pointLight.Color = Color3.fromRGB(255, 245, 220) -- Warm white/yellow interrogation light
-	pointLight.Range = 20 -- Medium range
-	pointLight.Shadows = true -- Cast shadows for dramatic effect
-	pointLight.Parent = lightAttachment
+	-- Remove point lights - only use focused spotlight
 	
-	-- Create secondary softer fill light
-	local fillLight = Instance.new("PointLight")
-	fillLight.Name = "FillLight"
-	fillLight.Brightness = 0.5
-	fillLight.Color = Color3.fromRGB(150, 150, 180) -- Cool fill light
-	fillLight.Range = 15
-	fillLight.Shadows = false
-	fillLight.Parent = lightAttachment
-	
-	-- Create downward spotlight effect
+	-- Create single harsh downward spotlight - THE interrogation light
 	local spotLight = Instance.new("SpotLight")
-	spotLight.Name = "DownwardSpot"
-	spotLight.Brightness = 2
-	spotLight.Color = Color3.fromRGB(255, 245, 220)
-	spotLight.Range = 25
-	spotLight.Angle = 60 -- Wide cone
-	spotLight.Face = Enum.NormalId.Bottom -- Point downward
-	spotLight.Shadows = true
+	spotLight.Name = "InterrogationSpotlight"
+	spotLight.Brightness = 5 -- Very bright for harsh contrast
+	spotLight.Color = Color3.fromRGB(255, 255, 245) -- Harsh cold white
+	spotLight.Range = 20 -- Focused range
+	spotLight.Angle = 45 -- Narrower cone for focused light
+	spotLight.Face = Enum.NormalId.Bottom -- Point straight down
+	spotLight.Shadows = true -- Strong shadows
 	spotLight.Parent = lightAttachment
 	
+	-- Add a very dim ambient light just so player isn't completely blind
+	local minimalLight = Instance.new("PointLight")
+	minimalLight.Name = "MinimalAmbient"
+	minimalLight.Brightness = 0.2 -- Barely visible
+	minimalLight.Color = Color3.fromRGB(200, 200, 210) -- Cold white
+	minimalLight.Range = 8 -- Small radius
+	minimalLight.Shadows = false
+	minimalLight.Parent = lightAttachment
+	
 	-- Add subtle flickering for realism
-	self:AddLightFlicker(pointLight, fillLight)
+	self:AddLightFlicker(spotLight, minimalLight)
 	
 	-- Store reference
 	local player = Players:GetPlayerFromCharacter(character)
 	if player then
 		self.playerLights[player] = {
 			attachment = lightAttachment,
-			pointLight = pointLight,
-			fillLight = fillLight,
-			spotLight = spotLight
+			spotLight = spotLight,
+			minimalLight = minimalLight
 		}
 	end
 	
 	return lightAttachment
 end
 
-function DarkLightingSystem:AddLightFlicker(pointLight, fillLight)
-	-- Subtle random flickering for interrogation room effect
+function DarkLightingSystem:AddLightFlicker(spotLight, minimalLight)
+	-- Harsh flickering for interrogation room effect
 	task.spawn(function()
-		local baseBrightness = pointLight.Brightness
-		local fillBaseBrightness = fillLight.Brightness
+		local baseBrightness = spotLight.Brightness
+		local minimalBaseBrightness = minimalLight.Brightness
 		
-		while pointLight.Parent do
-			-- Occasional flicker
-			if math.random() < 0.02 then -- 2% chance per frame
-				-- Quick flicker
-				local flickerStrength = 0.7 + math.random() * 0.3
-				pointLight.Brightness = baseBrightness * flickerStrength
-				fillLight.Brightness = fillBaseBrightness * flickerStrength
+		while spotLight.Parent do
+			-- More frequent harsh flickers
+			if math.random() < 0.03 then -- 3% chance per frame
+				-- Harsh flicker
+				local flickerStrength = 0.6 + math.random() * 0.4
+				spotLight.Brightness = baseBrightness * flickerStrength
+				minimalLight.Brightness = minimalBaseBrightness * flickerStrength
 				
-				task.wait(0.05 + math.random() * 0.1)
+				task.wait(0.03 + math.random() * 0.07)
 				
-				pointLight.Brightness = baseBrightness
-				fillLight.Brightness = fillBaseBrightness
+				-- Sometimes double flicker for more unsettling effect
+				if math.random() < 0.3 then
+					spotLight.Brightness = baseBrightness * 0.7
+					task.wait(0.02)
+				end
+				
+				spotLight.Brightness = baseBrightness
+				minimalLight.Brightness = minimalBaseBrightness
 			end
 			
-			-- Subtle brightness variation
-			local variation = 0.95 + math.random() * 0.1
-			pointLight.Brightness = baseBrightness * variation
+			-- Less subtle brightness variation - more noticeable
+			local variation = 0.9 + math.random() * 0.1
+			spotLight.Brightness = baseBrightness * variation
 			
-			task.wait(0.1 + math.random() * 0.2)
+			task.wait(0.15 + math.random() * 0.3)
 		end
 	end)
 end
@@ -238,20 +236,21 @@ function DarkLightingSystem:SetupPlayerConnections()
 end
 
 function DarkLightingSystem:CreateEnvironmentalLights()
-	-- Add some environmental light sources for atmosphere
-	local workspace = game:GetService("Workspace")
+	-- Remove all environmental lights - keep it DARK
+	-- Players should only see by their interrogation lights
 	
-	-- Find spawn areas and add dim lights
+	-- Optional: Add extremely dim emergency lighting
+	local workspace = game:GetService("Workspace")
 	local spawns = workspace:FindFirstChild("Spawns")
 	if spawns then
 		for _, spawn in ipairs(spawns:GetChildren()) do
 			if spawn:IsA("SpawnLocation") then
-				-- Add dim light at each spawn
+				-- Add VERY dim light at each spawn
 				local spawnLight = Instance.new("PointLight")
-				spawnLight.Name = "SpawnAreaLight"
-				spawnLight.Brightness = 0.3
-				spawnLight.Color = Color3.fromRGB(100, 100, 120) -- Cold blue-white
-				spawnLight.Range = 15
+				spawnLight.Name = "EmergencyLight"
+				spawnLight.Brightness = 0.1 -- Barely visible
+				spawnLight.Color = Color3.fromRGB(80, 80, 90) -- Cold grey
+				spawnLight.Range = 8 -- Very small radius
 				spawnLight.Shadows = false
 				spawnLight.Parent = spawn
 			end
