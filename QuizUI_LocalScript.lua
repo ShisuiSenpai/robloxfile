@@ -60,8 +60,8 @@ local Colors = {
 	Primary = Color3.fromRGB(100, 150, 250),      -- Blue
 	PrimaryDark = Color3.fromRGB(80, 130, 230),   -- Darker blue
 	PrimaryLight = Color3.fromRGB(120, 170, 255), -- Light blue
-	Success = Color3.fromRGB(100, 250, 100),       -- Green
-	Error = Color3.fromRGB(250, 100, 100),         -- Red
+	Success = Color3.fromRGB(50, 200, 50),         -- Darker Green
+	Error = Color3.fromRGB(200, 50, 50),           -- Darker Red
 	Warning = Color3.fromRGB(241, 196, 15),        -- Yellow
 	Neutral = Color3.fromRGB(200, 200, 200),       -- Grey
 	White = Color3.fromRGB(255, 255, 255)
@@ -337,9 +337,13 @@ function AnswerButtonManager:showResults(correctAnswer, playerAnswer)
 				AnimationUtils.tween(answerText, {TextColor3 = Colors.White}, 0.3)
 			end
 			
-			-- Bounce animation
+			-- Simple glow effect instead of bounce
 			task.spawn(function()
-				AnimationUtils.pulse(frame, 1.1, 0.5)
+				if uiStroke then
+					AnimationUtils.tween(uiStroke, {Thickness = 5}, 0.2)
+					task.wait(0.2)
+					AnimationUtils.tween(uiStroke, {Thickness = 3}, 0.2)
+				end
 			end)
 			
 		elseif isPlayerAnswer and not isCorrect then
@@ -358,9 +362,11 @@ function AnswerButtonManager:showResults(correctAnswer, playerAnswer)
 				AnimationUtils.tween(answerText, {TextColor3 = Colors.White}, 0.3)
 			end
 			
-			-- Shake animation
+			-- Simple flash effect instead of shake
 			task.spawn(function()
-				AnimationUtils.shake(frame)
+				AnimationUtils.tween(frame, {BackgroundTransparency = 0.2}, 0.15)
+				task.wait(0.15)
+				AnimationUtils.tween(frame, {BackgroundTransparency = 0}, 0.15)
 			end)
 			
 		else
