@@ -122,13 +122,33 @@ function DarkLightingSystem:CreatePlayerLight(character)
 	if not character then return end
 	
 	local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-	if not humanoidRootPart then return end
+	local head = character:WaitForChild("Head", 5)
+	if not humanoidRootPart or not head then return end
 	
-	-- Create attachment for light positioned above head
+	-- Create a part to hold the light above the character's head
+	local lightPart = Instance.new("Part")
+	lightPart.Name = "InterrogationLightPart"
+	lightPart.Size = Vector3.new(1, 1, 1)
+	lightPart.Transparency = 1 -- Invisible
+	lightPart.CanCollide = false
+	lightPart.CanQuery = false
+	lightPart.CanTouch = false
+	lightPart.Massless = true
+	lightPart.Parent = character
+	
+	-- Weld the part above the character's head
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = head
+	weld.Part1 = lightPart
+	weld.Parent = lightPart
+	
+	-- Position the part above the head
+	lightPart.CFrame = head.CFrame * CFrame.new(0, 4, 0) -- 4 studs above head
+	
+	-- Create attachment on the light part
 	local lightAttachment = Instance.new("Attachment")
 	lightAttachment.Name = "InterrogationLightAttachment"
-	lightAttachment.Position = Vector3.new(0, 5, 0) -- 5 studs above character
-	lightAttachment.Parent = humanoidRootPart
+	lightAttachment.Parent = lightPart
 	
 	-- Main interrogation point light above head
 	local pointLight = Instance.new("PointLight")
@@ -166,6 +186,7 @@ function DarkLightingSystem:CreatePlayerLight(character)
 	local player = Players:GetPlayerFromCharacter(character)
 	if player then
 		self.playerLights[player] = {
+			lightPart = lightPart,
 			attachment = lightAttachment,
 			pointLight = pointLight,
 			spotLight = spotLight,
@@ -173,7 +194,7 @@ function DarkLightingSystem:CreatePlayerLight(character)
 		}
 	end
 	
-	return lightAttachment
+	return lightPart
 end
 
 function DarkLightingSystem:AddLightFlicker(pointLight, spotLight)
@@ -229,8 +250,8 @@ function DarkLightingSystem:SetupPlayerConnections()
 	-- Clean up on player leaving
 	Players.PlayerRemoving:Connect(function(player)
 		if self.playerLights[player] then
-			if self.playerLights[player].attachment then
-				self.playerLights[player].attachment:Destroy()
+			if self.playerLights[player].lightPart then
+				self.playerLights[player].lightPart:Destroy()
 			end
 			self.playerLights[player] = nil
 		end
@@ -278,8 +299,8 @@ function DarkLightingSystem:RestoreOriginalLighting()
 	
 	-- Remove all player lights
 	for player, lightData in pairs(self.playerLights) do
-		if lightData.attachment then
-			lightData.attachment:Destroy()
+		if lightData.lightPart then
+			lightData.lightPart:Destroy()
 		end
 	end
 	self.playerLights = {}
