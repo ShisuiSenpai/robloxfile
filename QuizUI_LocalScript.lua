@@ -438,6 +438,22 @@ local function showQuestion(questionData, totalTime)
 	BG.Visible = true
 	UI.nextQuestionFrame.Visible = false
 	
+	-- IMPORTANT: Reset visibility and transparency for all elements
+	UI.questionFrame.Visible = true
+	UI.questionFrame.BackgroundTransparency = 0
+	UI.timerFrame.Visible = true
+	UI.timerFrame.BackgroundTransparency = 0
+	
+	-- Reset text transparencies
+	UI.questionText.TextTransparency = 0
+	UI.timerText.TextTransparency = 0
+	
+	-- Reset answer frames visibility and transparency
+	for _, frame in ipairs(UI.answerFrames) do
+		frame.Visible = true
+		frame.BackgroundTransparency = 0
+	end
+	
 	-- Reset all elements
 	answerManager:reset()
 	
@@ -522,15 +538,17 @@ local function showResults(results, correctAnswer)
 	
 	for _, data in ipairs(fadeOutElements) do
 		AnimationUtils.tween(data[1], {
-			Position = data[2],
-			BackgroundTransparency = 1
+			Position = data[2]
 		}, 0.5)
 	end
 	
+	-- Also fade out text
+	AnimationUtils.tween(UI.questionText, {TextTransparency = 1}, 0.5)
+	AnimationUtils.tween(UI.timerText, {TextTransparency = 1}, 0.5)
+	
 	for _, frame in ipairs(UI.answerFrames) do
 		AnimationUtils.tween(frame, {
-			Position = UDim2.new(frame.Position.X.Scale, frame.Position.X.Offset, 1.2, 0),
-			BackgroundTransparency = 1
+			Position = UDim2.new(frame.Position.X.Scale, frame.Position.X.Offset, 1.2, 0)
 		}, 0.5)
 	end
 	
