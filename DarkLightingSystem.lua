@@ -134,16 +134,17 @@ function DarkLightingSystem:CreatePlayerLight(character)
 	lightPart.CanQuery = false
 	lightPart.CanTouch = false
 	lightPart.Massless = true
+	lightPart.Anchored = false
 	lightPart.Parent = character
 	
-	-- Weld the part above the character's head
+	-- Position the part directly above the head FIRST
+	lightPart.CFrame = head.CFrame + Vector3.new(0, 4, 0) -- 4 studs directly above head
+	
+	-- Then weld it to maintain position
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = head
 	weld.Part1 = lightPart
 	weld.Parent = lightPart
-	
-	-- Position the part above the head
-	lightPart.CFrame = head.CFrame * CFrame.new(0, 4, 0) -- 4 studs above head
 	
 	-- Create attachment on the light part
 	local lightAttachment = Instance.new("Attachment")
@@ -153,18 +154,18 @@ function DarkLightingSystem:CreatePlayerLight(character)
 	-- Main interrogation point light above head
 	local pointLight = Instance.new("PointLight")
 	pointLight.Name = "InterrogationLight"
-	pointLight.Brightness = 4 -- Bright enough to see clearly
+	pointLight.Brightness = 2 -- Reduced brightness
 	pointLight.Color = Color3.fromRGB(255, 250, 240) -- Warm white interrogation light
-	pointLight.Range = 25 -- Good coverage area
+	pointLight.Range = 20 -- Focused area
 	pointLight.Shadows = true -- Cast dramatic shadows
 	pointLight.Parent = lightAttachment
 	
 	-- Add downward spotlight for focused effect
 	local spotLight = Instance.new("SpotLight")
 	spotLight.Name = "FocusedSpot"
-	spotLight.Brightness = 3 -- Additional focused light
+	spotLight.Brightness = 1.5 -- Reduced focused light
 	spotLight.Color = Color3.fromRGB(255, 255, 250) -- Bright white
-	spotLight.Range = 30 -- Good range
+	spotLight.Range = 25 -- Medium range
 	spotLight.Angle = 50 -- Reasonable cone
 	spotLight.Face = Enum.NormalId.Bottom -- Point down
 	spotLight.Shadows = true
@@ -173,9 +174,9 @@ function DarkLightingSystem:CreatePlayerLight(character)
 	-- Small fill light to soften harsh shadows slightly
 	local fillLight = Instance.new("PointLight")
 	fillLight.Name = "FillLight"
-	fillLight.Brightness = 0.8 -- Soft fill
+	fillLight.Brightness = 0.4 -- Very soft fill
 	fillLight.Color = Color3.fromRGB(230, 230, 240) -- Cool white
-	fillLight.Range = 15 -- Smaller radius
+	fillLight.Range = 12 -- Smaller radius
 	fillLight.Shadows = false
 	fillLight.Parent = lightAttachment
 	
