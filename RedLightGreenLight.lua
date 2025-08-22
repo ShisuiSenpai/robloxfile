@@ -31,104 +31,130 @@ local gameFolder = workspace:FindFirstChild("RedLightGreenLight") or Instance.ne
 gameFolder.Name = "RedLightGreenLight"
 gameFolder.Parent = workspace
 
--- Create turret model
+-- Create simple turret part with enhanced visuals
 local function createTurret()
-    local turret = Instance.new("Model")
+    local turret = Instance.new("Part")
     turret.Name = "Turret"
+    turret.Size = Vector3.new(6, 6, 6)
+    turret.Material = Enum.Material.ForceField
+    turret.BrickColor = BrickColor.new("Really red")
+    turret.TopSurface = Enum.SurfaceType.Smooth
+    turret.BottomSurface = Enum.SurfaceType.Smooth
+    turret.Anchored = true
+    turret.CanCollide = false
+    turret.Transparency = 0.3
     
-    -- Base
-    local base = Instance.new("Part")
-    base.Name = "Base"
-    base.Size = Vector3.new(4, 1, 4)
-    base.Material = Enum.Material.Metal
-    base.BrickColor = BrickColor.new("Dark grey")
-    base.TopSurface = Enum.SurfaceType.Smooth
-    base.BottomSurface = Enum.SurfaceType.Smooth
-    base.Anchored = true
-    base.Parent = turret
+    -- Add multiple visual effects
+    local selectionBox = Instance.new("SelectionBox")
+    selectionBox.Adornee = turret
+    selectionBox.Color3 = Color3.new(1, 0, 0)
+    selectionBox.LineThickness = 0.15
+    selectionBox.Transparency = 0.3
+    selectionBox.Parent = turret
     
-    -- Turret body
-    local body = Instance.new("Part")
-    body.Name = "Body"
-    body.Size = Vector3.new(3, 3, 3)
-    body.Material = Enum.Material.Metal
-    body.BrickColor = BrickColor.new("Black")
-    body.Shape = Enum.PartType.Cylinder
-    body.TopSurface = Enum.SurfaceType.Smooth
-    body.BottomSurface = Enum.SurfaceType.Smooth
-    body.Anchored = true
-    body.CFrame = base.CFrame * CFrame.new(0, 2, 0) * CFrame.Angles(0, 0, math.rad(90))
-    body.Parent = turret
-    
-    -- Barrel
-    local barrel = Instance.new("Part")
-    barrel.Name = "Barrel"
-    barrel.Size = Vector3.new(1, 1, 4)
-    barrel.Material = Enum.Material.Metal
-    barrel.BrickColor = BrickColor.new("Really black")
-    barrel.Shape = Enum.PartType.Cylinder
-    barrel.TopSurface = Enum.SurfaceType.Smooth
-    barrel.BottomSurface = Enum.SurfaceType.Smooth
-    barrel.Anchored = true
-    barrel.CFrame = body.CFrame * CFrame.new(0, 0, -2.5) * CFrame.Angles(math.rad(90), 0, 0)
-    barrel.Parent = turret
-    
-    -- Red warning light
-    local light = Instance.new("Part")
-    light.Name = "WarningLight"
-    light.Size = Vector3.new(1, 1, 1)
-    light.Material = Enum.Material.Neon
-    light.BrickColor = BrickColor.new("Really red")
-    light.Shape = Enum.PartType.Ball
-    light.TopSurface = Enum.SurfaceType.Smooth
-    light.BottomSurface = Enum.SurfaceType.Smooth
-    light.Anchored = true
-    light.CFrame = body.CFrame * CFrame.new(0, 1.5, 0)
-    light.Parent = turret
-    
+    -- Glowing effect
     local pointLight = Instance.new("PointLight")
-    pointLight.Brightness = 2
+    pointLight.Brightness = 5
     pointLight.Color = Color3.new(1, 0, 0)
-    pointLight.Range = 20
-    pointLight.Parent = light
+    pointLight.Range = 30
+    pointLight.Parent = turret
+    
+    -- Spotlight for dramatic effect
+    local spotLight = Instance.new("SpotLight")
+    spotLight.Brightness = 10
+    spotLight.Color = Color3.new(1, 0.2, 0.2)
+    spotLight.Range = 100
+    spotLight.Angle = 45
+    spotLight.Face = Enum.NormalId.Front
+    spotLight.Parent = turret
+    
+    -- Particle emitter for constant visual effect
+    local particleEmitter = Instance.new("ParticleEmitter")
+    particleEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    particleEmitter.Rate = 50
+    particleEmitter.Lifetime = NumberRange.new(1, 2)
+    particleEmitter.Speed = NumberRange.new(5, 10)
+    particleEmitter.SpreadAngle = Vector2.new(360, 360)
+    particleEmitter.Color = ColorSequence.new(Color3.new(1, 0, 0))
+    particleEmitter.LightEmission = 1
+    particleEmitter.LightInfluence = 0
+    particleEmitter.Size = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.5),
+        NumberSequenceKeypoint.new(0.5, 1),
+        NumberSequenceKeypoint.new(1, 0)
+    }
+    particleEmitter.Parent = turret
     
     return turret
 end
 
--- Create bullet
+-- Create enhanced bullet with visual effects
 local function createBullet(origin, direction)
     local bullet = Instance.new("Part")
     bullet.Name = "Bullet"
-    bullet.Size = Vector3.new(0.3, 0.3, 1)
+    bullet.Size = Vector3.new(0.8, 0.8, 2)
     bullet.Material = Enum.Material.Neon
     bullet.BrickColor = BrickColor.new("New Yeller")
     bullet.TopSurface = Enum.SurfaceType.Smooth
     bullet.BottomSurface = Enum.SurfaceType.Smooth
     bullet.CanCollide = false
-    bullet.CFrame = CFrame.lookAt(origin, origin + direction)
+    bullet.Shape = Enum.PartType.Cylinder
+    bullet.CFrame = CFrame.lookAt(origin, origin + direction) * CFrame.Angles(0, math.rad(90), 0)
     bullet.Parent = gameFolder
+    
+    -- Glowing effect
+    local pointLight = Instance.new("PointLight")
+    pointLight.Brightness = 5
+    pointLight.Color = Color3.new(1, 1, 0)
+    pointLight.Range = 15
+    pointLight.Parent = bullet
     
     -- Add trail effect
     local attachment0 = Instance.new("Attachment")
-    attachment0.Position = Vector3.new(0, 0, -0.5)
+    attachment0.Position = Vector3.new(-1, 0, 0)
     attachment0.Parent = bullet
     
     local attachment1 = Instance.new("Attachment")
-    attachment1.Position = Vector3.new(0, 0, 0.5)
+    attachment1.Position = Vector3.new(1, 0, 0)
     attachment1.Parent = bullet
     
     local trail = Instance.new("Trail")
     trail.Attachment0 = attachment0
     trail.Attachment1 = attachment1
-    trail.Lifetime = 0.2
+    trail.Lifetime = 0.5
     trail.MinLength = 0
     trail.FaceCamera = true
-    trail.Color = ColorSequence.new(Color3.new(1, 1, 0))
+    trail.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 0)),
+        ColorSequenceKeypoint.new(0.5, Color3.new(1, 0.5, 0)),
+        ColorSequenceKeypoint.new(1, Color3.new(1, 0, 0))
+    }
     trail.Transparency = NumberSequence.new{
         NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.5, 0.3),
         NumberSequenceKeypoint.new(1, 1)
     }
+    trail.Width = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 2),
+        NumberSequenceKeypoint.new(1, 0)
+    }
     trail.Parent = bullet
+    
+    -- Particle emitter for extra effect
+    local particleEmitter = Instance.new("ParticleEmitter")
+    particleEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    particleEmitter.Rate = 100
+    particleEmitter.Lifetime = NumberRange.new(0.3, 0.5)
+    particleEmitter.Speed = NumberRange.new(5)
+    particleEmitter.SpreadAngle = Vector2.new(30, 30)
+    particleEmitter.Color = ColorSequence.new(Color3.new(1, 1, 0))
+    particleEmitter.LightEmission = 1
+    particleEmitter.LightInfluence = 0
+    particleEmitter.Size = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.5),
+        NumberSequenceKeypoint.new(1, 0)
+    }
+    particleEmitter.Parent = bullet
     
     -- Bullet physics
     local bodyVelocity = Instance.new("BodyVelocity")
@@ -142,33 +168,76 @@ local function createBullet(origin, direction)
         if humanoid and humanoid.Parent ~= bullet then
             humanoid:TakeDamage(GAME_CONFIG.DAMAGE_PER_SHOT)
             
-            -- Create hit effect
+            -- Create dramatic hit effect
             local hitEffect = Instance.new("Part")
             hitEffect.Name = "HitEffect"
-            hitEffect.Size = Vector3.new(1, 1, 1)
+            hitEffect.Size = Vector3.new(2, 2, 2)
             hitEffect.Material = Enum.Material.Neon
             hitEffect.BrickColor = BrickColor.new("Really red")
+            hitEffect.Shape = Enum.PartType.Ball
             hitEffect.Anchored = true
             hitEffect.CanCollide = false
             hitEffect.CFrame = bullet.CFrame
-            hitEffect.Transparency = 0.5
+            hitEffect.Transparency = 0
             hitEffect.Parent = gameFolder
             
             local hitLight = Instance.new("PointLight")
-            hitLight.Brightness = 5
+            hitLight.Brightness = 20
             hitLight.Color = Color3.new(1, 0, 0)
-            hitLight.Range = 10
+            hitLight.Range = 30
             hitLight.Parent = hitEffect
             
+            -- Create explosion particles
+            local explosion = Instance.new("ParticleEmitter")
+            explosion.Texture = "rbxasset://textures/particles/explosion.dds"
+            explosion.Rate = 0
+            explosion.Lifetime = NumberRange.new(0.5, 1)
+            explosion.Speed = NumberRange.new(20, 40)
+            explosion.SpreadAngle = Vector2.new(360, 360)
+            explosion.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.new(1, 1, 0)),
+                ColorSequenceKeypoint.new(0.5, Color3.new(1, 0.5, 0)),
+                ColorSequenceKeypoint.new(1, Color3.new(1, 0, 0))
+            }
+            explosion.LightEmission = 1
+            explosion.LightInfluence = 0
+            explosion.Size = NumberSequence.new{
+                NumberSequenceKeypoint.new(0, 2),
+                NumberSequenceKeypoint.new(0.5, 4),
+                NumberSequenceKeypoint.new(1, 0)
+            }
+            explosion.Parent = hitEffect
+            explosion:Emit(50)
+            
+            -- Create shockwave
+            local shockwave = Instance.new("Part")
+            shockwave.Name = "Shockwave"
+            shockwave.Size = Vector3.new(0.1, 0.1, 0.1)
+            shockwave.Material = Enum.Material.ForceField
+            shockwave.BrickColor = BrickColor.new("Really red")
+            shockwave.Shape = Enum.PartType.Ball
+            shockwave.Anchored = true
+            shockwave.CanCollide = false
+            shockwave.CFrame = bullet.CFrame
+            shockwave.Transparency = 0.5
+            shockwave.Parent = gameFolder
+            
             -- Tween hit effect
-            local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Out)
+            local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Out, Enum.EasingDirection.Out)
             local tween = TweenService:Create(hitEffect, tweenInfo, {
-                Size = Vector3.new(3, 3, 3),
+                Size = Vector3.new(6, 6, 6),
                 Transparency = 1
             })
             tween:Play()
             
-            Debris:AddItem(hitEffect, 0.5)
+            local shockwaveTween = TweenService:Create(shockwave, tweenInfo, {
+                Size = Vector3.new(15, 15, 15),
+                Transparency = 1
+            })
+            shockwaveTween:Play()
+            
+            Debris:AddItem(hitEffect, 1)
+            Debris:AddItem(shockwave, 1)
             bullet:Destroy()
         end
     end)
@@ -220,33 +289,59 @@ local function checkPlayerMovement(player, turret)
             playerData.violations = playerData.violations + 1
             
             -- Calculate shot direction
-            local turretBarrel = turret:FindFirstChild("Barrel")
-            if turretBarrel then
-                local origin = turretBarrel.Position
-                local direction = (rootPart.Position - origin).Unit
-                
-                -- Create and fire bullet
-                createBullet(origin, direction)
-                
-                -- Turret fire effect
-                local muzzleFlash = Instance.new("Part")
-                muzzleFlash.Name = "MuzzleFlash"
-                muzzleFlash.Size = Vector3.new(2, 2, 2)
-                muzzleFlash.Material = Enum.Material.Neon
-                muzzleFlash.BrickColor = BrickColor.new("New Yeller")
-                muzzleFlash.Anchored = true
-                muzzleFlash.CanCollide = false
-                muzzleFlash.CFrame = turretBarrel.CFrame * CFrame.new(0, 0, -2)
-                muzzleFlash.Parent = gameFolder
-                
-                local flashLight = Instance.new("PointLight")
-                flashLight.Brightness = 10
-                flashLight.Color = Color3.new(1, 1, 0)
-                flashLight.Range = 20
-                flashLight.Parent = muzzleFlash
-                
-                Debris:AddItem(muzzleFlash, 0.1)
-            end
+            local origin = turret.Position
+            local direction = (rootPart.Position - origin).Unit
+            
+            -- Create and fire bullet
+            createBullet(origin, direction)
+            
+            -- Enhanced turret fire effects
+            -- Muzzle flash
+            local muzzleFlash = Instance.new("Part")
+            muzzleFlash.Name = "MuzzleFlash"
+            muzzleFlash.Size = Vector3.new(4, 4, 4)
+            muzzleFlash.Material = Enum.Material.Neon
+            muzzleFlash.BrickColor = BrickColor.new("New Yeller")
+            muzzleFlash.Anchored = true
+            muzzleFlash.CanCollide = false
+            muzzleFlash.Shape = Enum.PartType.Ball
+            muzzleFlash.CFrame = turret.CFrame * CFrame.new(0, 0, -3)
+            muzzleFlash.Parent = gameFolder
+            
+            local flashLight = Instance.new("PointLight")
+            flashLight.Brightness = 20
+            flashLight.Color = Color3.new(1, 1, 0)
+            flashLight.Range = 50
+            flashLight.Parent = muzzleFlash
+            
+            -- Tween the muzzle flash
+            local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Out, Enum.EasingDirection.Out)
+            local tween = TweenService:Create(muzzleFlash, tweenInfo, {
+                Size = Vector3.new(8, 8, 8),
+                Transparency = 1
+            })
+            tween:Play()
+            
+            -- Laser beam effect
+            local beam = Instance.new("Part")
+            beam.Name = "LaserBeam"
+            beam.Size = Vector3.new(0.5, 0.5, (origin - rootPart.Position).Magnitude)
+            beam.Material = Enum.Material.Neon
+            beam.BrickColor = BrickColor.new("Really red")
+            beam.Anchored = true
+            beam.CanCollide = false
+            beam.CFrame = CFrame.lookAt(origin, rootPart.Position) * CFrame.new(0, 0, -beam.Size.Z/2)
+            beam.Parent = gameFolder
+            
+            -- Fade out beam
+            local beamTween = TweenService:Create(beam, TweenInfo.new(0.2), {
+                Transparency = 1,
+                Size = Vector3.new(0.1, 0.1, beam.Size.Z)
+            })
+            beamTween:Play()
+            
+            Debris:AddItem(muzzleFlash, 0.3)
+            Debris:AddItem(beam, 0.3)
         end
     end
     
@@ -362,7 +457,7 @@ end
 local function initializeGame()
     -- Create turret
     local turret = createTurret()
-    turret:SetPrimaryPartCFrame(CFrame.new(0, 5, -50))
+    turret.CFrame = CFrame.new(0, 10, -50)
     turret.Parent = gameFolder
     
     -- Create UI template
@@ -460,13 +555,15 @@ local function startGame()
             gameState.isRedLight = true
             updateUI()
             
-            -- Update turret light
-            local warningLight = turret:FindFirstChild("WarningLight")
-            if warningLight then
-                local pointLight = warningLight:FindFirstChild("PointLight")
-                if pointLight then
-                    pointLight.Enabled = true
-                end
+            -- Update turret for red light
+            turret.BrickColor = BrickColor.new("Really red")
+            turret.Material = Enum.Material.Neon
+            
+            -- Make turret more menacing during red light
+            local selectionBox = turret:FindFirstChild("SelectionBox")
+            if selectionBox then
+                selectionBox.LineThickness = 0.3
+                selectionBox.Transparency = 0
             end
             
             local redDuration = math.random(
@@ -475,12 +572,11 @@ local function startGame()
             )
             wait(redDuration)
             
-            -- Turn off turret light
-            if warningLight then
-                local pointLight = warningLight:FindFirstChild("PointLight")
-                if pointLight then
-                    pointLight.Enabled = false
-                end
+            -- Reset turret appearance
+            turret.Material = Enum.Material.ForceField
+            if selectionBox then
+                selectionBox.LineThickness = 0.15
+                selectionBox.Transparency = 0.3
             end
         end
     end)
