@@ -13,9 +13,10 @@ local GAME_CONFIG = {
     GREEN_LIGHT_MIN = 3, -- minimum green light duration
     GREEN_LIGHT_MAX = 7, -- maximum green light duration
     DAMAGE_PER_SHOT = 20,
-    DETECTION_THRESHOLD = 0.5, -- movement speed threshold during red light
-    BULLET_SPEED = 100,
-    FIRE_RATE = 0.2, -- time between shots
+    DETECTION_THRESHOLD = 0.1, -- movement speed threshold during red light (more sensitive)
+    BULLET_SPEED = 150, -- increased bullet speed
+    FIRE_RATE = 0.3, -- time between shots
+    PREDICTION_FACTOR = 0.5 -- predict player movement
 }
 
 -- Game State
@@ -88,156 +89,154 @@ local function createTurret()
     return turret
 end
 
--- Create enhanced bullet with visual effects
-local function createBullet(origin, direction)
-    local bullet = Instance.new("Part")
-    bullet.Name = "Bullet"
-    bullet.Size = Vector3.new(0.8, 0.8, 2)
-    bullet.Material = Enum.Material.Neon
-    bullet.BrickColor = BrickColor.new("New Yeller")
-    bullet.TopSurface = Enum.SurfaceType.Smooth
-    bullet.BottomSurface = Enum.SurfaceType.Smooth
-    bullet.CanCollide = false
-    bullet.Shape = Enum.PartType.Cylinder
-    bullet.CFrame = CFrame.lookAt(origin, origin + direction) * CFrame.Angles(0, math.rad(90), 0)
-    bullet.Parent = gameFolder
+-- Create hit effect function
+local function createHitEffect(position)
+    -- Create dramatic hit effect
+    local hitEffect = Instance.new("Part")
+    hitEffect.Name = "HitEffect"
+    hitEffect.Size = Vector3.new(2, 2, 2)
+    hitEffect.Material = Enum.Material.Neon
+    hitEffect.BrickColor = BrickColor.new("Really red")
+    hitEffect.Shape = Enum.PartType.Ball
+    hitEffect.Anchored = true
+    hitEffect.CanCollide = false
+    hitEffect.Position = position
+    hitEffect.Transparency = 0
+    hitEffect.Parent = gameFolder
     
-    -- Glowing effect
-    local pointLight = Instance.new("PointLight")
-    pointLight.Brightness = 5
-    pointLight.Color = Color3.new(1, 1, 0)
-    pointLight.Range = 15
-    pointLight.Parent = bullet
+    local hitLight = Instance.new("PointLight")
+    hitLight.Brightness = 20
+    hitLight.Color = Color3.new(1, 0, 0)
+    hitLight.Range = 30
+    hitLight.Parent = hitEffect
     
-    -- Add trail effect
-    local attachment0 = Instance.new("Attachment")
-    attachment0.Position = Vector3.new(-1, 0, 0)
-    attachment0.Parent = bullet
-    
-    local attachment1 = Instance.new("Attachment")
-    attachment1.Position = Vector3.new(1, 0, 0)
-    attachment1.Parent = bullet
-    
-    local trail = Instance.new("Trail")
-    trail.Attachment0 = attachment0
-    trail.Attachment1 = attachment1
-    trail.Lifetime = 0.5
-    trail.MinLength = 0
-    trail.FaceCamera = true
-    trail.Color = ColorSequence.new{
+    -- Create explosion particles
+    local explosion = Instance.new("ParticleEmitter")
+    explosion.Texture = "rbxasset://textures/particles/explosion.dds"
+    explosion.Rate = 0
+    explosion.Lifetime = NumberRange.new(0.5, 1)
+    explosion.Speed = NumberRange.new(20, 40)
+    explosion.SpreadAngle = Vector2.new(360, 360)
+    explosion.Color = ColorSequence.new{
         ColorSequenceKeypoint.new(0, Color3.new(1, 1, 0)),
         ColorSequenceKeypoint.new(0.5, Color3.new(1, 0.5, 0)),
         ColorSequenceKeypoint.new(1, Color3.new(1, 0, 0))
     }
-    trail.Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(0.5, 0.3),
-        NumberSequenceKeypoint.new(1, 1)
-    }
-    trail.Width = NumberSequence.new{
+    explosion.LightEmission = 1
+    explosion.LightInfluence = 0
+    explosion.Size = NumberSequence.new{
         NumberSequenceKeypoint.new(0, 2),
+        NumberSequenceKeypoint.new(0.5, 4),
         NumberSequenceKeypoint.new(1, 0)
     }
+    explosion.Parent = hitEffect
+    explosion:Emit(50)
+    
+    -- Create shockwave
+    local shockwave = Instance.new("Part")
+    shockwave.Name = "Shockwave"
+    shockwave.Size = Vector3.new(0.1, 0.1, 0.1)
+    shockwave.Material = Enum.Material.ForceField
+    shockwave.BrickColor = BrickColor.new("Really red")
+    shockwave.Shape = Enum.PartType.Ball
+    shockwave.Anchored = true
+    shockwave.CanCollide = false
+    shockwave.Position = position
+    shockwave.Transparency = 0.5
+    shockwave.Parent = gameFolder
+    
+    -- Tween hit effect
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Out, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(hitEffect, tweenInfo, {
+        Size = Vector3.new(6, 6, 6),
+        Transparency = 1
+    })
+    tween:Play()
+    
+    local shockwaveTween = TweenService:Create(shockwave, tweenInfo, {
+        Size = Vector3.new(15, 15, 15),
+        Transparency = 1
+    })
+    shockwaveTween:Play()
+    
+    Debris:AddItem(hitEffect, 1)
+    Debris:AddItem(shockwave, 1)
+end
+
+-- Create enhanced bullet with visual effects and raycast
+local function createBullet(origin, direction, targetPlayer)
+    -- First do a raycast for instant hit detection
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {gameFolder}
+    
+    local rayResult = workspace:Raycast(origin, direction * 500, raycastParams)
+    
+    -- Create visual bullet
+    local bullet = Instance.new("Part")
+    bullet.Name = "Bullet"
+    bullet.Size = Vector3.new(0.4, 0.4, 0.4)
+    bullet.Material = Enum.Material.Neon
+    bullet.BrickColor = BrickColor.new("New Yeller")
+    bullet.Shape = Enum.PartType.Ball
+    bullet.TopSurface = Enum.SurfaceType.Smooth
+    bullet.BottomSurface = Enum.SurfaceType.Smooth
+    bullet.CanCollide = false
+    bullet.CFrame = CFrame.new(origin)
+    bullet.Parent = gameFolder
+    
+    -- Glowing effect
+    local pointLight = Instance.new("PointLight")
+    pointLight.Brightness = 2
+    pointLight.Color = Color3.new(1, 1, 0)
+    pointLight.Range = 8
+    pointLight.Parent = bullet
+    
+    -- Simple trail
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = bullet
+    
+    local trail = Instance.new("Trail")
+    trail.Attachment0 = attachment
+    trail.Attachment1 = attachment
+    trail.Lifetime = 0.2
+    trail.MinLength = 0.1
+    trail.FaceCamera = true
+    trail.Color = ColorSequence.new(Color3.new(1, 1, 0))
+    trail.Transparency = NumberSequence.new(0, 0.8)
+    trail.Width = NumberSequence.new(0.5, 0)
     trail.Parent = bullet
     
-    -- Particle emitter for extra effect
-    local particleEmitter = Instance.new("ParticleEmitter")
-    particleEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-    particleEmitter.Rate = 100
-    particleEmitter.Lifetime = NumberRange.new(0.3, 0.5)
-    particleEmitter.Speed = NumberRange.new(5)
-    particleEmitter.SpreadAngle = Vector2.new(30, 30)
-    particleEmitter.Color = ColorSequence.new(Color3.new(1, 1, 0))
-    particleEmitter.LightEmission = 1
-    particleEmitter.LightInfluence = 0
-    particleEmitter.Size = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0.5),
-        NumberSequenceKeypoint.new(1, 0)
-    }
-    particleEmitter.Parent = bullet
-    
-    -- Bullet physics
+    -- Movement
     local bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.Velocity = direction * GAME_CONFIG.BULLET_SPEED
-    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVelocity.MaxForce = Vector3.new(10000, 10000, 10000)
     bodyVelocity.Parent = bullet
     
-    -- Bullet hit detection
+    -- If raycast hit the target player, damage them immediately
+    if rayResult and targetPlayer and targetPlayer.Character then
+        local hitPart = rayResult.Instance
+        local hitCharacter = hitPart.Parent
+        if hitCharacter == targetPlayer.Character or hitPart.Parent.Parent == targetPlayer.Character then
+            local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:TakeDamage(GAME_CONFIG.DAMAGE_PER_SHOT)
+                -- Create hit effect at raycast hit position
+                createHitEffect(rayResult.Position)
+            end
+        end
+    end
+    
+    -- Backup touch detection
+    local hasHit = false
     bullet.Touched:Connect(function(hit)
-        local humanoid = hit.Parent:FindFirstChild("Humanoid")
-        if humanoid and humanoid.Parent ~= bullet then
+        if hasHit then return end
+        
+        local humanoid = hit.Parent:FindFirstChild("Humanoid") or hit.Parent.Parent:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Parent:FindFirstChild("HumanoidRootPart") and hit.Parent ~= bullet then
+            hasHit = true
             humanoid:TakeDamage(GAME_CONFIG.DAMAGE_PER_SHOT)
-            
-            -- Create dramatic hit effect
-            local hitEffect = Instance.new("Part")
-            hitEffect.Name = "HitEffect"
-            hitEffect.Size = Vector3.new(2, 2, 2)
-            hitEffect.Material = Enum.Material.Neon
-            hitEffect.BrickColor = BrickColor.new("Really red")
-            hitEffect.Shape = Enum.PartType.Ball
-            hitEffect.Anchored = true
-            hitEffect.CanCollide = false
-            hitEffect.CFrame = bullet.CFrame
-            hitEffect.Transparency = 0
-            hitEffect.Parent = gameFolder
-            
-            local hitLight = Instance.new("PointLight")
-            hitLight.Brightness = 20
-            hitLight.Color = Color3.new(1, 0, 0)
-            hitLight.Range = 30
-            hitLight.Parent = hitEffect
-            
-            -- Create explosion particles
-            local explosion = Instance.new("ParticleEmitter")
-            explosion.Texture = "rbxasset://textures/particles/explosion.dds"
-            explosion.Rate = 0
-            explosion.Lifetime = NumberRange.new(0.5, 1)
-            explosion.Speed = NumberRange.new(20, 40)
-            explosion.SpreadAngle = Vector2.new(360, 360)
-            explosion.Color = ColorSequence.new{
-                ColorSequenceKeypoint.new(0, Color3.new(1, 1, 0)),
-                ColorSequenceKeypoint.new(0.5, Color3.new(1, 0.5, 0)),
-                ColorSequenceKeypoint.new(1, Color3.new(1, 0, 0))
-            }
-            explosion.LightEmission = 1
-            explosion.LightInfluence = 0
-            explosion.Size = NumberSequence.new{
-                NumberSequenceKeypoint.new(0, 2),
-                NumberSequenceKeypoint.new(0.5, 4),
-                NumberSequenceKeypoint.new(1, 0)
-            }
-            explosion.Parent = hitEffect
-            explosion:Emit(50)
-            
-            -- Create shockwave
-            local shockwave = Instance.new("Part")
-            shockwave.Name = "Shockwave"
-            shockwave.Size = Vector3.new(0.1, 0.1, 0.1)
-            shockwave.Material = Enum.Material.ForceField
-            shockwave.BrickColor = BrickColor.new("Really red")
-            shockwave.Shape = Enum.PartType.Ball
-            shockwave.Anchored = true
-            shockwave.CanCollide = false
-            shockwave.CFrame = bullet.CFrame
-            shockwave.Transparency = 0.5
-            shockwave.Parent = gameFolder
-            
-            -- Tween hit effect
-            local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Out, Enum.EasingDirection.Out)
-            local tween = TweenService:Create(hitEffect, tweenInfo, {
-                Size = Vector3.new(6, 6, 6),
-                Transparency = 1
-            })
-            tween:Play()
-            
-            local shockwaveTween = TweenService:Create(shockwave, tweenInfo, {
-                Size = Vector3.new(15, 15, 15),
-                Transparency = 1
-            })
-            shockwaveTween:Play()
-            
-            Debris:AddItem(hitEffect, 1)
-            Debris:AddItem(shockwave, 1)
+            createHitEffect(bullet.Position)
             bullet:Destroy()
         end
     end)
@@ -288,12 +287,23 @@ local function checkPlayerMovement(player, turret)
             playerData.lastFireTime = currentTime
             playerData.violations = playerData.violations + 1
             
-            -- Calculate shot direction
+            -- Calculate shot with prediction
             local origin = turret.Position
-            local direction = (rootPart.Position - origin).Unit
+            local targetPos = rootPart.Position
             
-            -- Create and fire bullet
-            createBullet(origin, direction)
+            -- Predict where player will be based on their velocity
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                local velocity = rootPart.AssemblyLinearVelocity
+                local distance = (targetPos - origin).Magnitude
+                local timeToHit = distance / GAME_CONFIG.BULLET_SPEED
+                targetPos = targetPos + (velocity * timeToHit * GAME_CONFIG.PREDICTION_FACTOR)
+            end
+            
+            local direction = (targetPos - origin).Unit
+            
+            -- Create and fire bullet with player reference for better hit detection
+            createBullet(origin, direction, player)
             
             -- Enhanced turret fire effects
             -- Muzzle flash
@@ -457,7 +467,7 @@ end
 local function initializeGame()
     -- Create turret
     local turret = createTurret()
-    turret.CFrame = CFrame.new(0, 10, -50)
+    turret.CFrame = CFrame.new(0, 10, -30) -- Closer to spawn
     turret.Parent = gameFolder
     
     -- Create UI template
