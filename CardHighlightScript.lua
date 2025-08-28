@@ -11,6 +11,8 @@ local OUTLINE_COLOR = Color3.fromRGB(255, 200, 50) -- Golden outline
 local FILL_TRANSPARENCY = 0.5 -- How transparent the fill is (0 = opaque, 1 = invisible)
 local OUTLINE_TRANSPARENCY = 0 -- How transparent the outline is
 local TWEEN_TIME = 0.2 -- Time for highlight fade in/out
+local FLIP_DURATION = 0.4 -- Time for card flip animation
+local CARD_DISPLAY_TIME = 3 -- Time to show flipped card before flipping back
 
 -- References
 local player = Players.LocalPlayer
@@ -29,6 +31,11 @@ local activeTweens = {}
 local currentHoveredPart = nil
 local isSeatedAtTable = false
 local mouseConnection = nil
+
+-- Card flipping state
+local flippingCards = {} -- Track which cards are currently flipping
+local cardFlipTweens = {} -- Store flip animation tweens
+local originalCFrames = {} -- Store original CFrames for cards
 
 -- Create tween info for smooth transitions
 local tweenInfo = TweenInfo.new(
@@ -110,6 +117,101 @@ end
 -- Function to check if a part is a card (child of Table1)
 local function isCard(part)
 	return part and part.Parent == table1 and part:IsA("BasePart")
+end
+
+-- Function to flip a card
+local function flipCard(card)
+	-- Don't flip if already flipping
+	if flippingCards[card] then
+		return
+	end
+	
+	flippingCards[card] = true
+	
+	-- Store original CFrame if not already stored
+	if not originalCFrames[card] then
+		originalCFrames[card] = card.CFrame
+	end
+	
+	-- Cancel any existing flip tweens for this card
+	if cardFlipTweens[card] then
+		for _, tween in ipairs(cardFlipTweens[card]) do
+			tween:Cancel()
+		end
+		cardFlipTweens[card] = nil
+	end
+	
+	cardFlipTweens[card] = {}
+	
+	-- Create flip animation
+	local flipTweenInfo = TweenInfo.new(
+		FLIP_DURATION / 2,
+		Enum.EasingStyle.Quart,
+		Enum.EasingDirection.In
+	)
+	
+	local flipBackTweenInfo = TweenInfo.new(
+		FLIP_DURATION / 2,
+		Enum.EasingStyle.Quart,
+		Enum.EasingDirection.Out
+	)
+	
+	-- Calculate flip rotations
+	local originalCFrame = originalCFrames[card]
+	local halfFlipCFrame = originalCFrame * CFrame.Angles(math.rad(90), 0, 0)
+	local fullFlipCFrame = originalCFrame * CFrame.Angles(math.rad(180), 0, 0)
+	
+	-- First half of flip (0 to 90 degrees)
+	local flipTween1 = TweenService:Create(card, flipTweenInfo, {
+		CFrame = halfFlipCFrame
+	})
+	
+	-- Second half of flip (90 to 180 degrees)
+	local flipTween2 = TweenService:Create(card, flipBackTweenInfo, {
+		CFrame = fullFlipCFrame
+	})
+	
+	table.insert(cardFlipTweens[card], flipTween1)
+	table.insert(cardFlipTweens[card], flipTween2)
+	
+	-- Play the flip animation
+	flipTween1:Play()
+	flipTween1.Completed:Connect(function()
+		flipTween2:Play()
+		flipTween2.Completed:Connect(function()
+			-- Schedule flip back after display time
+			task.delay(CARD_DISPLAY_TIME, function()
+				-- Make sure card wasn't removed
+				if not card.Parent then
+					flippingCards[card] = nil
+					cardFlipTweens[card] = nil
+					return
+				end
+				
+				-- Flip back animation
+				local flipBackTween1 = TweenService:Create(card, flipTweenInfo, {
+					CFrame = halfFlipCFrame
+				})
+				
+				local flipBackTween2 = TweenService:Create(card, flipBackTweenInfo, {
+					CFrame = originalCFrame
+				})
+				
+				table.insert(cardFlipTweens[card], flipBackTween1)
+				table.insert(cardFlipTweens[card], flipBackTween2)
+				
+				flipBackTween1:Play()
+				flipBackTween1.Completed:Connect(function()
+					flipBackTween2:Play()
+					flipBackTween2.Completed:Connect(function()
+						-- Clean up
+						flippingCards[card] = nil
+						cardFlipTweens[card] = nil
+					end)
+				end)
+			end)
+		end)
+	end)
 end
 
 -- Function to check if player is seated at the table
@@ -215,16 +317,21 @@ table1.ChildRemoved:Connect(function(child)
 	end
 end)
 
--- Optional: Add click detection for cards
+-- Click detection for cards
 mouse.Button1Down:Connect(function()
 	-- Only process clicks if seated at table
 	if not isSeatedAtTable then return end
 	
 	if currentHoveredPart and isCard(currentHoveredPart) then
-		-- Card was clicked, you can add your game logic here
+		-- Card was clicked
 		print("Clicked card:", currentHoveredPart.Name)
 		
-		-- Example: Add a little pulse effect
+		-- Flip the card
+		coroutine.wrap(function()
+			flipCard(currentHoveredPart)
+		end)()
+		
+		-- Add a little pulse effect to the highlight
 		local highlight = highlights[currentHoveredPart]
 		if highlight then
 			-- Quick pulse
@@ -262,6 +369,23 @@ player.CharacterRemoving:Connect(function()
 		tween:Cancel()
 	end
 	activeTweens = {}
+	
+	-- Cancel all flip tweens
+	for card, tweens in pairs(cardFlipTweens) do
+		for _, tween in ipairs(tweens) do
+			tween:Cancel()
+		end
+	end
+	cardFlipTweens = {}
+	flippingCards = {}
+	
+	-- Restore original CFrames for flipped cards
+	for card, originalCFrame in pairs(originalCFrames) do
+		if card.Parent then
+			card.CFrame = originalCFrame
+		end
+	end
+	originalCFrames = {}
 	
 	-- Destroy all highlights
 	for part, highlight in pairs(highlights) do
