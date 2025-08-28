@@ -42,90 +42,142 @@ local function createCountdownUI()
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = playerGui
 	
-	-- Create background frame
-	local backgroundFrame = Instance.new("Frame")
-	backgroundFrame.Name = "BackgroundFrame"
-	backgroundFrame.Size = UDim2.new(0, 400, 0, 200)
-	backgroundFrame.Position = UDim2.new(0.5, -200, 0.5, -100)
-	backgroundFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-	backgroundFrame.BackgroundTransparency = 0.3
-	backgroundFrame.BorderSizePixel = 0
-	backgroundFrame.Parent = screenGui
-	
-	-- Add rounded corners
-	local uiCorner = Instance.new("UICorner")
-	uiCorner.CornerRadius = UDim.new(0, 12)
-	uiCorner.Parent = backgroundFrame
-	
-	-- Add gradient
-	local uiGradient = Instance.new("UIGradient")
-	uiGradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 50, 50)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
-	})
-	uiGradient.Rotation = 90
-	uiGradient.Parent = backgroundFrame
+	-- Create container frame (invisible, just for positioning)
+	local containerFrame = Instance.new("Frame")
+	containerFrame.Name = "ContainerFrame"
+	containerFrame.Size = UDim2.new(0, 300, 0, 150)
+	containerFrame.Position = UDim2.new(0.5, -150, 0, 50) -- Top center
+	containerFrame.BackgroundTransparency = 1
+	containerFrame.Parent = screenGui
 	
 	-- Create title label
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "TitleLabel"
-	titleLabel.Size = UDim2.new(1, -20, 0, 60)
-	titleLabel.Position = UDim2.new(0, 10, 0, 10)
+	titleLabel.Size = UDim2.new(1, 0, 0, 50)
+	titleLabel.Position = UDim2.new(0, 0, 0, 0)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Text = "Game Starting"
-	titleLabel.TextColor3 = Color3.new(1, 1, 1)
+	titleLabel.TextColor3 = Color3.new(1, 1, 1) -- White
 	titleLabel.TextScaled = true
 	titleLabel.Font = Enum.Font.SourceSansBold
-	titleLabel.Parent = backgroundFrame
+	titleLabel.Parent = containerFrame
+	
+	-- Add text stroke to title
+	local titleStroke = Instance.new("UIStroke")
+	titleStroke.Color = Color3.new(0, 0, 0) -- Black stroke
+	titleStroke.Thickness = 3
+	titleStroke.Parent = titleLabel
 	
 	-- Create countdown label
 	local countdownLabel = Instance.new("TextLabel")
 	countdownLabel.Name = "CountdownLabel"
-	countdownLabel.Size = UDim2.new(1, -20, 0, 80)
-	countdownLabel.Position = UDim2.new(0, 10, 0, 80)
+	countdownLabel.Size = UDim2.new(1, 0, 0, 80)
+	countdownLabel.Position = UDim2.new(0, 0, 0, 60)
 	countdownLabel.BackgroundTransparency = 1
 	countdownLabel.Text = "3"
-	countdownLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+	countdownLabel.TextColor3 = Color3.new(1, 1, 1) -- White
 	countdownLabel.TextScaled = true
 	countdownLabel.Font = Enum.Font.SourceSansBold
-	countdownLabel.Parent = backgroundFrame
+	countdownLabel.Parent = containerFrame
 	
 	-- Add text stroke for better visibility
-	local textStroke = Instance.new("UIStroke")
-	textStroke.Color = Color3.new(0, 0, 0)
-	textStroke.Thickness = 2
-	textStroke.Parent = countdownLabel
+	local countdownStroke = Instance.new("UIStroke")
+	countdownStroke.Color = Color3.new(0, 0, 0) -- Black stroke
+	countdownStroke.Thickness = 4
+	countdownStroke.Parent = countdownLabel
 	
-	-- Initial animation
-	backgroundFrame.Size = UDim2.new(0, 0, 0, 0)
-	backgroundFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	-- Initial animation (fade in from top)
+	containerFrame.Position = UDim2.new(0.5, -150, 0, -50)
+	titleLabel.TextTransparency = 1
+	countdownLabel.TextTransparency = 1
+	titleStroke.Transparency = 1
+	countdownStroke.Transparency = 1
 	
-	local showTween = TweenService:Create(backgroundFrame, 
-		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{
-			Size = UDim2.new(0, 400, 0, 200),
-			Position = UDim2.new(0.5, -200, 0.5, -100)
-		}
+	-- Animate in
+	local positionTween = TweenService:Create(containerFrame, 
+		TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{Position = UDim2.new(0.5, -150, 0, 50)}
 	)
-	showTween:Play()
 	
-	return screenGui, countdownLabel
+	local fadeInTween1 = TweenService:Create(titleLabel,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{TextTransparency = 0}
+	)
+	
+	local fadeInTween2 = TweenService:Create(countdownLabel,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{TextTransparency = 0}
+	)
+	
+	local fadeInTween3 = TweenService:Create(titleStroke,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{Transparency = 0}
+	)
+	
+	local fadeInTween4 = TweenService:Create(countdownStroke,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{Transparency = 0}
+	)
+	
+	positionTween:Play()
+	fadeInTween1:Play()
+	fadeInTween2:Play()
+	fadeInTween3:Play()
+	fadeInTween4:Play()
+	
+	return screenGui, countdownLabel, containerFrame
 end
 
 -- Destroy countdown UI with animation
 local function destroyCountdownUI()
 	if countdownGui then
-		local backgroundFrame = countdownGui:FindFirstChild("BackgroundFrame")
-		if backgroundFrame then
-			local hideTween = TweenService:Create(backgroundFrame,
-				TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-				{
-					Size = UDim2.new(0, 0, 0, 0),
-					Position = UDim2.new(0.5, 0, 0.5, 0)
-				}
+		local containerFrame = countdownGui:FindFirstChild("ContainerFrame")
+		if containerFrame then
+			local titleLabel = containerFrame:FindFirstChild("TitleLabel")
+			local countdownLabel = containerFrame:FindFirstChild("CountdownLabel")
+			local titleStroke = titleLabel and titleLabel:FindFirstChildOfClass("UIStroke")
+			local countdownStroke = countdownLabel and countdownLabel:FindFirstChildOfClass("UIStroke")
+			
+			-- Fade out animations
+			local fadeOutTween1 = TweenService:Create(containerFrame,
+				TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				{Position = UDim2.new(0.5, -150, 0, -50)}
 			)
-			hideTween:Play()
-			hideTween.Completed:Connect(function()
+			
+			if titleLabel then
+				local fadeOutTween2 = TweenService:Create(titleLabel,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+					{TextTransparency = 1}
+				)
+				fadeOutTween2:Play()
+			end
+			
+			if countdownLabel then
+				local fadeOutTween3 = TweenService:Create(countdownLabel,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+					{TextTransparency = 1}
+				)
+				fadeOutTween3:Play()
+			end
+			
+			if titleStroke then
+				local fadeOutTween4 = TweenService:Create(titleStroke,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+					{Transparency = 1}
+				)
+				fadeOutTween4:Play()
+			end
+			
+			if countdownStroke then
+				local fadeOutTween5 = TweenService:Create(countdownStroke,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+					{Transparency = 1}
+				)
+				fadeOutTween5:Play()
+			end
+			
+			fadeOutTween1:Play()
+			fadeOutTween1.Completed:Connect(function()
 				countdownGui:Destroy()
 				countdownGui = nil
 			end)
@@ -267,38 +319,50 @@ local function startGameCountdown()
 	
 	-- Countdown logic
 	currentCountdown = COUNTDOWN_TIME
+	local lastDisplayedNumber = COUNTDOWN_TIME
 	
 	local countdownConnection
 	countdownConnection = RunService.Heartbeat:Connect(function(dt)
 		currentCountdown = currentCountdown - dt
 		
-		local displayTime = math.ceil(currentCountdown)
-		if displayTime >= 0 then
+		local displayTime = math.ceil(math.max(0, currentCountdown)) -- Clamp to 0 minimum
+		
+		if currentCountdown > 0 then
 			countdownLabel.Text = tostring(displayTime)
 			
 			-- Pulse effect on countdown change
-			if displayTime ~= tonumber(countdownLabel.Text) then
+			if displayTime ~= lastDisplayedNumber and displayTime >= 0 then
+				lastDisplayedNumber = displayTime
+				
+				-- Scale pulse effect
 				local pulseTween = TweenService:Create(countdownLabel,
-					TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-					{TextTransparency = 0.5}
+					TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+					{TextScaled = false, Size = UDim2.new(1.2, 0, 0, 96)} -- Slightly larger
 				)
 				pulseTween:Play()
 				pulseTween.Completed:Connect(function()
 					local returnTween = TweenService:Create(countdownLabel,
-						TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-						{TextTransparency = 0}
+						TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+						{TextScaled = true, Size = UDim2.new(1, 0, 0, 80)} -- Back to normal
 					)
 					returnTween:Play()
 				end)
 			end
+		elseif currentCountdown > -0.5 then
+			-- Show "GO!" for a brief moment
+			if countdownLabel.Text ~= "GO!" then
+				countdownLabel.Text = "GO!"
+				-- Big pulse for GO!
+				local goPulseTween = TweenService:Create(countdownLabel,
+					TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+					{TextScaled = false, Size = UDim2.new(1.5, 0, 0, 120)}
+				)
+				goPulseTween:Play()
+			end
 		else
 			-- Countdown finished
 			countdownConnection:Disconnect()
-			countdownLabel.Text = "GO!"
-			
-			wait(0.5)
 			destroyCountdownUI()
-			
 			isGameStarting = false
 			print("[GameStart] Game started!")
 		end
