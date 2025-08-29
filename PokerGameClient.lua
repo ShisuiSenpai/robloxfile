@@ -52,15 +52,15 @@ local function startWaitingAnimation()
 	
 	local dots = 0
 	waitingDotsConnection = RunService.Heartbeat:Connect(function()
-		dots = (dots + 1) % 40 -- Update every ~0.67 seconds (40 frames at 60fps)
+		dots = (dots + 1) % 120 -- Update every ~2 seconds (120 frames at 60fps)
 		
 		if dots == 0 then
 			turnLabel.Text = "Waiting for players"
-		elseif dots == 10 then
-			turnLabel.Text = "Waiting for players."
-		elseif dots == 20 then
-			turnLabel.Text = "Waiting for players.."
 		elseif dots == 30 then
+			turnLabel.Text = "Waiting for players."
+		elseif dots == 60 then
+			turnLabel.Text = "Waiting for players.."
+		elseif dots == 90 then
 			turnLabel.Text = "Waiting for players..."
 		end
 	end)
