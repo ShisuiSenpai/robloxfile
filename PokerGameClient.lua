@@ -212,6 +212,11 @@ end
 
 -- Update card highlighting based on game state
 local function updateCardHighlighting()
+	print(string.format("[HIGHLIGHT DEBUG] Updating highlights | Hovered: %s | Active: %s | MyTurn: %s", 
+		currentHoveredCard and currentHoveredCard.Name or "nil",
+		tostring(gameActive),
+		tostring(isMyTurn)))
+		
 	for card, highlight in pairs(cardHighlights) do
 		if selectedCards[card] or flippedCards[card] then
 			-- Card is selected/flipped - always show as gray
@@ -220,10 +225,14 @@ local function updateCardHighlighting()
 			highlight.Enabled = true
 		elseif currentHoveredCard == card and isSeatedAtTable() and gameActive and isMyTurn then
 			-- Only show green highlight when it's actually your turn
+			print("[HIGHLIGHT DEBUG] Enabling highlight for:", card.Name)
 			highlight.FillColor = HIGHLIGHT_COLOR
 			highlight.OutlineColor = HIGHLIGHT_COLOR
 			highlight.Enabled = true
 		else
+			if highlight.Enabled and currentHoveredCard == card then
+				print("[HIGHLIGHT DEBUG] Disabling highlight for:", card.Name)
+			end
 			highlight.Enabled = false
 		end
 	end
@@ -334,6 +343,7 @@ end
 local function onMouseMove()
 	if not isSeatedAtTable() then
 		if currentHoveredCard then
+			print("[HOVER DEBUG] Not seated - clearing hover from:", currentHoveredCard.Name)
 			currentHoveredCard = nil
 			updateCardHighlighting()
 		end
@@ -343,20 +353,35 @@ local function onMouseMove()
 	-- Get the mouse target, ignoring any GUI elements
 	local target = mouse.Target
 	
+	-- Debug what the mouse is hitting
+	if target then
+		print(string.format("[HOVER DEBUG] Mouse.Target: %s | Parent: %s | ClassName: %s", 
+			target.Name, 
+			target.Parent and target.Parent.Name or "nil",
+			target.ClassName))
+	else
+		print("[HOVER DEBUG] Mouse.Target is nil")
+	end
+	
 	-- Check if we're hovering over a card (or a child of a card like a decal)
 	local cardTarget = nil
 	if target then
 		if target.Parent == table1 and target:IsA("BasePart") and target.Name ~= "CameraPartTable1" then
 			cardTarget = target
+			print("[HOVER DEBUG] Direct card hit:", cardTarget.Name)
 		elseif target.Parent and target.Parent.Parent == table1 and target.Parent:IsA("BasePart") then
 			-- Handle case where we're hovering over a decal/texture inside a card
 			cardTarget = target.Parent
+			print("[HOVER DEBUG] Hit card child, parent card:", cardTarget.Name)
 		end
 	end
 	
 	if cardTarget then
 		-- Only update if the target has actually changed
 		if currentHoveredCard ~= cardTarget then
+			print(string.format("[HOVER DEBUG] Changing hover from '%s' to '%s'", 
+				currentHoveredCard and currentHoveredCard.Name or "nil", 
+				cardTarget.Name))
 			currentHoveredCard = cardTarget
 			updateCardHighlighting()
 			
@@ -364,10 +389,14 @@ local function onMouseMove()
 			if soundsEnabled and gameActive and isMyTurn and not selectedCards[cardTarget] then
 				SoundManager:PlayHoverSound(cardTarget.Position)
 			end
+		else
+			-- Mouse still on same card
+			print("[HOVER DEBUG] Still on same card:", cardTarget.Name)
 		end
 	else
 		-- Only clear if we actually had a card hovered
 		if currentHoveredCard then
+			print("[HOVER DEBUG] Lost hover, was on:", currentHoveredCard.Name)
 			currentHoveredCard = nil
 			updateCardHighlighting()
 		end
