@@ -294,6 +294,7 @@ local function updateCardHighlighting(tableData)
 		end
 	end
 	-- print("[DEBUG] updateCardHighlighting - Table:", tableData.id, "Processed:", highlightCount, "highlights, gameActive:", tableData.gameActive, "isMyTurn:", tableData.isMyTurn)
+end
 
 -- Flip card animation
 local function flipCard(tableData, card)
@@ -397,9 +398,9 @@ local function onMouseClick()
 	if not currentTable or not currentTable.gameActive or not currentTable.isMyTurn or 
 	   not currentTable.currentHoveredCard or currentTable.isCountdownActive then
 		-- print("[DEBUG] Click blocked - gameActive:", currentTable and currentTable.gameActive,
-			"isMyTurn:", currentTable and currentTable.isMyTurn,
-			"hoveredCard:", currentTable and currentTable.currentHoveredCard and currentTable.currentHoveredCard.Name or "none",
-			"isCountdown:", currentTable and currentTable.isCountdownActive)
+		--	"isMyTurn:", currentTable and currentTable.isMyTurn,
+		--	"hoveredCard:", currentTable and currentTable.currentHoveredCard and currentTable.currentHoveredCard.Name or "none",
+		--	"isCountdown:", currentTable and currentTable.isCountdownActive)
 		return
 	end
 	
@@ -469,7 +470,7 @@ local checkSeatingStatus = function(tableData)
 	end
 	
 	-- print("[DEBUG] Table", tableData.id, "- isSeated:", isSeated, "bothSeated:", bothSeated,
-		"gameActive:", tableData.gameActive, "isCountdownActive:", tableData.isCountdownActive)
+	--	"gameActive:", tableData.gameActive, "isCountdownActive:", tableData.isCountdownActive)
 	
 	-- Update UI based on game state
 	if tableData.gameUI and tableData.gameUI.TurnFrame then
