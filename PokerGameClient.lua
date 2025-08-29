@@ -228,11 +228,18 @@ local function flipCard(card)
 	print("[PokerGame DEBUG] Card current position:", currentPos)
 	
 	-- Calculate flip rotations (keep position, only rotate)
-	-- Get the card's current orientation to preserve any initial rotation
-	local _, currentRotY, _ = card.CFrame:ToEulerAnglesXYZ()
+	-- Get the card's current CFrame
+	local currentCFrame = card.CFrame
 	
-	local halfFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(90), currentRotY, 0)
-	local fullFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(180), currentRotY, 0)
+	-- Try different flip approaches based on how cards are oriented
+	-- Most Roblox cards have faces on the top when flipped
+	-- We'll flip around the local X axis (like flipping a card on a table)
+	local halfFlipCFrame = currentCFrame * CFrame.Angles(math.rad(90), 0, 0)
+	local fullFlipCFrame = currentCFrame * CFrame.Angles(math.rad(180), 0, 0)
+	
+	print("[PokerGame DEBUG] Card orientation - Current:", currentCFrame)
+	print("[PokerGame DEBUG] Card orientation - Half flip:", halfFlipCFrame)
+	print("[PokerGame DEBUG] Card orientation - Full flip:", fullFlipCFrame)
 	
 	-- First half of flip
 	local flipTween1 = TweenService:Create(card, flipTweenInfo, {
@@ -271,12 +278,17 @@ local function resetCard(card)
 		flipTweens[card] = nil
 	end
 	
-	-- Reset rotation to face-down (keep current position)
-	local currentPos = card.Position
-	local faceDownCFrame = CFrame.new(currentPos) -- No rotation = face down
-	
-	print("[PokerGame DEBUG] Resetting", card.Name, "rotation at position:", currentPos)
-	card.CFrame = faceDownCFrame
+		-- Reset rotation to face-down (use original stored CFrame)
+	local originalCFrame = originalCardCFrames[card]
+	if originalCFrame then
+		print("[PokerGame DEBUG] Resetting", card.Name, "to original CFrame")
+		card.CFrame = originalCFrame
+	else
+		print("[PokerGame DEBUG] WARNING: No original CFrame for", card.Name)
+		-- Fallback: just reset position without rotation
+		local currentPos = card.Position
+		card.CFrame = CFrame.new(currentPos)
+	end
 	
 	-- Clear flip state
 	flippedCards[card] = nil
