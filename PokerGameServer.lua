@@ -172,11 +172,59 @@ local function shuffleCards()
 	print("[PokerGame] Poker card shuffled")
 end
 
+-- Store original jump values
+local originalJumpPowers = {}
+
+-- Restore jumping for a player
+local function restoreJumping(player)
+	if player and player.Character and originalJumpPowers[player] then
+		local humanoid = player.Character:FindFirstChild("Humanoid")
+		if humanoid then
+			humanoid.JumpPower = originalJumpPowers[player].JumpPower or 50
+			humanoid.JumpHeight = originalJumpPowers[player].JumpHeight or 7.2
+			originalJumpPowers[player] = nil
+			print("[PokerGame] Restored jumping for", player.Name)
+		end
+	end
+end
+
 -- Start the game
+
 local function startGame()
 	if GameState.isActive then return end
 	
 	print("[PokerGame] Starting game with players:", GameState.player1.Name, "vs", GameState.player2.Name)
+	
+	-- Disable jumping for both players
+	if GameState.player1 and GameState.player1.Character then
+		local humanoid = GameState.player1.Character:FindFirstChild("Humanoid")
+		if humanoid then
+			-- Store original values
+			originalJumpPowers[GameState.player1] = {
+				JumpPower = humanoid.JumpPower,
+				JumpHeight = humanoid.JumpHeight
+			}
+			-- Disable jumping
+			humanoid.JumpPower = 0
+			humanoid.JumpHeight = 0
+			print("[PokerGame] Disabled jumping for", GameState.player1.Name)
+		end
+	end
+	
+	if GameState.player2 and GameState.player2.Character then
+		local humanoid = GameState.player2.Character:FindFirstChild("Humanoid")
+		if humanoid then
+			-- Store original values
+			originalJumpPowers[GameState.player2] = {
+				JumpPower = humanoid.JumpPower,
+				JumpHeight = humanoid.JumpHeight
+			}
+			-- Disable jumping
+			humanoid.JumpPower = 0
+			humanoid.JumpHeight = 0
+			print("[PokerGame] Disabled jumping for", GameState.player2.Name)
+		end
+	end
 	
 	-- Wait for countdown to complete (3 seconds countdown + 1 second for "GO!")
 	wait(4)
@@ -210,6 +258,10 @@ local function endGame(winner, loser, reason)
 	
 	GameState.isActive = false
 	print("[PokerGame] Game ended! Winner:", winner and winner.Name or "None", "Reason:", reason)
+	
+	-- Restore jumping for both players immediately
+	restoreJumping(GameState.player1)
+	restoreJumping(GameState.player2)
 	
 	-- Notify all clients
 	gameStateEvent:FireAllClients("game_end", {
@@ -357,10 +409,16 @@ player1Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
 				(remainingPlayer == GameState.player1) and GameState.player2 or GameState.player1,
 				"player_left")
 		else
-			-- Both left
+			-- Both left - restore jumping for any remaining players
+			restoreJumping(GameState.player1)
+			restoreJumping(GameState.player2)
 			GameState.isActive = false
 			resetCards()
 		end
+	elseif not bothSeated then
+		-- Someone left during countdown (not active game yet) - restore jumping
+		restoreJumping(GameState.player1)
+		restoreJumping(GameState.player2)
 	end
 end)
 
@@ -383,10 +441,16 @@ player2Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
 				(remainingPlayer == GameState.player1) and GameState.player2 or GameState.player1,
 				"player_left")
 		else
-			-- Both left
+			-- Both left - restore jumping for any remaining players
+			restoreJumping(GameState.player1)
+			restoreJumping(GameState.player2)
 			GameState.isActive = false
 			resetCards()
 		end
+	elseif not bothSeated then
+		-- Someone left during countdown (not active game yet) - restore jumping
+		restoreJumping(GameState.player1)
+		restoreJumping(GameState.player2)
 	end
 end)
 
