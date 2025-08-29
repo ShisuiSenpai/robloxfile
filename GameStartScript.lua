@@ -272,18 +272,7 @@ local function onCharacterAdded(character)
 				isGameStarting = false
 				destroyCountdownUI()
 				
-				-- Stop any ongoing shuffle
-				for _, tween in pairs(shuffleTweens) do
-					tween:Cancel()
-				end
-				shuffleTweens = {}
-				
-				-- Return cards to original positions
-				for card, originalCFrame in pairs(originalPositions) do
-					if card.Parent then
-						card.CFrame = originalCFrame
-					end
-				end
+								-- Game cancelled
 				
 				print("[GameStart] Game start cancelled - player left seat")
 			end

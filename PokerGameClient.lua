@@ -47,13 +47,14 @@ local statusLabel = nil
 -- Store all card positions at startup
 local function storeOriginalCardPositions()
 	originalCardCFrames = {}
+	local count = 0
 	for _, card in ipairs(table1:GetChildren()) do
 		if card:IsA("BasePart") then
 			originalCardCFrames[card] = card.CFrame
-			print("[PokerGame DEBUG] Stored original position for", card.Name, "at", card.CFrame.Position)
+			count = count + 1
 		end
 	end
-	print("[PokerGame] Stored", #originalCardCFrames, "original card positions")
+	print("[PokerGame] Stored", count, "original card positions")
 end
 
 -- Animate waiting dots
@@ -196,16 +197,15 @@ local flipTweens = {}
 
 -- Flip a card animation
 local function flipCard(card)
-	if flippedCards[card] then return end
+	print("[PokerGame DEBUG] flipCard called for", card.Name)
+	
+	if flippedCards[card] then 
+		print("[PokerGame DEBUG] Card already flipped")
+		return 
+	end
+	
 	flippedCards[card] = true
 	selectedCards[card] = true
-	
-	-- Get the original CFrame (should already be stored)
-	local originalCFrame = originalCardCFrames[card]
-	if not originalCFrame then
-		print("[PokerGame] Warning: No original CFrame for card", card.Name)
-		originalCFrame = card.CFrame
-	end
 	
 	-- Cancel any existing flip tweens for this card
 	if flipTweens[card] then
@@ -222,8 +222,12 @@ local function flipCard(card)
 		Enum.EasingDirection.InOut
 	)
 	
-	-- Calculate flip rotations (keep position, only rotate)
+	-- Get current position and rotation
 	local currentPos = card.Position
+	
+	print("[PokerGame DEBUG] Card current position:", currentPos)
+	
+	-- Calculate flip rotations (keep position, only rotate)
 	local halfFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(90), 0, 0)
 	local fullFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(180), 0, 0)
 	
@@ -240,8 +244,11 @@ local function flipCard(card)
 	table.insert(flipTweens[card], flipTween1)
 	table.insert(flipTweens[card], flipTween2)
 	
+	print("[PokerGame DEBUG] Starting flip animation")
+	
 	flipTween1:Play()
 	flipTween1.Completed:Connect(function()
+		print("[PokerGame DEBUG] First half of flip complete")
 		flipTween2:Play()
 	end)
 	
@@ -467,6 +474,8 @@ end)
 
 -- Handle card flip events from server
 cardFlipEvent.OnClientEvent:Connect(function(cardOrAction)
+	print("[PokerGame DEBUG] cardFlipEvent received:", cardOrAction)
+	
 	if cardOrAction == "reset_all_cards" then
 		-- Reset all cards to face down
 		for _, card in ipairs(table1:GetChildren()) do
