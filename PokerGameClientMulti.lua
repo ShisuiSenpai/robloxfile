@@ -280,12 +280,12 @@ local function updateCardHighlighting(tableData)
 	for card, highlight in pairs(tableData.cardHighlights) do
 		highlightCount = highlightCount + 1
 		if tableData.selectedCards[card] or tableData.flippedCards[card] then
-			highlight.FillColor3 = SELECTED_CARD_COLOR
+			highlight.FillColor = SELECTED_CARD_COLOR
 			highlight.OutlineColor = SELECTED_CARD_COLOR
 			highlight.Enabled = true
 			-- print("[DEBUG] Card", card.Name, "highlighted as SELECTED/FLIPPED")
 		elseif tableData.currentHoveredCard == card and tableData.gameActive and tableData.isMyTurn then
-			highlight.FillColor3 = HIGHLIGHT_COLOR
+			highlight.FillColor = HIGHLIGHT_COLOR
 			highlight.OutlineColor = HIGHLIGHT_COLOR
 			highlight.Enabled = true
 			-- print("[DEBUG] Card", card.Name, "highlighted as HOVERED - isMyTurn:", tableData.isMyTurn)
