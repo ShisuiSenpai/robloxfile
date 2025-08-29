@@ -174,6 +174,9 @@ local function startGame()
 	
 	print("[PokerGame] Starting game with players:", GameState.player1.Name, "vs", GameState.player2.Name)
 	
+	-- Wait for countdown to complete (3 seconds countdown + 1 second for "GO!")
+	wait(4)
+	
 	GameState.isActive = true
 	GameState.turnNumber = 1
 	
@@ -328,6 +331,10 @@ player1Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
 	if bothSeated and not GameState.isActive then
 		-- Both players seated - start game
 		wait(0.5) -- Small delay to ensure everything is loaded
+		
+		-- Notify clients that countdown is starting
+		gameStateEvent:FireAllClients("countdown_start")
+		
 		startGame()
 	elseif not bothSeated and GameState.isActive then
 		-- Someone left during game
@@ -350,6 +357,10 @@ player2Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
 	if bothSeated and not GameState.isActive then
 		-- Both players seated - start game
 		wait(0.5) -- Small delay to ensure everything is loaded
+		
+		-- Notify clients that countdown is starting
+		gameStateEvent:FireAllClients("countdown_start")
+		
 		startGame()
 	elseif not bothSeated and GameState.isActive then
 		-- Someone left during game

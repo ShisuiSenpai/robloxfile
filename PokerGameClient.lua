@@ -36,6 +36,7 @@ local selectedCards = {}
 local cardHighlights = {}
 local flippedCards = {}
 local originalCardCFrames = {}
+local isCountdownActive = false -- Track if countdown is in progress
 local currentHoveredCard = nil
 local waitingDotsConnection = nil
 
@@ -346,7 +347,7 @@ end
 
 -- Handle mouse click
 local function onMouseClick()
-	if not gameActive or not isMyTurn or not currentHoveredCard then
+	if not gameActive or not isMyTurn or not currentHoveredCard or isCountdownActive then
 		return
 	end
 	
@@ -360,13 +361,30 @@ end
 
 -- Handle game state updates
 gameStateEvent.OnClientEvent:Connect(function(state, data)
-	if state == "game_start" then
+	if state == "countdown_start" then
+		-- Countdown is starting, disable interactions
+		isCountdownActive = true
+		gameActive = false
+		
+		-- Hide turn UI during countdown
+		if gameUI then
+			gameUI.TurnFrame.Visible = false
+		end
+		
+	elseif state == "game_start" then
+		-- Countdown is complete, game actually starts
+		isCountdownActive = false
 		gameActive = true
 		selectedCards = {}
 		flippedCards = {}
 		
 		-- Stop waiting animation
 		stopWaitingAnimation()
+		
+		-- Show turn UI
+		if gameUI then
+			gameUI.TurnFrame.Visible = true
+		end
 		
 		-- Update UI
 		local isPlayer1 = data.player1 == player.Name
