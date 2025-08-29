@@ -219,39 +219,19 @@ local function shuffleArray(array)
 	return shuffled
 end
 
--- Create local parts for shuffle animation (client-side only)
-local function createLocalCardCopies()
-	local localCards = {}
-	local cardsFolder = Instance.new("Folder")
-	cardsFolder.Name = "LocalShuffleCards"
-	cardsFolder.Parent = workspace.CurrentCamera
-	
-	for _, card in ipairs(getCards()) do
-		local localCard = card:Clone()
-		localCard.Parent = cardsFolder
-		localCard.Anchored = true
-		localCard.CanCollide = false
-		localCard.CanQuery = false
-		localCard.CanTouch = false
-		
-		-- Make original card invisible during animation
-		card.Transparency = 1
-		
-		table.insert(localCards, {
-			original = card,
-			localCopy = localCard,
-			originalTransparency = card.Transparency
-		})
-	end
-	
-	return localCards, cardsFolder
-end
+-- Store card visual states
+local cardVisualStates = {}
+local isAnimating = false
 
--- Animate card shuffle (local only)
+-- Animate card shuffle (visual only, no actual position changes)
 local function animateCardShuffle(onComplete)
+	if isAnimating then return end
+	isAnimating = true
+	
 	local allCards = getCards()
 	if #allCards == 0 then
 		print("[GameStart] No cards found to shuffle")
+		isAnimating = false
 		if onComplete then onComplete() end
 		return
 	end
@@ -262,74 +242,128 @@ local function animateCardShuffle(onComplete)
 	end
 	shuffleTweens = {}
 	
-	-- Create local copies for animation
-	local localCards, cardsFolder = createLocalCardCopies()
+	-- Store original transparencies
+	for _, card in ipairs(allCards) do
+		cardVisualStates[card] = {
+			transparency = card.Transparency,
+			cframe = card.CFrame
+		}
+	end
 	
 	-- Calculate center of table
 	local centerPosition = table1.Position
 	
-	-- Phase 1: Lift all cards and move to center
-	for i, cardData in ipairs(localCards) do
-		local card = cardData.localCopy
-		local raisedCFrame = CFrame.new(centerPosition + Vector3.new(0, SHUFFLE_HEIGHT + (i * 0.1), 0))
-		local tween = TweenService:Create(card,
-			TweenInfo.new(CARD_MOVE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+	-- Create a model to hold cards during animation
+	local animModel = Instance.new("Model")
+	animModel.Name = "ShuffleAnimation"
+	animModel.Parent = workspace.CurrentCamera
+	
+	-- Phase 1: Fade out real cards and create animated versions
+	for _, card in ipairs(allCards) do
+		-- Fade out original
+		local fadeTween = TweenService:Create(card,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+			{Transparency = 1}
+		)
+		fadeTween:Play()
+	end
+	
+	wait(0.2)
+	
+	-- Create visual copies for animation
+	local animCards = {}
+	for i, card in ipairs(allCards) do
+		local animCard = card:Clone()
+		animCard.Parent = animModel
+		animCard.Anchored = true
+		animCard.CanCollide = false
+		animCard.CanQuery = false
+		animCard.CanTouch = false
+		animCard.Transparency = 0
+		
+		table.insert(animCards, animCard)
+	end
+	
+	-- Phase 2: Lift and gather cards
+	for i, animCard in ipairs(animCards) do
+		local raisedCFrame = CFrame.new(centerPosition + Vector3.new(0, SHUFFLE_HEIGHT + (i * 0.05), 0))
+		local tween = TweenService:Create(animCard,
+			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{CFrame = raisedCFrame}
 		)
 		table.insert(shuffleTweens, tween)
 		tween:Play()
 	end
 	
-	wait(CARD_MOVE_TIME)
+	wait(0.4)
 	
-	-- Phase 2: Shuffle animation (cards spinning and moving)
-	for rotation = 1, SHUFFLE_ROTATIONS do
-		for i, cardData in ipairs(localCards) do
-			local card = cardData.localCopy
-			local angle = (i / #localCards) * math.pi * 2
-			local radius = SHUFFLE_SPREAD * (rotation / SHUFFLE_ROTATIONS)
+	-- Phase 3: Quick shuffle spin
+	local shuffleTime = 0.8
+	local startTime = tick()
+	local spinConnection
+	
+	spinConnection = RunService.Heartbeat:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed > shuffleTime then 
+			spinConnection:Disconnect()
+			return 
+		end
+		
+		local progress = elapsed / shuffleTime
+		local spin = progress * math.pi * 4 -- 2 full rotations
+		
+		for i, animCard in ipairs(animCards) do
+			local angle = (i / #animCards) * math.pi * 2 + spin
+			local radius = SHUFFLE_SPREAD * math.sin(progress * math.pi) -- Expand and contract
 			local x = math.cos(angle) * radius
 			local z = math.sin(angle) * radius
+			local y = SHUFFLE_HEIGHT + math.sin(progress * math.pi * 2) * 2
 			
-			local shuffleCFrame = CFrame.new(
-				centerPosition + Vector3.new(x, SHUFFLE_HEIGHT, z)
-			) * CFrame.Angles(0, angle, 0)
-			
-			local tween = TweenService:Create(card,
-				TweenInfo.new(0.2, Enum.EasingStyle.Linear),
-				{CFrame = shuffleCFrame}
-			)
-			table.insert(shuffleTweens, tween)
-			tween:Play()
+			animCard.CFrame = CFrame.new(centerPosition + Vector3.new(x, y, z)) * CFrame.Angles(0, angle, 0)
 		end
-		wait(0.2)
+	end)
+	
+	wait(shuffleTime)
+	
+	-- Phase 4: Cards drop and spread to new positions
+	local positions = {}
+	for _, card in ipairs(allCards) do
+		table.insert(positions, cardVisualStates[card].cframe)
 	end
 	
-	-- Phase 3: Return cards to positions (visual only)
-	for i, cardData in ipairs(localCards) do
-		local card = cardData.localCopy
-		local original = cardData.original
-		local targetCFrame = original.CFrame
-		
-		local tween = TweenService:Create(card,
-			TweenInfo.new(CARD_MOVE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
-			{CFrame = targetCFrame}
+	-- Shuffle the positions array
+	local shuffledPositions = shuffleArray(positions)
+	
+	for i, animCard in ipairs(animCards) do
+		local targetCFrame = shuffledPositions[i]
+		local dropTween = TweenService:Create(animCard,
+			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{
+				CFrame = targetCFrame,
+				Transparency = 1
+			}
 		)
-		table.insert(shuffleTweens, tween)
-		tween:Play()
+		table.insert(shuffleTweens, dropTween)
+		dropTween:Play()
 	end
 	
-	wait(CARD_MOVE_TIME)
-	
-	-- Clean up: Remove local copies and restore original cards
-	for _, cardData in ipairs(localCards) do
-		cardData.original.Transparency = 0 -- Restore visibility
-		cardData.localCopy:Destroy()
+	-- Fade in real cards at same time
+	wait(0.15) -- Start fading in halfway through drop
+	for _, card in ipairs(allCards) do
+		local fadeInTween = TweenService:Create(card,
+			TweenInfo.new(0.15, Enum.EasingStyle.Quad),
+			{Transparency = 0}
+		)
+		fadeInTween:Play()
 	end
-	cardsFolder:Destroy()
 	
-	-- Clear tweens
+	wait(0.15)
+	
+	-- Clean up
+	animModel:Destroy()
 	shuffleTweens = {}
+	cardVisualStates = {}
+	isAnimating = false
 	
 	print("[GameStart] Shuffle animation complete")
 	if onComplete then onComplete() end
