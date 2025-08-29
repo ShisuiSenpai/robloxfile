@@ -37,11 +37,41 @@ local cardHighlights = {}
 local flippedCards = {}
 local originalCardCFrames = {}
 local currentHoveredCard = nil
+local waitingDotsConnection = nil
 
 -- UI Elements
 local gameUI = nil
 local turnLabel = nil
 local statusLabel = nil
+
+-- Animate waiting dots
+local function startWaitingAnimation()
+	if waitingDotsConnection then
+		waitingDotsConnection:Disconnect()
+	end
+	
+	local dots = 0
+	waitingDotsConnection = RunService.Heartbeat:Connect(function()
+		dots = (dots + 1) % 40 -- Update every ~0.67 seconds (40 frames at 60fps)
+		
+		if dots == 0 then
+			turnLabel.Text = "Waiting for players"
+		elseif dots == 10 then
+			turnLabel.Text = "Waiting for players."
+		elseif dots == 20 then
+			turnLabel.Text = "Waiting for players.."
+		elseif dots == 30 then
+			turnLabel.Text = "Waiting for players..."
+		end
+	end)
+end
+
+local function stopWaitingAnimation()
+	if waitingDotsConnection then
+		waitingDotsConnection:Disconnect()
+		waitingDotsConnection = nil
+	end
+end
 
 -- Create game UI
 local function createGameUI()
@@ -51,19 +81,20 @@ local function createGameUI()
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = playerGui
 	
-	-- Turn indicator at top
+	-- Turn indicator at top (hidden by default)
 	local turnFrame = Instance.new("Frame")
 	turnFrame.Name = "TurnFrame"
 	turnFrame.Size = UDim2.new(0, 300, 0, 60)
 	turnFrame.Position = UDim2.new(0.5, -150, 0, 20)
 	turnFrame.BackgroundTransparency = 1
+	turnFrame.Visible = false -- Hidden by default
 	turnFrame.Parent = screenGui
 	
 	turnLabel = Instance.new("TextLabel")
 	turnLabel.Name = "TurnLabel"
 	turnLabel.Size = UDim2.new(1, 0, 1, 0)
 	turnLabel.BackgroundTransparency = 1
-	turnLabel.Text = "Waiting for players..."
+	turnLabel.Text = "Waiting for players"
 	turnLabel.TextColor3 = Color3.new(1, 1, 1)
 	turnLabel.TextScaled = true
 	turnLabel.Font = Enum.Font.SourceSansBold
@@ -234,6 +265,9 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 		selectedCards = {}
 		flippedCards = {}
 		
+		-- Stop waiting animation
+		stopWaitingAnimation()
+		
 		-- Update UI
 		local isPlayer1 = data.player1 == player.Name
 		local isPlayer2 = data.player2 == player.Name
@@ -360,8 +394,54 @@ end)
 mouse.Move:Connect(onMouseMove)
 mouse.Button1Down:Connect(onMouseClick)
 
+-- Monitor seating to show/hide UI
+local function checkSeatingStatus()
+	if not player.Character then return end
+	
+	local humanoid = player.Character:FindFirstChild("Humanoid")
+	if not humanoid then return end
+	
+	local isSeated = isSeatedAtTable()
+	
+	if gameUI and gameUI.TurnFrame then
+		if isSeated and not gameActive then
+			-- Show waiting UI when seated but game hasn't started
+			gameUI.TurnFrame.Visible = true
+			startWaitingAnimation()
+		elseif isSeated and gameActive then
+			-- Keep UI visible during game
+			gameUI.TurnFrame.Visible = true
+		else
+			-- Hide UI when not seated
+			gameUI.TurnFrame.Visible = false
+			stopWaitingAnimation()
+		end
+	end
+end
+
+-- Set up character monitoring
+local function onCharacterAdded(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	
+	-- Check initial state
+	task.wait(0.1) -- Small delay to ensure everything is loaded
+	checkSeatingStatus()
+	
+	-- Monitor seating changes
+	humanoid.Seated:Connect(function()
+		checkSeatingStatus()
+	end)
+	
+	-- Also monitor seat part changes
+	humanoid:GetPropertyChangedSignal("SeatPart"):Connect(function()
+		checkSeatingStatus()
+	end)
+end
+
 -- Clean up on character removal
 player.CharacterRemoving:Connect(function()
+	stopWaitingAnimation()
+	
 	if gameUI then
 		gameUI:Destroy()
 		gameUI = nil
@@ -374,6 +454,12 @@ player.CharacterRemoving:Connect(function()
 	cardHighlights = {}
 end)
 
--- Initialize UI
+-- Initialize
 createGameUI()
+
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
+
 print("[PokerGame] Client initialized")
