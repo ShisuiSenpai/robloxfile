@@ -96,6 +96,90 @@ local function checkSeating()
 	return newPlayer1 ~= nil and newPlayer2 ~= nil
 end
 
+-- Shuffle array using Fisher-Yates algorithm
+local function shuffleArray(array)
+	local shuffled = {}
+	for i = 1, #array do
+		shuffled[i] = array[i]
+	end
+	
+	for i = #shuffled, 2, -1 do
+		local j = math.random(1, i)
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	end
+	
+	return shuffled
+end
+
+-- Server-side shuffle animation using TweenService
+local function animateShuffleOnServer()
+	local TweenService = game:GetService("TweenService")
+	local centerPosition = table1.Position
+	
+	-- Store current positions
+	local positions = {}
+	for _, card in ipairs(cards) do
+		table.insert(positions, card.CFrame)
+	end
+	
+	-- Shuffle the positions for later
+	local shuffledPositions = shuffleArray(positions)
+	
+	-- Make sure all cards are anchored
+	for _, card in ipairs(cards) do
+		card.Anchored = true
+	end
+	
+	-- Phase 1: Cards rise up and gather
+	local riseTweens = {}
+	for i, card in ipairs(cards) do
+		local raisedCFrame = CFrame.new(centerPosition + Vector3.new(0, 8 + (i * 0.05), 0))
+		local tween = TweenService:Create(card,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{CFrame = raisedCFrame}
+		)
+		table.insert(riseTweens, tween)
+		tween:Play()
+	end
+	
+	wait(0.5)
+	
+	-- Phase 2: Quick spin animation
+	local spinTweens = {}
+	for i, card in ipairs(cards) do
+		-- Create a spinning effect by rotating cards
+		local spinCFrame = card.CFrame * CFrame.Angles(0, math.pi * 4, 0) -- 2 full rotations
+		local tween = TweenService:Create(card,
+			TweenInfo.new(1, Enum.EasingStyle.Linear),
+			{CFrame = spinCFrame}
+		)
+		table.insert(spinTweens, tween)
+		tween:Play()
+	end
+	
+	wait(1)
+	
+	-- Phase 3: Cards drop to new shuffled positions
+	local dropTweens = {}
+	for i, card in ipairs(cards) do
+		local tween = TweenService:Create(card,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{CFrame = shuffledPositions[i]}
+		)
+		table.insert(dropTweens, tween)
+		tween:Play()
+	end
+	
+	wait(0.5)
+	
+	-- Ensure cards are in final positions
+	for i, card in ipairs(cards) do
+		card.CFrame = shuffledPositions[i]
+	end
+	
+	print("[PokerGame] Shuffle animation complete")
+end
+
 -- Start the game
 local function startGame()
 	if GameState.isActive then return end
@@ -108,14 +192,17 @@ local function startGame()
 	-- Randomly select who goes first
 	GameState.currentTurn = math.random(2) == 1 and GameState.player1 or GameState.player2
 	
-	-- Wait for countdown and shuffle animation to complete (3 seconds countdown + buffer)
-	wait(3.5)
+	-- Notify clients that shuffle is starting
+	gameStateEvent:FireAllClients("shuffle_start")
 	
-	-- Reset cards after animation is done
-	resetCards()
+	-- Wait for countdown
+	wait(1)
 	
-	-- Small delay to ensure cards are in position
-	wait(0.1)
+	-- Perform server-side shuffle animation
+	animateShuffleOnServer()
+	
+	-- Reset game state
+	GameState.selectedCards = {}
 	
 	-- Notify all clients about game start
 	gameStateEvent:FireAllClients("game_start", {
