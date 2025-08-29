@@ -220,8 +220,16 @@ local function startGameCountdown()
 	-- No animation for now
 	
 	-- Countdown logic
-	currentCountdown = COUNTDOWN_TIME
-	local lastDisplayedNumber = COUNTDOWN_TIME
+	currentCountdown = COUNTDOWN_TIME + 0.1 -- Add small buffer to ensure 3 shows
+	local lastDisplayedNumber = COUNTDOWN_TIME + 1 -- Start one higher so 3 shows immediately
+	
+	-- Show initial countdown number
+	countdownLabel.Text = tostring(COUNTDOWN_TIME)
+	
+	-- Play first tick sound
+	if soundsEnabled and SoundManager then
+		SoundManager:PlayCountdownTick()
+	end
 	
 	local countdownConnection
 	countdownConnection = RunService.Heartbeat:Connect(function(dt)
@@ -235,7 +243,7 @@ local function startGameCountdown()
 				lastDisplayedNumber = displayTime
 				countdownLabel.Text = tostring(displayTime)
 				
-				-- Play countdown tick sound immediately when number changes
+				-- Play countdown tick sound when number changes
 				if soundsEnabled and SoundManager and displayTime > 0 then
 					SoundManager:PlayCountdownTick()
 				end

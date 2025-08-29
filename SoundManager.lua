@@ -67,8 +67,17 @@ function SoundManager:PlaySoundAtPosition(soundId, position, volume, pitch)
 	return sound
 end
 
--- Convenience methods
+-- Hover sound with debounce
+local lastHoverTime = 0
+local HOVER_DEBOUNCE = 0.1 -- Minimum time between hover sounds
+
 function SoundManager:PlayHoverSound(position)
+	local now = tick()
+	if now - lastHoverTime < HOVER_DEBOUNCE then
+		return -- Skip if too soon
+	end
+	lastHoverTime = now
+	
 	return self:PlaySoundAtPosition(self.SOUND_IDS.CARD_HOVER, position, 0.3, 1.2)
 end
 

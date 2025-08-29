@@ -212,13 +212,29 @@ end
 
 -- Update card highlighting based on game state
 local function updateCardHighlighting()
+	-- Quick exit if not in game
+	if not gameActive or not isMyTurn then
+		-- Disable all highlights except selected cards
+		for card, highlight in pairs(cardHighlights) do
+			if selectedCards[card] or flippedCards[card] then
+				highlight.FillColor = SELECTED_CARD_COLOR
+				highlight.OutlineColor = SELECTED_CARD_COLOR
+				highlight.Enabled = true
+			else
+				highlight.Enabled = false
+			end
+		end
+		return
+	end
+	
+	-- Normal highlighting during turn
 	for card, highlight in pairs(cardHighlights) do
 		if selectedCards[card] or flippedCards[card] then
 			-- Card is selected/flipped - show as gray
 			highlight.FillColor = SELECTED_CARD_COLOR
 			highlight.OutlineColor = SELECTED_CARD_COLOR
 			highlight.Enabled = true
-		elseif currentHoveredCard == card and isMyTurn and gameActive and not selectedCards[card] then
+		elseif currentHoveredCard == card and not selectedCards[card] then
 			-- Hovering over unselected card during my turn
 			highlight.FillColor = HIGHLIGHT_COLOR
 			highlight.OutlineColor = HIGHLIGHT_COLOR
@@ -332,24 +348,22 @@ end
 
 -- Handle mouse movement
 local function onMouseMove()
-	if not isSeatedAtTable() then
+	if not isSeatedAtTable() or not gameActive or not isMyTurn then
 		currentHoveredCard = nil
 		updateCardHighlighting()
 		return
 	end
 	
-	-- Allow hovering even when not your turn or game not active (for visual feedback)
 	local target = mouse.Target
 	
 	if target and target.Parent == table1 and target:IsA("BasePart") then
 		if currentHoveredCard ~= target then
-			local previousCard = currentHoveredCard
 			currentHoveredCard = target
 			updateCardHighlighting()
 			
-			-- Play hover sound only during active game and your turn
-			if soundsEnabled and gameActive and isMyTurn and currentHoveredCard and not selectedCards[currentHoveredCard] then
-				SoundManager:PlayHoverSound(currentHoveredCard.Position)
+			-- Play hover sound when entering a new card (not already selected)
+			if soundsEnabled and not selectedCards[target] then
+				SoundManager:PlayHoverSound(target.Position)
 			end
 		end
 	else
