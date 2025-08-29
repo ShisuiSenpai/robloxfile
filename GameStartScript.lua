@@ -9,9 +9,17 @@ local StarterGui = game:GetService("StarterGui")
 
 -- Modules (optional - comment out if not using countdown sounds)
 local SoundManager
-pcall(function()
+local soundsEnabled = false
+
+local success = pcall(function()
 	SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager", 2))
+	soundsEnabled = true
+	print("[GameStart] SoundManager loaded")
 end)
+
+if not success then
+	warn("[GameStart] SoundManager not found - sounds disabled")
+end
 
 -- Configuration
 local COUNTDOWN_TIME = 3 -- Seconds before game starts
@@ -229,7 +237,7 @@ local function startGameCountdown()
 				lastDisplayedNumber = displayTime
 				
 				-- Play countdown tick sound (optional)
-				if SoundManager and displayTime > 0 then
+				if soundsEnabled and SoundManager and displayTime > 0 then
 					SoundManager:PlayCountdownTick()
 				end
 			end
@@ -247,7 +255,7 @@ local function startGameCountdown()
 				countdownLabel.Position = UDim2.new(0, 0, 0, 0)
 				
 				-- Play game start sound (optional)
-				if SoundManager then
+				if soundsEnabled and SoundManager then
 					SoundManager:PlayGameStartSound()
 				end
 			end

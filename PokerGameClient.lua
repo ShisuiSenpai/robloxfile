@@ -7,7 +7,20 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 -- Modules
-local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
+local SoundManager
+local soundsEnabled = false
+
+-- Try to load SoundManager
+local success, err = pcall(function()
+	SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager", 5))
+	soundsEnabled = true
+	print("[PokerGame] SoundManager loaded successfully")
+end)
+
+if not success then
+	warn("[PokerGame] Failed to load SoundManager:", err)
+	warn("[PokerGame] Sounds will be disabled. Make sure SoundManager is in ReplicatedStorage")
+end
 
 -- Configuration
 local HIGHLIGHT_COLOR = Color3.fromRGB(100, 255, 100) -- Green for your turn
@@ -334,7 +347,7 @@ local function onMouseMove()
 			updateCardHighlighting()
 			
 			-- Play hover sound when entering a new card
-			if currentHoveredCard and not selectedCards[currentHoveredCard] then
+			if soundsEnabled and currentHoveredCard and not selectedCards[currentHoveredCard] then
 				SoundManager:PlayHoverSound(currentHoveredCard.Position)
 			end
 		end
@@ -357,10 +370,12 @@ local function onMouseClick()
 	end
 	
 	-- Play appropriate click sound
-	if currentHoveredCard.Name == "Poker" then
-		SoundManager:PlayPokerClickSound(currentHoveredCard.Position)
-	else
-		SoundManager:PlayClickSound(currentHoveredCard.Position)
+	if soundsEnabled then
+		if currentHoveredCard.Name == "Poker" then
+			SoundManager:PlayPokerClickSound(currentHoveredCard.Position)
+		else
+			SoundManager:PlayClickSound(currentHoveredCard.Position)
+		end
 	end
 	
 	-- Send card selection to server
