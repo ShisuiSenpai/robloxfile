@@ -111,29 +111,8 @@ local function shuffleArray(array)
 	return shuffled
 end
 
--- Hide all card parts and decals
-local function setCardVisibility(card, visible)
-	-- Set main part transparency
-	card.Transparency = visible and 0 or 1
-	
-	-- Handle all descendants (decals, textures, etc)
-	for _, descendant in ipairs(card:GetDescendants()) do
-		if descendant:IsA("Decal") then
-			descendant.Transparency = visible and 0 or 1
-		elseif descendant:IsA("Texture") then
-			descendant.Transparency = visible and 0 or 1
-		elseif descendant:IsA("SurfaceGui") then
-			descendant.Enabled = visible
-		elseif descendant:IsA("BillboardGui") then
-			descendant.Enabled = visible
-		elseif descendant:IsA("BasePart") then
-			descendant.Transparency = visible and 0 or 1
-		end
-	end
-end
-
--- Server-side shuffle coordination
-local function performShuffleSequence()
+-- Simple shuffle positions
+local function shuffleCards()
 	-- Get current positions
 	local positions = {}
 	for _, card in ipairs(cards) do
@@ -143,31 +122,12 @@ local function performShuffleSequence()
 	-- Shuffle the positions
 	local shuffledPositions = shuffleArray(positions)
 	
-	-- Step 1: Hide all server cards
-	for _, card in ipairs(cards) do
-		setCardVisibility(card, false)
-	end
-	
-	-- Step 2: Tell clients to start animation
-	gameStateEvent:FireAllClients("shuffle_animation_start")
-	
-	-- Step 3: Wait for animation duration (2.5 seconds total)
-	wait(2.5)
-	
-	-- Step 4: Move cards to shuffled positions while still invisible
+	-- Apply shuffled positions
 	for i, card in ipairs(cards) do
 		card.CFrame = shuffledPositions[i]
 	end
 	
-	-- Step 5: Make cards visible again
-	for _, card in ipairs(cards) do
-		setCardVisibility(card, true)
-	end
-	
-	-- Step 6: Tell clients animation is done
-	gameStateEvent:FireAllClients("shuffle_animation_end")
-	
-	print("[PokerGame] Shuffle complete")
+	print("[PokerGame] Cards shuffled")
 end
 
 -- Start the game
@@ -182,11 +142,8 @@ local function startGame()
 	-- Randomly select who goes first
 	GameState.currentTurn = math.random(2) == 1 and GameState.player1 or GameState.player2
 	
-	-- Wait for countdown to complete
-	wait(3)
-	
-	-- Perform shuffle sequence (hides cards, waits for animation, shows cards)
-	performShuffleSequence()
+	-- Simple shuffle
+	shuffleCards()
 	
 	-- Reset game state
 	GameState.selectedCards = {}

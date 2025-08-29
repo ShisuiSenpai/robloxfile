@@ -9,10 +9,6 @@ local StarterGui = game:GetService("StarterGui")
 
 -- Configuration
 local COUNTDOWN_TIME = 3 -- Seconds before game starts
-local SHUFFLE_HEIGHT = 5 -- How high cards rise during shuffle
-local SHUFFLE_SPREAD = 10 -- How far cards spread during shuffle
-local CARD_MOVE_TIME = 0.3 -- Time for individual card movements
-local SHUFFLE_ROTATIONS = 3 -- Number of times to shuffle
 
 -- References
 local player = Players.LocalPlayer
@@ -26,13 +22,10 @@ local player2Chair = table1Folder:WaitForChild("Player2Chair"):WaitForChild("Sea
 
 -- UI Storage
 local countdownGui = nil
+
+-- State management
 local isGameStarting = false
 local currentCountdown = nil
-
--- Card management
-local cards = {}
-local originalPositions = {}
-local shuffleTweens = {}
 
 -- Create countdown UI
 local function createCountdownUI()
@@ -188,181 +181,7 @@ local function destroyCountdownUI()
 	end
 end
 
--- Get all cards from the table
-local function getCards()
-	cards = {}
-	originalPositions = {}
-	
-	for _, child in ipairs(table1:GetChildren()) do
-		if child:IsA("BasePart") then
-			table.insert(cards, child)
-			originalPositions[child] = child.CFrame
-		end
-	end
-	
-	print("[GameStart] Found", #cards, "cards on the table")
-	return cards
-end
-
--- Shuffle array using Fisher-Yates algorithm
-local function shuffleArray(array)
-	local shuffled = {}
-	for i = 1, #array do
-		shuffled[i] = array[i]
-	end
-	
-	for i = #shuffled, 2, -1 do
-		local j = math.random(1, i)
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	end
-	
-	return shuffled
-end
-
--- Get RemoteEvents for shuffle coordination
-local remoteEvents = ReplicatedStorage:WaitForChild("PokerGameEvents")
-local gameStateEvent = remoteEvents:WaitForChild("GameStateUpdate")
-
--- Animate card shuffle (client-side visual only)
-local function animateCardShuffle()
-	local allCards = getCards()
-	if #allCards == 0 then
-		print("[GameStart] No cards found to shuffle")
-		return
-	end
-	
-	-- Cancel any existing shuffle tweens
-	for _, tween in pairs(shuffleTweens) do
-		tween:Cancel()
-	end
-	shuffleTweens = {}
-	
-	-- Calculate center of table
-	local centerPosition = table1.Position
-	
-	-- Create a folder for animated cards
-	local animFolder = Instance.new("Folder")
-	animFolder.Name = "ShuffleAnimation"
-	animFolder.Parent = workspace.CurrentCamera
-	
-	-- Create local copies of cards for animation
-	local animCards = {}
-	for _, card in ipairs(allCards) do
-		local animCard = card:Clone()
-		animCard.Parent = animFolder
-		animCard.Anchored = true
-		animCard.CanCollide = false
-		animCard.CanQuery = false
-		animCard.CanTouch = false
-		
-		-- Make sure all decals and parts are visible
-		animCard.Transparency = 0
-		for _, descendant in ipairs(animCard:GetDescendants()) do
-			if descendant:IsA("Decal") or descendant:IsA("Texture") then
-				descendant.Transparency = 0
-			elseif descendant:IsA("SurfaceGui") or descendant:IsA("BillboardGui") then
-				descendant.Enabled = true
-			elseif descendant:IsA("BasePart") then
-				descendant.Transparency = 0
-			end
-		end
-		
-		table.insert(animCards, animCard)
-	end
-	
-	-- Phase 1: Cards rise and gather
-	for i, animCard in ipairs(animCards) do
-		local raisedCFrame = CFrame.new(centerPosition + Vector3.new(0, SHUFFLE_HEIGHT + (i * 0.05), 0))
-		local tween = TweenService:Create(animCard,
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{CFrame = raisedCFrame}
-		)
-		table.insert(shuffleTweens, tween)
-		tween:Play()
-	end
-	
-	wait(0.5)
-	
-	-- Phase 2: Circular shuffle motion
-	local shuffleTime = 1.0
-	local startTime = tick()
-	local spinConnection
-	
-	spinConnection = RunService.Heartbeat:Connect(function()
-		local elapsed = tick() - startTime
-		if elapsed > shuffleTime then
-			spinConnection:Disconnect()
-			return
-		end
-		
-		local progress = elapsed / shuffleTime
-		local spin = progress * math.pi * 4 -- 2 full rotations
-		
-		for i, animCard in ipairs(animCards) do
-			local angle = (i / #animCards) * math.pi * 2 + spin
-			local radius = SHUFFLE_SPREAD * math.sin(progress * math.pi)
-			local x = math.cos(angle) * radius
-			local z = math.sin(angle) * radius
-			local y = SHUFFLE_HEIGHT + math.sin(progress * math.pi * 2) * 2
-			
-			animCard.CFrame = CFrame.new(centerPosition + Vector3.new(x, y, z)) * CFrame.Angles(0, angle + spin, 0)
-		end
-	end)
-	
-	wait(shuffleTime)
-	
-	-- Phase 3: Cards drop back down
-	for i, animCard in ipairs(animCards) do
-		-- Random positions for visual effect
-		local spread = 15
-		local randomX = (math.random() - 0.5) * spread
-		local randomZ = (math.random() - 0.5) * spread
-		local dropCFrame = CFrame.new(
-			centerPosition + Vector3.new(randomX, 0.5, randomZ)
-		) * CFrame.Angles(0, math.random() * math.pi * 2, 0)
-		
-		local dropTween = TweenService:Create(animCard,
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{
-				CFrame = dropCFrame,
-				Transparency = 1
-			}
-		)
-		
-		-- Also fade out decals
-		for _, descendant in ipairs(animCard:GetDescendants()) do
-			if descendant:IsA("Decal") or descendant:IsA("Texture") then
-				TweenService:Create(descendant,
-					TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-					{Transparency = 1}
-				):Play()
-			elseif descendant:IsA("BasePart") then
-				TweenService:Create(descendant,
-					TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-					{Transparency = 1}
-				):Play()
-			end
-		end
-		
-		table.insert(shuffleTweens, dropTween)
-		dropTween:Play()
-	end
-	
-	wait(0.5)
-	
-	-- Clean up
-	animFolder:Destroy()
-	shuffleTweens = {}
-	
-	print("[GameStart] Client shuffle animation complete")
-end
-
--- Listen for shuffle animation signal from server
-gameStateEvent.OnClientEvent:Connect(function(state)
-	if state == "shuffle_animation_start" then
-		animateCardShuffle()
-	end
-end)
+-- Note: All animations removed for now to focus on core functionality
 
 -- Start game countdown (only visual, actual game starts from server)
 local function startGameCountdown()
@@ -384,7 +203,7 @@ local function startGameCountdown()
 	local gui, countdownLabel = createCountdownUI()
 	countdownGui = gui
 	
-	-- Shuffle animation is now handled by the server
+	-- No animation for now
 	
 	-- Countdown logic
 	currentCountdown = COUNTDOWN_TIME
