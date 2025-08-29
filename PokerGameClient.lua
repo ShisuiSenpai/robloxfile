@@ -6,6 +6,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
+-- Modules
+local SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager"))
+
 -- Configuration
 local HIGHLIGHT_COLOR = Color3.fromRGB(100, 255, 100) -- Green for your turn
 local OPPONENT_HIGHLIGHT_COLOR = Color3.fromRGB(255, 100, 100) -- Red for opponent's turn
@@ -326,8 +329,14 @@ local function onMouseMove()
 	
 	if target and target.Parent == table1 and target:IsA("BasePart") then
 		if currentHoveredCard ~= target then
+			local previousCard = currentHoveredCard
 			currentHoveredCard = target
 			updateCardHighlighting()
+			
+			-- Play hover sound when entering a new card
+			if currentHoveredCard and not selectedCards[currentHoveredCard] then
+				SoundManager:PlayHoverSound(currentHoveredCard.Position)
+			end
 		end
 	else
 		if currentHoveredCard then
@@ -346,6 +355,9 @@ local function onMouseClick()
 	if selectedCards[currentHoveredCard] then
 		return -- Card already selected
 	end
+	
+	-- Play click sound
+	SoundManager:PlayClickSound(currentHoveredCard.Position)
 	
 	-- Send card selection to server
 	cardClickEvent:FireServer(currentHoveredCard)
@@ -426,6 +438,9 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 				statusLabel.Text = "You Win!"
 				statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 				
+				-- Play win sound
+				SoundManager:PlayWinSound()
+				
 				-- Add extra effect for winner
 				local pulseEffect = TweenService:Create(statusLabel,
 					TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 3, true),
@@ -440,6 +455,9 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 					statusLabel.Text = "You Lose!"
 				end
 				statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+				
+				-- Play lose sound
+				SoundManager:PlayLoseSound()
 			else
 				statusLabel.Text = data.winner .. " Wins!"
 				statusLabel.TextColor3 = Color3.new(1, 1, 1)

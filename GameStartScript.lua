@@ -7,6 +7,12 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 
+-- Modules (optional - comment out if not using countdown sounds)
+local SoundManager
+pcall(function()
+	SoundManager = require(ReplicatedStorage:WaitForChild("SoundManager", 2))
+end)
+
 -- Configuration
 local COUNTDOWN_TIME = 3 -- Seconds before game starts
 
@@ -221,6 +227,11 @@ local function startGameCountdown()
 			-- Update number without animation
 			if displayTime ~= lastDisplayedNumber and displayTime >= 0 then
 				lastDisplayedNumber = displayTime
+				
+				-- Play countdown tick sound (optional)
+				if SoundManager and displayTime > 0 then
+					SoundManager:PlayCountdownTick()
+				end
 			end
 		elseif currentCountdown > -0.5 then
 			-- Show "GO!" for a brief moment
@@ -234,6 +245,11 @@ local function startGameCountdown()
 				-- Make GO! take up the full container
 				countdownLabel.Size = UDim2.new(1, 0, 1, 0)
 				countdownLabel.Position = UDim2.new(0, 0, 0, 0)
+				
+				-- Play game start sound (optional)
+				if SoundManager then
+					SoundManager:PlayGameStartSound()
+				end
 			end
 		else
 			-- Countdown finished
