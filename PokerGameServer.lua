@@ -362,20 +362,7 @@ local function selectCard(player, card)
 		-- Update turn display
 		turnUpdateEvent:FireAllClients(GameState.currentTurn.Name)
 		
-		-- Check if all cards except poker have been selected (rare case)
-		local unselectedCount = 0
-		for _, c in ipairs(cards) do
-			if not GameState.selectedCards[c] then
-				unselectedCount = unselectedCount + 1
-			end
-		end
-		
-		if unselectedCount == 1 and not GameState.selectedCards[pokerCard] then
-			-- Only poker remains - current player wins
-			endGame(GameState.currentTurn, 
-				(GameState.currentTurn == GameState.player1) and GameState.player2 or GameState.player1, 
-				"last_card_poker")
-		end
+		-- Game continues even if only one card remains - player must click it
 	end
 end
 
