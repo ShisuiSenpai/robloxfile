@@ -240,20 +240,24 @@ end
 
 -- Update card highlighting
 local function updateCardHighlighting(tableData)
+	local highlightCount = 0
 	for card, highlight in pairs(tableData.cardHighlights) do
+		highlightCount = highlightCount + 1
 		if tableData.selectedCards[card] or tableData.flippedCards[card] then
-			highlight.FillColor = SELECTED_CARD_COLOR
+			highlight.FillColor3 = SELECTED_CARD_COLOR
 			highlight.OutlineColor = SELECTED_CARD_COLOR
 			highlight.Enabled = true
+			print("[DEBUG] Card", card.Name, "highlighted as SELECTED/FLIPPED")
 		elseif tableData.currentHoveredCard == card and tableData.gameActive and tableData.isMyTurn then
-			highlight.FillColor = HIGHLIGHT_COLOR
+			highlight.FillColor3 = HIGHLIGHT_COLOR
 			highlight.OutlineColor = HIGHLIGHT_COLOR
 			highlight.Enabled = true
+			print("[DEBUG] Card", card.Name, "highlighted as HOVERED - isMyTurn:", tableData.isMyTurn)
 		else
 			highlight.Enabled = false
 		end
 	end
-end
+	print("[DEBUG] updateCardHighlighting - Table:", tableData.id, "Processed:", highlightCount, "highlights, gameActive:", tableData.gameActive, "isMyTurn:", tableData.isMyTurn)
 
 -- Flip card animation
 local function flipCard(tableData, card)
@@ -320,8 +324,15 @@ local function onMouseMove()
 		-- Check if hovering over a card (exclude camera parts)
 		if target.Parent == currentTable.tablePart and target:IsA("BasePart") and not target.Name:match("Camera") then
 			cardTarget = target
+			print("[DEBUG] Direct card hover:", cardTarget.Name)
 		elseif target.Parent and target.Parent.Parent == currentTable.tablePart and target.Parent:IsA("BasePart") then
 			cardTarget = target.Parent
+			print("[DEBUG] Indirect card hover (via child):", cardTarget.Name)
+		else
+			-- Debug why it's not detecting as a card
+			if target.Parent then
+				print("[DEBUG] Mouse target parent:", target.Parent.Name, "Expected table:", currentTable.tablePart.Name)
+			end
 		end
 	end
 	
@@ -345,14 +356,23 @@ end
 -- Handle mouse click
 local function onMouseClick()
 	local currentTable = getCurrentTable()
+	print("[DEBUG] onMouseClick - currentTable:", currentTable and currentTable.id or "none")
+	
 	if not currentTable or not currentTable.gameActive or not currentTable.isMyTurn or 
 	   not currentTable.currentHoveredCard or currentTable.isCountdownActive then
+		print("[DEBUG] Click blocked - gameActive:", currentTable and currentTable.gameActive,
+			"isMyTurn:", currentTable and currentTable.isMyTurn,
+			"hoveredCard:", currentTable and currentTable.currentHoveredCard and currentTable.currentHoveredCard.Name or "none",
+			"isCountdown:", currentTable and currentTable.isCountdownActive)
 		return
 	end
 	
 	if currentTable.selectedCards[currentTable.currentHoveredCard] then
+		print("[DEBUG] Card already selected:", currentTable.currentHoveredCard.Name)
 		return
 	end
+	
+	print("[DEBUG] Clicking card:", currentTable.currentHoveredCard.Name)
 	
 	if soundsEnabled then
 		if currentTable.currentHoveredCard.Name == "Poker" then
@@ -484,11 +504,32 @@ for tableId, tableData in pairs(tables) do
 			end
 			
 			-- Create highlights for all cards
+			print("[DEBUG] Creating highlights for table:", tableData.id)
+			local cardCount = 0
+			
+			-- Check direct children
 			for _, card in ipairs(tableData.tablePart:GetChildren()) do
-				if card:IsA("BasePart") then
+				if card:IsA("BasePart") and not card.Name:match("Camera") then
+					print("[DEBUG] Creating highlight for card:", card.Name)
 					getOrCreateHighlight(tableData, card)
+					cardCount = cardCount + 1
 				end
 			end
+			
+			-- Also check if tablePart is a model with cards inside
+			if tableData.tablePart:IsA("Model") then
+				for _, child in ipairs(tableData.tablePart:GetDescendants()) do
+					if child:IsA("BasePart") and child.Parent == tableData.tablePart and not child.Name:match("Camera") then
+						if not tableData.cardHighlights[child] then
+							print("[DEBUG] Creating highlight for nested card:", child.Name)
+							getOrCreateHighlight(tableData, child)
+							cardCount = cardCount + 1
+						end
+					end
+				end
+			end
+			
+			print("[DEBUG] Created highlights for", cardCount, "cards on table:", tableData.id)
 			
 			updateCardHighlighting(tableData)
 			
