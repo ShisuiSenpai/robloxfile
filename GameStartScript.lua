@@ -299,8 +299,17 @@ local function animateCardShuffle(onComplete)
 	if onComplete then onComplete() end
 end
 
--- Start game countdown
+-- Start game countdown (only visual, actual game starts from server)
 local function startGameCountdown()
+	-- Check if both seats are occupied
+	local player1Occupied = player1Chair.Occupant ~= nil
+	local player2Occupied = player2Chair.Occupant ~= nil
+	
+	if not player1Occupied or not player2Occupied then
+		-- Don't start countdown if both seats aren't taken
+		return
+	end
+	
 	if isGameStarting then return end
 	isGameStarting = true
 	
@@ -364,7 +373,7 @@ local function startGameCountdown()
 			countdownConnection:Disconnect()
 			destroyCountdownUI()
 			isGameStarting = false
-			print("[GameStart] Game started!")
+			print("[GameStart] Game countdown complete!")
 		end
 	end)
 end
