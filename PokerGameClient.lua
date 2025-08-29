@@ -70,20 +70,32 @@ end
 local function startWaitingAnimation()
 	if waitingDotsConnection then
 		waitingDotsConnection:Disconnect()
+		waitingDotsConnection = nil
 	end
 	
-	local dots = 0
-	waitingDotsConnection = RunService.Heartbeat:Connect(function()
-		dots = (dots + 1) % 120 -- Update every ~2 seconds (120 frames at 60fps)
+	local dotCount = 0
+	local frameCount = 0
+	
+	-- Set initial text
+	turnLabel.Text = "Waiting for players"
+	
+	waitingDotsConnection = RunService.Heartbeat:Connect(function(dt)
+		frameCount = frameCount + 1
 		
-		if dots == 0 then
-			turnLabel.Text = "Waiting for players"
-		elseif dots == 30 then
-			turnLabel.Text = "Waiting for players."
-		elseif dots == 60 then
-			turnLabel.Text = "Waiting for players.."
-		elseif dots == 90 then
-			turnLabel.Text = "Waiting for players..."
+		-- Update every 60 frames (approximately 1 second at 60fps)
+		if frameCount >= 60 then
+			frameCount = 0
+			dotCount = (dotCount + 1) % 4
+			
+			if dotCount == 0 then
+				turnLabel.Text = "Waiting for players"
+			elseif dotCount == 1 then
+				turnLabel.Text = "Waiting for players."
+			elseif dotCount == 2 then
+				turnLabel.Text = "Waiting for players.."
+			elseif dotCount == 3 then
+				turnLabel.Text = "Waiting for players..."
+			end
 		end
 	end)
 end
@@ -388,6 +400,7 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 	elseif state == "game_end" then
 		gameActive = false
 		isMyTurn = false
+		isCountdownActive = false -- Ensure countdown flag is reset
 		
 		-- Show winner/loser message
 		if gameUI then
@@ -560,13 +573,19 @@ local function checkSeatingStatus()
 	local isSeated = isSeatedAtTable()
 	
 	if gameUI and gameUI.TurnFrame then
-		if isSeated and not gameActive then
-			-- Show waiting UI when seated but game hasn't started
+		if isSeated and not gameActive and not isCountdownActive then
+			-- Show waiting UI when seated but game hasn't started and countdown isn't active
 			gameUI.TurnFrame.Visible = true
+			stopWaitingAnimation() -- Stop any existing animation first
 			startWaitingAnimation()
 		elseif isSeated and gameActive then
 			-- Keep UI visible during game
 			gameUI.TurnFrame.Visible = true
+			stopWaitingAnimation()
+		elseif isCountdownActive then
+			-- Hide during countdown
+			gameUI.TurnFrame.Visible = false
+			stopWaitingAnimation()
 		else
 			-- Hide UI when not seated
 			gameUI.TurnFrame.Visible = false
@@ -580,12 +599,14 @@ local function onCharacterAdded(character)
 	local humanoid = character:WaitForChild("Humanoid")
 	
 	-- Check initial state
-	task.wait(0.1) -- Small delay to ensure everything is loaded
+	task.wait(0.5) -- Longer delay to ensure UI is fully created
 	checkSeatingStatus()
 	
 	-- Monitor seating changes
 	humanoid.Seated:Connect(function()
+		task.wait(0.1) -- Small delay for seat state to register
 		checkSeatingStatus()
+		updateCardHighlighting()
 	end)
 	
 	-- Also monitor seat part changes

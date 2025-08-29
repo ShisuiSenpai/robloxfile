@@ -235,13 +235,30 @@ local function endGame(winner, loser, reason)
 	-- Reset game state
 	wait(2) -- Additional wait for cleanup
 	
-	-- First tell clients to reset their visual states
+	-- First reset all cards on server
+	resetCards()
+	
+	-- Update current positions to match original
+	for card, originalCFrame in pairs(originalCardCFrames) do
+		currentCardCFrames[card] = originalCFrame
+	end
+	
+	-- Force sync with all clients by sending card states
+	wait(0.1)
 	cardFlipEvent:FireAllClients("reset_all_cards")
 	
-	-- Small delay to ensure clients process the reset
-	wait(0.1)
+	-- Additional safety: Send individual card resets
+	for _, card in ipairs(cards) do
+		if card and card.Parent and originalCardCFrames[card] then
+			-- Ensure card is at original position on server
+			card.CFrame = originalCardCFrames[card]
+		end
+	end
 	
-	-- Clear game state
+	-- Give clients time to process
+	wait(0.5)
+	
+	-- Clear game state after cards are reset
 	GameState.currentTurn = nil
 	GameState.turnNumber = 0
 	GameState.player1 = nil
@@ -249,14 +266,6 @@ local function endGame(winner, loser, reason)
 	GameState.player1Seat = nil
 	GameState.player2Seat = nil
 	GameState.selectedCards = {}
-	
-	-- Reset all cards to face down on server
-	resetCards()
-	
-	-- Update current positions to match original
-	for card, originalCFrame in pairs(originalCardCFrames) do
-		currentCardCFrames[card] = originalCFrame
-	end
 	
 	print("[PokerGame] Game fully reset, ready for next game")
 end
