@@ -114,111 +114,39 @@ local function shuffleArray(array)
 	return shuffled
 end
 
--- Generate random positions for cards in a grid pattern
-local function generateRandomGridPositions()
-	local positions = {}
-	local usedSpots = {}
-	
-	-- Get table bounds (approximate center and size)
-	local tableCenter = table1.Position
-	local tableSize = table1.Size
-	
-	-- Define grid parameters (4x5 grid)
-	local rows = 4
-	local cols = 5
-	local totalSpots = rows * cols
-	
-	-- Calculate spacing between cards
-	local xSpacing = tableSize.X / (cols + 1)
-	local zSpacing = tableSize.Z / (rows + 1)
-	
-	-- Start positions (offset from center)
-	local startX = -tableSize.X / 2 + xSpacing
-	local startZ = -tableSize.Z / 2 + zSpacing
-	
-	-- Generate all possible grid positions
-	local allGridPositions = {}
-	for row = 1, rows do
-		for col = 1, cols do
-			local x = startX + (col - 1) * xSpacing
-			local z = startZ + (row - 1) * zSpacing
-			local y = tableSize.Y / 2 + 0.5 -- Slightly above table surface
-			
-			-- Add small random offset for more natural look
-			local randomOffsetX = (math.random() - 0.5) * xSpacing * 0.3
-			local randomOffsetZ = (math.random() - 0.5) * zSpacing * 0.3
-			
-			local position = tableCenter + Vector3.new(x + randomOffsetX, y, z + randomOffsetZ)
-			local rotation = CFrame.Angles(0, math.random() * math.pi * 2, 0) -- Random Y rotation
-			
-			table.insert(allGridPositions, CFrame.new(position) * rotation)
-		end
-	end
-	
-	-- Randomly select positions for each card
-	local availableIndices = {}
-	for i = 1, #allGridPositions do
-		table.insert(availableIndices, i)
-	end
-	
-	-- Shuffle the indices
-	for i = #availableIndices, 2, -1 do
-		local j = math.random(1, i)
-		availableIndices[i], availableIndices[j] = availableIndices[j], availableIndices[i]
-	end
-	
-	-- Assign positions to cards
-	for i = 1, math.min(#cards, #availableIndices) do
-		positions[i] = allGridPositions[availableIndices[i]]
-	end
-	
-	return positions
-end
-
--- Simple shuffle positions
+-- Simple shuffle - just swap poker card with a random card
 local function shuffleCards()
-	-- First, shuffle the cards array itself to randomize which card goes where
-	local shuffledCards = {}
-	local tempCards = {}
-	
-	-- Copy cards to temp array
-	for i, card in ipairs(cards) do
-		tempCards[i] = card
+	if not pokerCard then
+		print("[PokerGame] Warning: No poker card found!")
+		return
 	end
 	
-	-- Shuffle the cards themselves
-	for i = #tempCards, 1, -1 do
-		local j = math.random(1, i)
-		shuffledCards[#shuffledCards + 1] = tempCards[j]
-		table.remove(tempCards, j)
-	end
-	
-	-- Generate completely random positions
-	local randomPositions = generateRandomGridPositions()
-	
-	-- Apply random positions to shuffled cards
-	for i, card in ipairs(shuffledCards) do
-		if randomPositions[i] then
-			card.CFrame = randomPositions[i]
+	-- Find a random card that isn't the poker
+	local otherCards = {}
+	for _, card in ipairs(cards) do
+		if card ~= pokerCard then
+			table.insert(otherCards, card)
 		end
 	end
 	
-	-- Debug: Show where poker card ended up
-	if pokerCard then
-		local gridPos = "Unknown"
-		-- Calculate which grid position the poker is in
-		for i, card in ipairs(shuffledCards) do
-			if card == pokerCard then
-				local row = math.ceil(i / 5)
-				local col = ((i - 1) % 5) + 1
-				gridPos = "Row " .. row .. ", Col " .. col
-				break
-			end
-		end
-		print("[PokerGame] Poker card shuffled to:", gridPos, "Position:", pokerCard.Position)
+	if #otherCards == 0 then
+		print("[PokerGame] No other cards to swap with!")
+		return
 	end
 	
-	print("[PokerGame] Cards shuffled to random positions")
+	-- Pick a random card to swap with
+	local randomCard = otherCards[math.random(1, #otherCards)]
+	
+	-- Store their positions
+	local pokerCFrame = pokerCard.CFrame
+	local randomCardCFrame = randomCard.CFrame
+	
+	-- Swap positions
+	pokerCard.CFrame = randomCardCFrame
+	randomCard.CFrame = pokerCFrame
+	
+	print("[PokerGame] Poker card swapped with:", randomCard.Name)
+	print("[PokerGame] Poker card new position:", pokerCard.Position)
 end
 
 -- Start the game
