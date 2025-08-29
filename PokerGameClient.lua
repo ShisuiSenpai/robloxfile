@@ -50,6 +50,7 @@ local function storeOriginalCardPositions()
 	for _, card in ipairs(table1:GetChildren()) do
 		if card:IsA("BasePart") then
 			originalCardCFrames[card] = card.CFrame
+			print("[PokerGame DEBUG] Stored original position for", card.Name, "at", card.CFrame.Position)
 		end
 	end
 	print("[PokerGame] Stored", #originalCardCFrames, "original card positions")
@@ -221,9 +222,10 @@ local function flipCard(card)
 		Enum.EasingDirection.InOut
 	)
 	
-	-- Calculate flip rotations
-	local halfFlipCFrame = originalCFrame * CFrame.Angles(math.rad(90), 0, 0)
-	local fullFlipCFrame = originalCFrame * CFrame.Angles(math.rad(180), 0, 0)
+	-- Calculate flip rotations (keep position, only rotate)
+	local currentPos = card.Position
+	local halfFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(90), 0, 0)
+	local fullFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(180), 0, 0)
 	
 	-- First half of flip
 	local flipTween1 = TweenService:Create(card, flipTweenInfo, {
@@ -248,18 +250,23 @@ end
 
 -- Reset a card to face-down position
 local function resetCard(card)
+	print("[PokerGame DEBUG] resetCard called for", card.Name)
+	
 	-- Cancel any active tweens
 	if flipTweens[card] then
+		print("[PokerGame DEBUG] Cancelling", #flipTweens[card], "tweens for", card.Name)
 		for _, tween in ipairs(flipTweens[card]) do
 			tween:Cancel()
 		end
 		flipTweens[card] = nil
 	end
 	
-	-- Reset to original position if we have it
-	if originalCardCFrames[card] then
-		card.CFrame = originalCardCFrames[card]
-	end
+	-- Reset rotation to face-down (keep current position)
+	local currentPos = card.Position
+	local faceDownCFrame = CFrame.new(currentPos) -- No rotation = face down
+	
+	print("[PokerGame DEBUG] Resetting", card.Name, "rotation at position:", currentPos)
+	card.CFrame = faceDownCFrame
 	
 	-- Clear flip state
 	flippedCards[card] = nil

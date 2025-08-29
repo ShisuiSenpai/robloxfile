@@ -62,20 +62,30 @@ end
 
 -- Reset card states
 local function resetCards()
+	print("[PokerGame DEBUG] resetCards() called")
 	GameState.selectedCards = {}
 	
-	-- Reset all card positions and rotations to original state
-	for card, originalCFrame in pairs(originalCardCFrames) do
-		if card.Parent then
-			-- Make sure card is face down (original rotation)
-			card.CFrame = originalCFrame
-		end
-	end
+	-- Debug: Show what we're resetting
+	print("[PokerGame DEBUG] Number of cards to reset:", #cards)
+	print("[PokerGame DEBUG] Original positions stored:", #originalCardCFrames)
 	
-	-- Force reset all card rotations to ensure they're face down
+	-- Reset all card positions and rotations to original state
 	for _, card in ipairs(cards) do
 		if card.Parent and originalCardCFrames[card] then
-			card.CFrame = originalCardCFrames[card]
+			local originalCFrame = originalCardCFrames[card]
+			print("[PokerGame DEBUG] Resetting card:", card.Name)
+			print("[PokerGame DEBUG]   From:", card.CFrame.Position, "Rotation:", card.CFrame.LookVector)
+			print("[PokerGame DEBUG]   To:", originalCFrame.Position, "Rotation:", originalCFrame.LookVector)
+			
+			-- Force reset to exact original state
+			card.CFrame = originalCFrame
+			
+			-- Double-check it worked
+			if card.CFrame ~= originalCFrame then
+				print("[PokerGame DEBUG] ERROR: Card did not reset properly!")
+			end
+		else
+			print("[PokerGame DEBUG] WARNING: Card missing data:", card.Name)
 		end
 	end
 	
@@ -129,10 +139,14 @@ end
 
 -- Simple shuffle - just swap poker card with a random card
 local function shuffleCards()
+	print("[PokerGame DEBUG] shuffleCards() called")
+	
 	if not pokerCard then
-		print("[PokerGame] Warning: No poker card found!")
+		print("[PokerGame] ERROR: No poker card found!")
 		return
 	end
+	
+	print("[PokerGame DEBUG] Poker card before shuffle:", pokerCard.Name, "at", pokerCard.Position)
 	
 	-- Find a random card that isn't the poker
 	local otherCards = {}
@@ -143,27 +157,32 @@ local function shuffleCards()
 	end
 	
 	if #otherCards == 0 then
-		print("[PokerGame] No other cards to swap with!")
+		print("[PokerGame] ERROR: No other cards to swap with!")
 		return
 	end
 	
 	-- Pick a random card to swap with
 	local randomCard = otherCards[math.random(1, #otherCards)]
 	
-	-- Store their current positions
-	local pokerCFrame = currentCardCFrames[pokerCard]
-	local randomCardCFrame = currentCardCFrames[randomCard]
+	print("[PokerGame DEBUG] Swapping poker with:", randomCard.Name)
+	
+	-- Get current positions
+	local pokerPos = pokerCard.CFrame
+	local randomPos = randomCard.CFrame
+	
+	print("[PokerGame DEBUG] Poker position before:", pokerPos.Position)
+	print("[PokerGame DEBUG] Random card position before:", randomPos.Position)
 	
 	-- Swap positions
-	pokerCard.CFrame = randomCardCFrame
-	randomCard.CFrame = pokerCFrame
+	pokerCard.CFrame = randomPos
+	randomCard.CFrame = pokerPos
 	
 	-- Update current positions
-	currentCardCFrames[pokerCard] = randomCardCFrame
-	currentCardCFrames[randomCard] = pokerCFrame
+	currentCardCFrames[pokerCard] = randomPos
+	currentCardCFrames[randomCard] = pokerPos
 	
-	print("[PokerGame] Poker card swapped with:", randomCard.Name)
-	print("[PokerGame] Poker card new position:", pokerCard.Position)
+	print("[PokerGame DEBUG] Poker position after:", pokerCard.Position)
+	print("[PokerGame DEBUG] Random card position after:", randomCard.Position)
 end
 
 -- Start the game
@@ -258,39 +277,45 @@ end
 
 -- Handle card selection
 local function selectCard(player, card)
+	print("[PokerGame DEBUG] selectCard called by", player.Name, "for card", card.Name)
+	
 	-- Validate game state
 	if not GameState.isActive then
-		print("[PokerGame] Game not active")
+		print("[PokerGame DEBUG] ERROR: Game not active")
 		return
 	end
 	
 	if GameState.currentTurn ~= player then
-		print("[PokerGame] Not player's turn:", player.Name)
+		print("[PokerGame DEBUG] ERROR: Not player's turn. Current turn:", GameState.currentTurn.Name)
 		return
 	end
 	
 	if GameState.selectedCards[card] then
-		print("[PokerGame] Card already selected")
+		print("[PokerGame DEBUG] ERROR: Card already selected")
 		return
 	end
 	
 	-- Mark card as selected
 	GameState.selectedCards[card] = true
 	
-	print("[PokerGame]", player.Name, "selected card:", card.Name)
+	print("[PokerGame DEBUG] Card selected successfully. Is it poker?", card == pokerCard)
 	
 	-- Tell all clients to flip this card
 	cardFlipEvent:FireAllClients(card)
 	
 	-- Check if it's the poker card
 	if card == pokerCard then
+		print("[PokerGame DEBUG] POKER CARD FOUND! Player loses:", player.Name)
 		-- Player loses!
 		local winner = (player == GameState.player1) and GameState.player2 or GameState.player1
 		endGame(winner, player, "poker_picked")
 	else
+		print("[PokerGame DEBUG] Normal card selected, switching turns")
 		-- Normal card - switch turns
 		GameState.turnNumber = GameState.turnNumber + 1
 		GameState.currentTurn = (GameState.currentTurn == GameState.player1) and GameState.player2 or GameState.player1
+		
+		print("[PokerGame DEBUG] New turn:", GameState.currentTurn.Name)
 		
 		-- Update turn display
 		turnUpdateEvent:FireAllClients(GameState.currentTurn.Name)
@@ -303,8 +328,11 @@ local function selectCard(player, card)
 			end
 		end
 		
+		print("[PokerGame DEBUG] Unselected cards remaining:", unselectedCount)
+		
 		if unselectedCount == 1 and not GameState.selectedCards[pokerCard] then
 			-- Only poker remains - current player wins
+			print("[PokerGame DEBUG] Only poker remains, current player wins!")
 			endGame(GameState.currentTurn, 
 				(GameState.currentTurn == GameState.player1) and GameState.player2 or GameState.player1, 
 				"last_card_poker")
@@ -314,8 +342,11 @@ end
 
 -- Handle remote events
 cardClickEvent.OnServerEvent:Connect(function(player, card)
+	print("[PokerGame DEBUG] Card click received from", player.Name, "for", card and card.Name or "nil")
+	
 	-- Validate the card
 	if not card or not card:IsDescendantOf(table1) then
+		print("[PokerGame DEBUG] ERROR: Invalid card")
 		return
 	end
 	
