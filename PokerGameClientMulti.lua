@@ -120,11 +120,11 @@ local waitingAnimations = {}
 
 -- Start waiting animation
 local function startWaitingAnimation(tableData, turnLabel)
-	print("[DEBUG] startWaitingAnimation called for table:", tableData.id)
-	print("[DEBUG] turnLabel exists:", turnLabel ~= nil)
+	-- print("[DEBUG] startWaitingAnimation called for table:", tableData.id)
+	-- print("[DEBUG] turnLabel exists:", turnLabel ~= nil)
 	
 	if waitingAnimations[tableData.id] then 
-		print("[DEBUG] Animation already running for table:", tableData.id)
+		-- print("[DEBUG] Animation already running for table:", tableData.id)
 		return 
 	end
 	
@@ -140,11 +140,11 @@ local function startWaitingAnimation(tableData, turnLabel)
 				dots = dots .. "."
 			end
 			turnLabel.Text = "Waiting for players" .. dots
-			print("[DEBUG] Waiting animation updated - Table:", tableData.id, "Text:", turnLabel.Text)
+			-- print("[DEBUG] Waiting animation updated - Table:", tableData.id, "Text:", turnLabel.Text)
 		end
 	end)
 	
-	print("[DEBUG] Waiting animation started for table:", tableData.id)
+	-- print("[DEBUG] Waiting animation started for table:", tableData.id)
 end
 
 -- Stop waiting animation
@@ -153,6 +153,42 @@ local function stopWaitingAnimation(tableData)
 		waitingAnimations[tableData.id]:Disconnect()
 		waitingAnimations[tableData.id] = nil
 	end
+end
+
+-- Clean up table state when leaving
+local function cleanupTableState(tableData)
+	-- print("[DEBUG] Cleaning up table state for:", tableData.id)
+	
+	-- Clean up UI
+	if tableData.gameUI then
+		tableData.gameUI:Destroy()
+		tableData.gameUI = nil
+		tableData.turnLabel = nil
+		tableData.statusLabel = nil
+	end
+	
+	-- Stop animations
+	stopWaitingAnimation(tableData)
+	
+	-- Clean up highlights
+	for card, highlight in pairs(tableData.cardHighlights) do
+		if highlight then
+			highlight:Destroy()
+		end
+	end
+	tableData.cardHighlights = {}
+	
+	-- Reset game state
+	tableData.gameActive = false
+	tableData.isMyTurn = false
+	tableData.isCountdownActive = false
+	tableData.currentHoveredCard = nil
+	tableData.selectedCards = {}
+	tableData.flippedCards = {}
+	
+	-- Note: We don't clear originalCardCFrames as these should persist
+	
+	-- print("[DEBUG] Cleanup complete for table:", tableData.id)
 end
 
 -- Create game UI for a table
@@ -247,17 +283,17 @@ local function updateCardHighlighting(tableData)
 			highlight.FillColor3 = SELECTED_CARD_COLOR
 			highlight.OutlineColor = SELECTED_CARD_COLOR
 			highlight.Enabled = true
-			print("[DEBUG] Card", card.Name, "highlighted as SELECTED/FLIPPED")
+			-- print("[DEBUG] Card", card.Name, "highlighted as SELECTED/FLIPPED")
 		elseif tableData.currentHoveredCard == card and tableData.gameActive and tableData.isMyTurn then
 			highlight.FillColor3 = HIGHLIGHT_COLOR
 			highlight.OutlineColor = HIGHLIGHT_COLOR
 			highlight.Enabled = true
-			print("[DEBUG] Card", card.Name, "highlighted as HOVERED - isMyTurn:", tableData.isMyTurn)
+			-- print("[DEBUG] Card", card.Name, "highlighted as HOVERED - isMyTurn:", tableData.isMyTurn)
 		else
 			highlight.Enabled = false
 		end
 	end
-	print("[DEBUG] updateCardHighlighting - Table:", tableData.id, "Processed:", highlightCount, "highlights, gameActive:", tableData.gameActive, "isMyTurn:", tableData.isMyTurn)
+	-- print("[DEBUG] updateCardHighlighting - Table:", tableData.id, "Processed:", highlightCount, "highlights, gameActive:", tableData.gameActive, "isMyTurn:", tableData.isMyTurn)
 
 -- Flip card animation
 local function flipCard(tableData, card)
@@ -324,14 +360,14 @@ local function onMouseMove()
 		-- Check if hovering over a card (exclude camera parts)
 		if target.Parent == currentTable.tablePart and target:IsA("BasePart") and not target.Name:match("Camera") then
 			cardTarget = target
-			print("[DEBUG] Direct card hover:", cardTarget.Name)
+			-- print("[DEBUG] Direct card hover:", cardTarget.Name)
 		elseif target.Parent and target.Parent.Parent == currentTable.tablePart and target.Parent:IsA("BasePart") then
 			cardTarget = target.Parent
-			print("[DEBUG] Indirect card hover (via child):", cardTarget.Name)
+			-- print("[DEBUG] Indirect card hover (via child):", cardTarget.Name)
 		else
 			-- Debug why it's not detecting as a card
 			if target.Parent then
-				print("[DEBUG] Mouse target parent:", target.Parent.Name, "Expected table:", currentTable.tablePart.Name)
+				-- print("[DEBUG] Mouse target parent:", target.Parent.Name, "Expected table:", currentTable.tablePart.Name)
 			end
 		end
 	end
@@ -356,11 +392,11 @@ end
 -- Handle mouse click
 local function onMouseClick()
 	local currentTable = getCurrentTable()
-	print("[DEBUG] onMouseClick - currentTable:", currentTable and currentTable.id or "none")
+	-- print("[DEBUG] onMouseClick - currentTable:", currentTable and currentTable.id or "none")
 	
 	if not currentTable or not currentTable.gameActive or not currentTable.isMyTurn or 
 	   not currentTable.currentHoveredCard or currentTable.isCountdownActive then
-		print("[DEBUG] Click blocked - gameActive:", currentTable and currentTable.gameActive,
+		-- print("[DEBUG] Click blocked - gameActive:", currentTable and currentTable.gameActive,
 			"isMyTurn:", currentTable and currentTable.isMyTurn,
 			"hoveredCard:", currentTable and currentTable.currentHoveredCard and currentTable.currentHoveredCard.Name or "none",
 			"isCountdown:", currentTable and currentTable.isCountdownActive)
@@ -368,11 +404,11 @@ local function onMouseClick()
 	end
 	
 	if currentTable.selectedCards[currentTable.currentHoveredCard] then
-		print("[DEBUG] Card already selected:", currentTable.currentHoveredCard.Name)
+		-- print("[DEBUG] Card already selected:", currentTable.currentHoveredCard.Name)
 		return
 	end
 	
-	print("[DEBUG] Clicking card:", currentTable.currentHoveredCard.Name)
+	-- print("[DEBUG] Clicking card:", currentTable.currentHoveredCard.Name)
 	
 	if soundsEnabled then
 		if currentTable.currentHoveredCard.Name == "Poker" then
@@ -387,16 +423,16 @@ end
 
 -- Check seating status for a table
 local checkSeatingStatus = function(tableData)
-	print("[DEBUG] checkSeatingStatus called for table:", tableData.id)
+	-- print("[DEBUG] checkSeatingStatus called for table:", tableData.id)
 	
 	if not player.Character then 
-		print("[DEBUG] No player character")
+		-- print("[DEBUG] No player character")
 		return 
 	end
 	
 	local humanoid = player.Character:FindFirstChild("Humanoid")
 	if not humanoid then 
-		print("[DEBUG] No humanoid found")
+		-- print("[DEBUG] No humanoid found")
 		return 
 	end
 	
@@ -405,25 +441,21 @@ local checkSeatingStatus = function(tableData)
 	for _, seat in ipairs(tableData.seats) do
 		if humanoid.SeatPart == seat then
 			isSeated = true
-			print("[DEBUG] Player is seated at table:", tableData.id, "on seat:", seat.Name)
+			-- print("[DEBUG] Player is seated at table:", tableData.id, "on seat:", seat.Name)
 			break
 		end
 	end
 	
 	if not isSeated then
 		-- Not seated at this table
-		print("[DEBUG] Player not seated at table:", tableData.id)
-		if tableData.gameUI then
-			tableData.gameUI:Destroy()
-			tableData.gameUI = nil
-		end
-		stopWaitingAnimation(tableData)
+		-- print("[DEBUG] Player not seated at table:", tableData.id)
+		cleanupTableState(tableData)
 		return
 	end
 	
 	-- Seated at this table
 	if not tableData.gameUI then
-		print("[DEBUG] Creating UI for table:", tableData.id)
+		-- print("[DEBUG] Creating UI for table:", tableData.id)
 		createGameUI(tableData)
 	end
 	
@@ -436,25 +468,25 @@ local checkSeatingStatus = function(tableData)
 		end
 	end
 	
-	print("[DEBUG] Table", tableData.id, "- isSeated:", isSeated, "bothSeated:", bothSeated,
+	-- print("[DEBUG] Table", tableData.id, "- isSeated:", isSeated, "bothSeated:", bothSeated,
 		"gameActive:", tableData.gameActive, "isCountdownActive:", tableData.isCountdownActive)
 	
 	-- Update UI based on game state
 	if tableData.gameUI and tableData.gameUI.TurnFrame then
 		if isSeated and not tableData.gameActive and not tableData.isCountdownActive then
 			-- Show waiting UI when seated but game hasn't started
-			print("[DEBUG] Showing waiting UI for table:", tableData.id)
+			-- print("[DEBUG] Showing waiting UI for table:", tableData.id)
 			tableData.gameUI.TurnFrame.Visible = true
 			stopWaitingAnimation(tableData) -- Stop any existing animation first
 			startWaitingAnimation(tableData, tableData.turnLabel)
 		elseif isSeated and tableData.gameActive then
 			-- Keep UI visible during game
-			print("[DEBUG] Showing game UI for table:", tableData.id)
+			-- print("[DEBUG] Showing game UI for table:", tableData.id)
 			tableData.gameUI.TurnFrame.Visible = true
 			stopWaitingAnimation(tableData)
 		elseif tableData.isCountdownActive then
 			-- Hide during countdown
-			print("[DEBUG] Hiding UI during countdown for table:", tableData.id)
+			-- print("[DEBUG] Hiding UI during countdown for table:", tableData.id)
 			tableData.gameUI.TurnFrame.Visible = false
 			stopWaitingAnimation(tableData)
 		else
@@ -471,19 +503,19 @@ for tableId, tableData in pairs(tables) do
 	
 	-- Game state updates
 	tableData.remoteEvents.GameStateUpdate.OnClientEvent:Connect(function(state, data)
-		print("[DEBUG] GameStateUpdate received for table:", tableData.id, "State:", state)
+		-- print("[DEBUG] GameStateUpdate received for table:", tableData.id, "State:", state)
 		
 		if state == "countdown_start" then
-			print("[DEBUG] Countdown starting for table:", tableData.id)
+			-- print("[DEBUG] Countdown starting for table:", tableData.id)
 			tableData.isCountdownActive = true
 			tableData.gameActive = false
 			if tableData.gameUI then
-				print("[DEBUG] Hiding TurnFrame for countdown")
+				-- print("[DEBUG] Hiding TurnFrame for countdown")
 				tableData.gameUI.TurnFrame.Visible = false
 			end
 			
 		elseif state == "game_start" then
-			print("[DEBUG] Game starting for table:", tableData.id)
+			-- print("[DEBUG] Game starting for table:", tableData.id)
 			tableData.isCountdownActive = false
 			tableData.gameActive = true
 			tableData.selectedCards = {}
@@ -494,23 +526,23 @@ for tableId, tableData in pairs(tables) do
 			
 			-- Update UI if seated at this table
 			if getCurrentTable() == tableData then
-				print("[DEBUG] Player is at this table, showing game UI")
+				-- print("[DEBUG] Player is at this table, showing game UI")
 				if not tableData.gameUI then
 					createGameUI(tableData)
 				end
 				tableData.gameUI.TurnFrame.Visible = true
 			else
-				print("[DEBUG] Player is NOT at this table")
+				-- print("[DEBUG] Player is NOT at this table")
 			end
 			
 			-- Create highlights for all cards
-			print("[DEBUG] Creating highlights for table:", tableData.id)
+			-- print("[DEBUG] Creating highlights for table:", tableData.id)
 			local cardCount = 0
 			
 			-- Check direct children
 			for _, card in ipairs(tableData.tablePart:GetChildren()) do
 				if card:IsA("BasePart") and not card.Name:match("Camera") then
-					print("[DEBUG] Creating highlight for card:", card.Name)
+					-- print("[DEBUG] Creating highlight for card:", card.Name)
 					getOrCreateHighlight(tableData, card)
 					cardCount = cardCount + 1
 				end
@@ -521,7 +553,7 @@ for tableId, tableData in pairs(tables) do
 				for _, child in ipairs(tableData.tablePart:GetDescendants()) do
 					if child:IsA("BasePart") and child.Parent == tableData.tablePart and not child.Name:match("Camera") then
 						if not tableData.cardHighlights[child] then
-							print("[DEBUG] Creating highlight for nested card:", child.Name)
+							-- print("[DEBUG] Creating highlight for nested card:", child.Name)
 							getOrCreateHighlight(tableData, child)
 							cardCount = cardCount + 1
 						end
@@ -529,7 +561,7 @@ for tableId, tableData in pairs(tables) do
 				end
 			end
 			
-			print("[DEBUG] Created highlights for", cardCount, "cards on table:", tableData.id)
+			-- print("[DEBUG] Created highlights for", cardCount, "cards on table:", tableData.id)
 			
 			updateCardHighlighting(tableData)
 			
@@ -537,6 +569,17 @@ for tableId, tableData in pairs(tables) do
 			tableData.gameActive = false
 			tableData.isMyTurn = false
 			tableData.isCountdownActive = false
+			
+			-- Clean up highlights when game ends
+			for card, highlight in pairs(tableData.cardHighlights) do
+				if highlight then
+					highlight:Destroy()
+				end
+			end
+			tableData.cardHighlights = {}
+			tableData.selectedCards = {}
+			tableData.flippedCards = {}
+			tableData.currentHoveredCard = nil
 			
 						-- Show winner/loser message if at this table
 			if tableData.gameUI and getCurrentTable() == tableData then
@@ -634,16 +677,23 @@ for tableId, tableData in pairs(tables) do
 	-- Card flip events
 	tableData.remoteEvents.CardFlip.OnClientEvent:Connect(function(cardOrAction)
 		if cardOrAction == "reset_all_cards" then
+			-- Reset all cards for this table
 			for _, card in ipairs(tableData.tablePart:GetChildren()) do
 				if card:IsA("BasePart") then
 					resetCard(tableData, card)
 				end
 			end
+			
+			-- Clear all state
 			tableData.selectedCards = {}
 			tableData.flippedCards = {}
+			tableData.currentHoveredCard = nil
 			
+			-- Disable all highlights
 			for card, highlight in pairs(tableData.cardHighlights) do
-				highlight.Enabled = false
+				if highlight and highlight.Parent then
+					highlight.Enabled = false
+				end
 			end
 		else
 			flipCard(tableData, cardOrAction)
@@ -696,11 +746,7 @@ player.CharacterAdded:Connect(onCharacterAdded)
 -- Clean up on character removal
 player.CharacterRemoving:Connect(function()
 	for _, tableData in pairs(tables) do
-		stopWaitingAnimation(tableData)
-		if tableData.gameUI then
-			tableData.gameUI:Destroy()
-			tableData.gameUI = nil
-		end
+		cleanupTableState(tableData)
 	end
 end)
 
