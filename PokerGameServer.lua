@@ -5,6 +5,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+-- Initialize random seed for better randomness
+math.randomseed(tick())
+
 -- Configuration
 local GAME_RESET_TIME = 5 -- Time before resetting after game ends
 
@@ -111,23 +114,111 @@ local function shuffleArray(array)
 	return shuffled
 end
 
+-- Generate random positions for cards in a grid pattern
+local function generateRandomGridPositions()
+	local positions = {}
+	local usedSpots = {}
+	
+	-- Get table bounds (approximate center and size)
+	local tableCenter = table1.Position
+	local tableSize = table1.Size
+	
+	-- Define grid parameters (4x5 grid)
+	local rows = 4
+	local cols = 5
+	local totalSpots = rows * cols
+	
+	-- Calculate spacing between cards
+	local xSpacing = tableSize.X / (cols + 1)
+	local zSpacing = tableSize.Z / (rows + 1)
+	
+	-- Start positions (offset from center)
+	local startX = -tableSize.X / 2 + xSpacing
+	local startZ = -tableSize.Z / 2 + zSpacing
+	
+	-- Generate all possible grid positions
+	local allGridPositions = {}
+	for row = 1, rows do
+		for col = 1, cols do
+			local x = startX + (col - 1) * xSpacing
+			local z = startZ + (row - 1) * zSpacing
+			local y = tableSize.Y / 2 + 0.5 -- Slightly above table surface
+			
+			-- Add small random offset for more natural look
+			local randomOffsetX = (math.random() - 0.5) * xSpacing * 0.3
+			local randomOffsetZ = (math.random() - 0.5) * zSpacing * 0.3
+			
+			local position = tableCenter + Vector3.new(x + randomOffsetX, y, z + randomOffsetZ)
+			local rotation = CFrame.Angles(0, math.random() * math.pi * 2, 0) -- Random Y rotation
+			
+			table.insert(allGridPositions, CFrame.new(position) * rotation)
+		end
+	end
+	
+	-- Randomly select positions for each card
+	local availableIndices = {}
+	for i = 1, #allGridPositions do
+		table.insert(availableIndices, i)
+	end
+	
+	-- Shuffle the indices
+	for i = #availableIndices, 2, -1 do
+		local j = math.random(1, i)
+		availableIndices[i], availableIndices[j] = availableIndices[j], availableIndices[i]
+	end
+	
+	-- Assign positions to cards
+	for i = 1, math.min(#cards, #availableIndices) do
+		positions[i] = allGridPositions[availableIndices[i]]
+	end
+	
+	return positions
+end
+
 -- Simple shuffle positions
 local function shuffleCards()
-	-- Get current positions
-	local positions = {}
-	for _, card in ipairs(cards) do
-		table.insert(positions, card.CFrame)
-	end
+	-- First, shuffle the cards array itself to randomize which card goes where
+	local shuffledCards = {}
+	local tempCards = {}
 	
-	-- Shuffle the positions
-	local shuffledPositions = shuffleArray(positions)
-	
-	-- Apply shuffled positions
+	-- Copy cards to temp array
 	for i, card in ipairs(cards) do
-		card.CFrame = shuffledPositions[i]
+		tempCards[i] = card
 	end
 	
-	print("[PokerGame] Cards shuffled")
+	-- Shuffle the cards themselves
+	for i = #tempCards, 1, -1 do
+		local j = math.random(1, i)
+		shuffledCards[#shuffledCards + 1] = tempCards[j]
+		table.remove(tempCards, j)
+	end
+	
+	-- Generate completely random positions
+	local randomPositions = generateRandomGridPositions()
+	
+	-- Apply random positions to shuffled cards
+	for i, card in ipairs(shuffledCards) do
+		if randomPositions[i] then
+			card.CFrame = randomPositions[i]
+		end
+	end
+	
+	-- Debug: Show where poker card ended up
+	if pokerCard then
+		local gridPos = "Unknown"
+		-- Calculate which grid position the poker is in
+		for i, card in ipairs(shuffledCards) do
+			if card == pokerCard then
+				local row = math.ceil(i / 5)
+				local col = ((i - 1) % 5) + 1
+				gridPos = "Row " .. row .. ", Col " .. col
+				break
+			end
+		end
+		print("[PokerGame] Poker card shuffled to:", gridPos, "Position:", pokerCard.Position)
+	end
+	
+	print("[PokerGame] Cards shuffled to random positions")
 end
 
 -- Start the game
