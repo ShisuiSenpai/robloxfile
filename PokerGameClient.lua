@@ -278,29 +278,35 @@ local function resetCard(card)
 	if originalCFrame then
 		print("[PokerGame DEBUG] Resetting", card.Name, "to face-down")
 		
-		-- Use a tween to smoothly reset the card
-		local resetTweenInfo = TweenInfo.new(
-			0.3,
-			Enum.EasingStyle.Quad,
-			Enum.EasingDirection.Out
-		)
-		
-		local resetTween = TweenService:Create(card, resetTweenInfo, {
-			CFrame = originalCFrame
-		})
-		
-		resetTween:Play()
-		
-		-- Store the tween so we can cancel it if needed
-		if not flipTweens[card] then
-			flipTweens[card] = {}
-		end
-		table.insert(flipTweens[card], resetTween)
+		-- Use coroutine for smooth reset that survives character removal
+		coroutine.wrap(function()
+			local startCFrame = card.CFrame
+			local targetCFrame = originalCFrame
+			local duration = 0.3
+			local elapsed = 0
+			
+			while elapsed < duration and card.Parent do
+				elapsed = elapsed + game:GetService("RunService").Heartbeat:Wait()
+				local alpha = math.min(elapsed / duration, 1)
+				
+				-- Use quad easing for smooth animation
+				local easedAlpha = alpha * alpha * (3 - 2 * alpha)
+				
+				if card.Parent then -- Check card still exists
+					card.CFrame = startCFrame:Lerp(targetCFrame, easedAlpha)
+				end
+			end
+			
+			-- Ensure final position
+			if card.Parent then
+				card.CFrame = targetCFrame
+			end
+		end)()
 	else
 		print("[PokerGame DEBUG] WARNING: No original CFrame for", card.Name)
 		-- This shouldn't happen, but as a fallback...
 		local currentPos = card.Position
-		card.CFrame = CFrame.new(currentPos)
+		card.CFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(180), 0, 0)
 	end
 	
 	-- Clear flip state

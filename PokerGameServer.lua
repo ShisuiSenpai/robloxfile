@@ -67,7 +67,11 @@ local function resetCards()
 	
 	-- Debug: Show what we're resetting
 	print("[PokerGame DEBUG] Number of cards to reset:", #cards)
-	print("[PokerGame DEBUG] Original positions stored:", #originalCardCFrames)
+	local count = 0
+	for k, v in pairs(originalCardCFrames) do
+		count = count + 1
+	end
+	print("[PokerGame DEBUG] Original positions stored:", count)
 	
 	-- Reset all card positions and rotations to original state
 	for _, card in ipairs(cards) do
@@ -386,6 +390,7 @@ player2Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
 	end
 end)
 
--- Initialize
+-- Initialize with a delay to ensure CardOrientationFixer has run
+task.wait(0.5) -- Wait for CardOrientationFixer to set initial orientations
 initializeCards()
 print("[PokerGame] Server initialized. Waiting for players...")
