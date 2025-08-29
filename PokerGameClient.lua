@@ -10,7 +10,7 @@ local RunService = game:GetService("RunService")
 local HIGHLIGHT_COLOR = Color3.fromRGB(100, 255, 100) -- Green for your turn
 local OPPONENT_HIGHLIGHT_COLOR = Color3.fromRGB(255, 100, 100) -- Red for opponent's turn
 local SELECTED_CARD_COLOR = Color3.fromRGB(150, 150, 150) -- Gray for selected cards
-local FLIP_DURATION = 0.3 -- Reduced for snappier animation
+local FLIP_DURATION = 0.45 -- Balanced for smooth, satisfying animation
 
 -- References
 local player = Players.LocalPlayer
