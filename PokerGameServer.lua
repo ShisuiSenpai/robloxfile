@@ -108,8 +108,14 @@ local function startGame()
 	-- Randomly select who goes first
 	GameState.currentTurn = math.random(2) == 1 and GameState.player1 or GameState.player2
 	
-	-- Reset cards
+	-- Wait for countdown and shuffle animation to complete (3 seconds countdown + buffer)
+	wait(3.5)
+	
+	-- Reset cards after animation is done
 	resetCards()
+	
+	-- Small delay to ensure cards are in position
+	wait(0.1)
 	
 	-- Notify all clients about game start
 	gameStateEvent:FireAllClients("game_start", {

@@ -219,7 +219,35 @@ local function shuffleArray(array)
 	return shuffled
 end
 
--- Animate card shuffle
+-- Create local parts for shuffle animation (client-side only)
+local function createLocalCardCopies()
+	local localCards = {}
+	local cardsFolder = Instance.new("Folder")
+	cardsFolder.Name = "LocalShuffleCards"
+	cardsFolder.Parent = workspace.CurrentCamera
+	
+	for _, card in ipairs(getCards()) do
+		local localCard = card:Clone()
+		localCard.Parent = cardsFolder
+		localCard.Anchored = true
+		localCard.CanCollide = false
+		localCard.CanQuery = false
+		localCard.CanTouch = false
+		
+		-- Make original card invisible during animation
+		card.Transparency = 1
+		
+		table.insert(localCards, {
+			original = card,
+			localCopy = localCard,
+			originalTransparency = card.Transparency
+		})
+	end
+	
+	return localCards, cardsFolder
+end
+
+-- Animate card shuffle (local only)
 local function animateCardShuffle(onComplete)
 	local allCards = getCards()
 	if #allCards == 0 then
@@ -234,11 +262,15 @@ local function animateCardShuffle(onComplete)
 	end
 	shuffleTweens = {}
 	
+	-- Create local copies for animation
+	local localCards, cardsFolder = createLocalCardCopies()
+	
 	-- Calculate center of table
 	local centerPosition = table1.Position
 	
 	-- Phase 1: Lift all cards and move to center
-	for i, card in ipairs(allCards) do
+	for i, cardData in ipairs(localCards) do
+		local card = cardData.localCopy
 		local raisedCFrame = CFrame.new(centerPosition + Vector3.new(0, SHUFFLE_HEIGHT + (i * 0.1), 0))
 		local tween = TweenService:Create(card,
 			TweenInfo.new(CARD_MOVE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -252,8 +284,9 @@ local function animateCardShuffle(onComplete)
 	
 	-- Phase 2: Shuffle animation (cards spinning and moving)
 	for rotation = 1, SHUFFLE_ROTATIONS do
-		for i, card in ipairs(allCards) do
-			local angle = (i / #allCards) * math.pi * 2
+		for i, cardData in ipairs(localCards) do
+			local card = cardData.localCopy
+			local angle = (i / #localCards) * math.pi * 2
 			local radius = SHUFFLE_SPREAD * (rotation / SHUFFLE_ROTATIONS)
 			local x = math.cos(angle) * radius
 			local z = math.sin(angle) * radius
@@ -272,16 +305,12 @@ local function animateCardShuffle(onComplete)
 		wait(0.2)
 	end
 	
-	-- Phase 3: Return cards to positions (shuffled)
-	local positions = {}
-	for card, pos in pairs(originalPositions) do
-		table.insert(positions, pos)
-	end
-	
-	local shuffledPositions = shuffleArray(positions)
-	
-	for i, card in ipairs(allCards) do
-		local targetCFrame = shuffledPositions[i]
+	-- Phase 3: Return cards to positions (visual only)
+	for i, cardData in ipairs(localCards) do
+		local card = cardData.localCopy
+		local original = cardData.original
+		local targetCFrame = original.CFrame
+		
 		local tween = TweenService:Create(card,
 			TweenInfo.new(CARD_MOVE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
 			{CFrame = targetCFrame}
@@ -291,6 +320,13 @@ local function animateCardShuffle(onComplete)
 	end
 	
 	wait(CARD_MOVE_TIME)
+	
+	-- Clean up: Remove local copies and restore original cards
+	for _, cardData in ipairs(localCards) do
+		cardData.original.Transparency = 0 -- Restore visibility
+		cardData.localCopy:Destroy()
+	end
+	cardsFolder:Destroy()
 	
 	-- Clear tweens
 	shuffleTweens = {}
