@@ -212,26 +212,16 @@ end
 
 -- Update card highlighting based on game state
 local function updateCardHighlighting()
-	print(string.format("[HIGHLIGHT DEBUG] Updating highlights | GameActive: %s | MyTurn: %s | HoveredCard: %s",
-		tostring(gameActive), tostring(isMyTurn), currentHoveredCard and currentHoveredCard.Name or "nil"))
-	
 	for card, highlight in pairs(cardHighlights) do
 		if selectedCards[card] or flippedCards[card] then
 			-- Card is selected/flipped - always show as gray
 			highlight.FillColor = SELECTED_CARD_COLOR
 			highlight.OutlineColor = SELECTED_CARD_COLOR
 			highlight.Enabled = true
-		elseif currentHoveredCard == card and isSeatedAtTable() then
-			-- Hovering over card while seated - show highlight
-			-- Use different colors based on whether it's your turn
-			if gameActive and isMyTurn then
-				highlight.FillColor = HIGHLIGHT_COLOR
-				highlight.OutlineColor = HIGHLIGHT_COLOR
-			else
-				-- Dimmer highlight when not your turn
-				highlight.FillColor = Color3.new(0.4, 0.4, 0.4)
-				highlight.OutlineColor = Color3.new(0.4, 0.4, 0.4)
-			end
+		elseif currentHoveredCard == card and isSeatedAtTable() and gameActive and isMyTurn then
+			-- Only show green highlight when it's actually your turn
+			highlight.FillColor = HIGHLIGHT_COLOR
+			highlight.OutlineColor = HIGHLIGHT_COLOR
 			highlight.Enabled = true
 		else
 			highlight.Enabled = false
@@ -342,29 +332,16 @@ end
 
 -- Handle mouse movement
 local function onMouseMove()
-	local seated = isSeatedAtTable()
-	local target = mouse.Target
-	
-	-- Debug logging
-	if target and target.Parent == table1 and target:IsA("BasePart") then
-		print(string.format("[HOVER DEBUG] Mouse on card: %s | Seated: %s | GameActive: %s | MyTurn: %s", 
-			target.Name, tostring(seated), tostring(gameActive), tostring(isMyTurn)))
-	end
-	
-	if not seated then
-		if currentHoveredCard then
-			print("[HOVER DEBUG] Not seated - clearing hover")
-			currentHoveredCard = nil
-			updateCardHighlighting()
-		end
+	if not isSeatedAtTable() then
+		currentHoveredCard = nil
+		updateCardHighlighting()
 		return
 	end
 	
-	-- Allow hovering when seated, regardless of game state (for visual feedback)
+	local target = mouse.Target
+	
 	if target and target.Parent == table1 and target:IsA("BasePart") then
 		if currentHoveredCard ~= target then
-			print(string.format("[HOVER DEBUG] Changing hover from %s to %s", 
-				currentHoveredCard and currentHoveredCard.Name or "nil", target.Name))
 			currentHoveredCard = target
 			updateCardHighlighting()
 			
@@ -375,7 +352,6 @@ local function onMouseMove()
 		end
 	else
 		if currentHoveredCard then
-			print("[HOVER DEBUG] Mouse left card - clearing hover")
 			currentHoveredCard = nil
 			updateCardHighlighting()
 		end
@@ -384,34 +360,13 @@ end
 
 -- Handle mouse click
 local function onMouseClick()
-	print(string.format("[CLICK DEBUG] Click attempt | GameActive: %s | MyTurn: %s | Hovered: %s | Countdown: %s",
-		tostring(gameActive), tostring(isMyTurn), 
-		currentHoveredCard and currentHoveredCard.Name or "nil", 
-		tostring(isCountdownActive)))
-	
-	if not gameActive then
-		print("[CLICK DEBUG] Click blocked - game not active")
-		return
-	end
-	if not isMyTurn then
-		print("[CLICK DEBUG] Click blocked - not your turn")
-		return
-	end
-	if not currentHoveredCard then
-		print("[CLICK DEBUG] Click blocked - no card hovered")
-		return
-	end
-	if isCountdownActive then
-		print("[CLICK DEBUG] Click blocked - countdown active")
+	if not gameActive or not isMyTurn or not currentHoveredCard or isCountdownActive then
 		return
 	end
 	
 	if selectedCards[currentHoveredCard] then
-		print("[CLICK DEBUG] Click blocked - card already selected")
 		return -- Card already selected
 	end
-	
-	print("[CLICK DEBUG] Click successful on card:", currentHoveredCard.Name)
 	
 	-- Play appropriate click sound
 	if soundsEnabled then
@@ -445,7 +400,6 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 		
 	elseif state == "game_start" then
 		-- Countdown is complete, game actually starts
-		print("[GAME STATE DEBUG] Game starting - setting gameActive = true")
 		isCountdownActive = false
 		gameActive = true
 		selectedCards = {}
@@ -593,23 +547,17 @@ end)
 
 -- Handle turn updates
 turnUpdateEvent.OnClientEvent:Connect(function(currentTurnPlayer)
-	print(string.format("[TURN DEBUG] Turn update received | CurrentTurn: %s | GameActive: %s", 
-		currentTurnPlayer, tostring(gameActive)))
-	
-	if not gameActive then 
-		print("[TURN DEBUG] Turn update ignored - game not active")
-		return 
-	end
+	if not gameActive then return end
 	
 	isMyTurn = currentTurnPlayer == player.Name
-	print(string.format("[TURN DEBUG] isMyTurn set to: %s", tostring(isMyTurn)))
 	
 	if turnLabel then
 		if isSeatedAtTable() then
-			turnLabel.Text = isMyTurn and "Your Turn" or "Opponent's Turn"
-			
-			-- Add pulse effect for turn change
 			if isMyTurn then
+				turnLabel.Text = "Your Turn"
+				turnLabel.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green for your turn
+				
+				-- Add pulse effect for turn change
 				local pulseTween = TweenService:Create(turnLabel,
 					TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 					{TextTransparency = 0.3}
@@ -622,9 +570,13 @@ turnUpdateEvent.OnClientEvent:Connect(function(currentTurnPlayer)
 					)
 					returnTween:Play()
 				end)
+			else
+				turnLabel.Text = "Opponent's Turn"
+				turnLabel.TextColor3 = Color3.fromRGB(255, 255, 100) -- Yellow for waiting
 			end
 		else
 			turnLabel.Text = currentTurnPlayer .. "'s Turn"
+			turnLabel.TextColor3 = Color3.new(1, 1, 1) -- White default
 		end
 	end
 	
