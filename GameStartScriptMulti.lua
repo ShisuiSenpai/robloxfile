@@ -43,6 +43,9 @@ local allSeats = {}
 local seatToTable = {}
 
 print("[DEBUG GameStart] Initializing tables from TABLE_CONFIGS...")
+-- Wait a bit for all assets to load
+wait(1)
+
 for tableId, config in pairs(TABLE_CONFIGS) do
 	print("[DEBUG GameStart] Setting up table:", tableId)
 	
@@ -68,14 +71,41 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 	for _, seatName in ipairs(config.seats) do
 		local chair = folder:FindFirstChild(seatName)
 		if chair then
-			local seat = chair:FindFirstChild("Seat")
+			print("[DEBUG GameStart] Found chair:", seatName, "Type:", chair.ClassName)
+			
+			-- Try different ways to find the seat
+			local seat = chair:FindFirstChild("Seat") or chair:FindFirstChildWhichIsA("Seat") or chair:FindFirstChildWhichIsA("VehicleSeat")
+			
+			-- If chair is a model, look deeper
+			if not seat and chair:IsA("Model") then
+				for _, child in ipairs(chair:GetDescendants()) do
+					if child:IsA("Seat") or child:IsA("VehicleSeat") or (child:IsA("Part") and child.Name == "Seat") then
+						seat = child
+						print("[DEBUG GameStart] Found seat in descendants:", child:GetFullName())
+						break
+					end
+				end
+			end
+			
 			if seat then
 				table.insert(tableData.seats, seat)
 				table.insert(allSeats, seat)
 				seatToTable[seat] = tableData
-				print("[DEBUG GameStart] Added seat:", seatName, "to table:", tableId)
+				print("[DEBUG GameStart] Added seat:", seatName, "to table:", tableId, "Seat:", seat:GetFullName())
 			else
 				print("[DEBUG GameStart] WARNING: No Seat part in chair:", seatName)
+				-- List all children for debugging
+				print("[DEBUG GameStart] Chair children:")
+				for _, child in ipairs(chair:GetChildren()) do
+					print("  -", child.Name, "Type:", child.ClassName)
+				end
+				-- Also check descendants
+				print("[DEBUG GameStart] All descendants:")
+				for _, desc in ipairs(chair:GetDescendants()) do
+					if desc:IsA("BasePart") then
+						print("  -", desc:GetFullName(), "Type:", desc.ClassName)
+					end
+				end
 			end
 		else
 			print("[DEBUG GameStart] WARNING: Chair not found:", seatName)
@@ -365,4 +395,9 @@ for tableId, tableData in pairs(tables) do
 	end)
 end
 
-print("[DEBUG GameStart] Multi-table countdown script loaded - Tables:", #tables)
+-- Count tables properly
+local tableCount = 0
+for _ in pairs(tables) do
+	tableCount = tableCount + 1
+end
+print("[DEBUG GameStart] Multi-table countdown script loaded - Tables:", tableCount)
