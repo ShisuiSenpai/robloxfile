@@ -218,34 +218,22 @@ local function startGameCountdown()
 		if currentCountdown > 0 then
 			countdownLabel.Text = tostring(displayTime)
 			
-			-- Pulse effect on countdown change
+			-- Update number without animation
 			if displayTime ~= lastDisplayedNumber and displayTime >= 0 then
 				lastDisplayedNumber = displayTime
-				
-				-- Scale pulse effect
-				local pulseTween = TweenService:Create(countdownLabel,
-					TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-					{TextScaled = false, Size = UDim2.new(1.2, 0, 0, 96)} -- Slightly larger
-				)
-				pulseTween:Play()
-				pulseTween.Completed:Connect(function()
-					local returnTween = TweenService:Create(countdownLabel,
-						TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
-						{TextScaled = true, Size = UDim2.new(1, 0, 0, 80)} -- Back to normal
-					)
-					returnTween:Play()
-				end)
 			end
 		elseif currentCountdown > -0.5 then
 			-- Show "GO!" for a brief moment
 			if countdownLabel.Text ~= "GO!" then
 				countdownLabel.Text = "GO!"
-				-- Big pulse for GO!
-				local goPulseTween = TweenService:Create(countdownLabel,
-					TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-					{TextScaled = false, Size = UDim2.new(1.5, 0, 0, 120)}
-				)
-				goPulseTween:Play()
+				-- Hide the title label when showing GO!
+				local titleLabel = gui:FindFirstChild("ContainerFrame"):FindFirstChild("TitleLabel")
+				if titleLabel then
+					titleLabel.Visible = false
+				end
+				-- Make GO! take up the full container
+				countdownLabel.Size = UDim2.new(1, 0, 1, 0)
+				countdownLabel.Position = UDim2.new(0, 0, 0, 0)
 			end
 		else
 			-- Countdown finished
