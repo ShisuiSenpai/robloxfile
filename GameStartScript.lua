@@ -230,13 +230,12 @@ local function startGameCountdown()
 		local displayTime = math.ceil(math.max(0, currentCountdown)) -- Clamp to 0 minimum
 		
 		if currentCountdown > 0 then
-			countdownLabel.Text = tostring(displayTime)
-			
 			-- Update number without animation
 			if displayTime ~= lastDisplayedNumber and displayTime >= 0 then
 				lastDisplayedNumber = displayTime
+				countdownLabel.Text = tostring(displayTime)
 				
-				-- Play countdown tick sound (optional)
+				-- Play countdown tick sound immediately when number changes
 				if soundsEnabled and SoundManager and displayTime > 0 then
 					SoundManager:PlayCountdownTick()
 				end
@@ -244,6 +243,11 @@ local function startGameCountdown()
 		elseif currentCountdown > -0.5 then
 			-- Show "GO!" for a brief moment
 			if countdownLabel.Text ~= "GO!" then
+				-- Play game start sound immediately
+				if soundsEnabled and SoundManager then
+					SoundManager:PlayGameStartSound()
+				end
+				
 				countdownLabel.Text = "GO!"
 				-- Hide the title label when showing GO!
 				local titleLabel = gui:FindFirstChild("ContainerFrame"):FindFirstChild("TitleLabel")
@@ -253,11 +257,6 @@ local function startGameCountdown()
 				-- Make GO! take up the full container
 				countdownLabel.Size = UDim2.new(1, 0, 1, 0)
 				countdownLabel.Position = UDim2.new(0, 0, 0, 0)
-				
-				-- Play game start sound (optional)
-				if soundsEnabled and SoundManager then
-					SoundManager:PlayGameStartSound()
-				end
 			end
 		else
 			-- Countdown finished

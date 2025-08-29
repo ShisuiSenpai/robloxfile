@@ -332,12 +332,13 @@ end
 
 -- Handle mouse movement
 local function onMouseMove()
-	if not isSeatedAtTable() or not gameActive or not isMyTurn then
+	if not isSeatedAtTable() then
 		currentHoveredCard = nil
 		updateCardHighlighting()
 		return
 	end
 	
+	-- Allow hovering even when not your turn or game not active (for visual feedback)
 	local target = mouse.Target
 	
 	if target and target.Parent == table1 and target:IsA("BasePart") then
@@ -346,8 +347,8 @@ local function onMouseMove()
 			currentHoveredCard = target
 			updateCardHighlighting()
 			
-			-- Play hover sound when entering a new card
-			if soundsEnabled and currentHoveredCard and not selectedCards[currentHoveredCard] then
+			-- Play hover sound only during active game and your turn
+			if soundsEnabled and gameActive and isMyTurn and currentHoveredCard and not selectedCards[currentHoveredCard] then
 				SoundManager:PlayHoverSound(currentHoveredCard.Position)
 			end
 		end
