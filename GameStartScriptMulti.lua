@@ -42,9 +42,14 @@ local tables = {}
 local allSeats = {}
 local seatToTable = {}
 
+print("[DEBUG GameStart] Initializing tables from TABLE_CONFIGS...")
 for tableId, config in pairs(TABLE_CONFIGS) do
+	print("[DEBUG GameStart] Setting up table:", tableId)
+	
 	local folder = workspace:WaitForChild(config.folderName)
 	local remoteFolder = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild(config.remoteFolder)
+	
+	print("[DEBUG GameStart] Found folder:", folder.Name, "and remote folder:", remoteFolder.Name)
 	
 	local tableData = {
 		id = tableId,
@@ -68,12 +73,20 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 				table.insert(tableData.seats, seat)
 				table.insert(allSeats, seat)
 				seatToTable[seat] = tableData
+				print("[DEBUG GameStart] Added seat:", seatName, "to table:", tableId)
+			else
+				print("[DEBUG GameStart] WARNING: No Seat part in chair:", seatName)
 			end
+		else
+			print("[DEBUG GameStart] WARNING: Chair not found:", seatName)
 		end
 	end
 	
 	tables[tableId] = tableData
+	print("[DEBUG GameStart] Table", tableId, "initialized with", #tableData.seats, "seats")
 end
+
+print("[DEBUG GameStart] Total tables initialized:", #tables)
 
 -- Get current table
 local function getCurrentTable()
@@ -155,14 +168,28 @@ end
 
 -- Start countdown
 local function startGameCountdown(tableData)
-	if tableData.isGameStarting then return end
+	print("[DEBUG GameStart] startGameCountdown called for table:", tableData.id)
+	
+	if tableData.isGameStarting then 
+		print("[DEBUG GameStart] Already starting for table:", tableData.id)
+		return 
+	end
 	
 	tableData.isGameStarting = true
-	print("[GameStart] Starting countdown for table", tableData.id)
+	print("[DEBUG GameStart] Starting countdown for table", tableData.id)
 	
 	-- Create UI
 	local gui, countdownLabel = createCountdownUI(tableData)
+	if not gui then
+		print("[DEBUG GameStart] ERROR: Failed to create countdown UI")
+		return
+	end
+	
 	local containerFrame = gui:FindFirstChild("ContainerFrame")
+	if not containerFrame then
+		print("[DEBUG GameStart] ERROR: No ContainerFrame found")
+		return
+	end
 	
 	-- Start with everything transparent for fade-in
 	containerFrame.BackgroundTransparency = 1
@@ -210,6 +237,8 @@ local function startGameCountdown(tableData)
 	end)
 	
 	-- Countdown logic
+	print("[DEBUG GameStart] Starting countdown timer for table:", tableData.id)
+	
 	tableData.countdownConnection = RunService.Heartbeat:Connect(function(dt)
 		tableData.currentCountdown = tableData.currentCountdown - dt
 		
@@ -219,6 +248,7 @@ local function startGameCountdown(tableData)
 			if displayTime ~= lastDisplayedNumber and displayTime >= 0 then
 				lastDisplayedNumber = displayTime
 				countdownLabel.Text = tostring(displayTime)
+				print("[DEBUG GameStart] Countdown update - Table:", tableData.id, "Number:", displayTime)
 				
 				-- Animate number change with a subtle pop effect
 				local popTween = TweenService:Create(countdownLabel,
@@ -308,15 +338,26 @@ end
 
 -- Connect to game state events for each table
 for tableId, tableData in pairs(tables) do
+	print("[DEBUG GameStart] Setting up events for table:", tableId)
+	
 	tableData.remoteEvents.GameStateUpdate.OnClientEvent:Connect(function(state, data)
+		print("[DEBUG GameStart] GameStateUpdate received - Table:", tableId, "State:", state)
+		
 		if state == "countdown_start" then
 			-- Only start countdown if player is at this table
-			if getCurrentTable() == tableData then
+			local currentTable = getCurrentTable()
+			print("[DEBUG GameStart] Current player table:", currentTable and currentTable.id or "none")
+			
+			if currentTable == tableData then
+				print("[DEBUG GameStart] Starting countdown for table:", tableId)
 				startGameCountdown(tableData)
+			else
+				print("[DEBUG GameStart] Player not at this table, skipping countdown")
 			end
 		elseif state == "game_end" then
 			-- Clean up if game ends during countdown
 			if tableData.isGameStarting then
+				print("[DEBUG GameStart] Cleaning up countdown for table:", tableId)
 				destroyCountdownUI(tableData)
 				tableData.isGameStarting = false
 			end
@@ -324,4 +365,4 @@ for tableId, tableData in pairs(tables) do
 	end)
 end
 
-print("[GameStart] Multi-table countdown script loaded")
+print("[DEBUG GameStart] Multi-table countdown script loaded - Tables:", #tables)

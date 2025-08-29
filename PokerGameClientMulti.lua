@@ -120,7 +120,13 @@ local waitingAnimations = {}
 
 -- Start waiting animation
 local function startWaitingAnimation(tableData, turnLabel)
-	if waitingAnimations[tableData.id] then return end
+	print("[DEBUG] startWaitingAnimation called for table:", tableData.id)
+	print("[DEBUG] turnLabel exists:", turnLabel ~= nil)
+	
+	if waitingAnimations[tableData.id] then 
+		print("[DEBUG] Animation already running for table:", tableData.id)
+		return 
+	end
 	
 	local dots = ""
 	local frameCount = 0
@@ -134,8 +140,11 @@ local function startWaitingAnimation(tableData, turnLabel)
 				dots = dots .. "."
 			end
 			turnLabel.Text = "Waiting for players" .. dots
+			print("[DEBUG] Waiting animation updated - Table:", tableData.id, "Text:", turnLabel.Text)
 		end
 	end)
+	
+	print("[DEBUG] Waiting animation started for table:", tableData.id)
 end
 
 -- Stop waiting animation
@@ -358,21 +367,32 @@ end
 
 -- Check seating status for a table
 local checkSeatingStatus = function(tableData)
-	if not player.Character then return end
+	print("[DEBUG] checkSeatingStatus called for table:", tableData.id)
+	
+	if not player.Character then 
+		print("[DEBUG] No player character")
+		return 
+	end
+	
 	local humanoid = player.Character:FindFirstChild("Humanoid")
-	if not humanoid then return end
+	if not humanoid then 
+		print("[DEBUG] No humanoid found")
+		return 
+	end
 	
 	-- Check if seated at this table
 	local isSeated = false
 	for _, seat in ipairs(tableData.seats) do
 		if humanoid.SeatPart == seat then
 			isSeated = true
+			print("[DEBUG] Player is seated at table:", tableData.id, "on seat:", seat.Name)
 			break
 		end
 	end
 	
 	if not isSeated then
 		-- Not seated at this table
+		print("[DEBUG] Player not seated at table:", tableData.id)
 		if tableData.gameUI then
 			tableData.gameUI:Destroy()
 			tableData.gameUI = nil
@@ -383,6 +403,7 @@ local checkSeatingStatus = function(tableData)
 	
 	-- Seated at this table
 	if not tableData.gameUI then
+		print("[DEBUG] Creating UI for table:", tableData.id)
 		createGameUI(tableData)
 	end
 	
@@ -395,19 +416,25 @@ local checkSeatingStatus = function(tableData)
 		end
 	end
 	
+	print("[DEBUG] Table", tableData.id, "- isSeated:", isSeated, "bothSeated:", bothSeated,
+		"gameActive:", tableData.gameActive, "isCountdownActive:", tableData.isCountdownActive)
+	
 	-- Update UI based on game state
 	if tableData.gameUI and tableData.gameUI.TurnFrame then
 		if isSeated and not tableData.gameActive and not tableData.isCountdownActive then
 			-- Show waiting UI when seated but game hasn't started
+			print("[DEBUG] Showing waiting UI for table:", tableData.id)
 			tableData.gameUI.TurnFrame.Visible = true
 			stopWaitingAnimation(tableData) -- Stop any existing animation first
 			startWaitingAnimation(tableData, tableData.turnLabel)
 		elseif isSeated and tableData.gameActive then
 			-- Keep UI visible during game
+			print("[DEBUG] Showing game UI for table:", tableData.id)
 			tableData.gameUI.TurnFrame.Visible = true
 			stopWaitingAnimation(tableData)
 		elseif tableData.isCountdownActive then
 			-- Hide during countdown
+			print("[DEBUG] Hiding UI during countdown for table:", tableData.id)
 			tableData.gameUI.TurnFrame.Visible = false
 			stopWaitingAnimation(tableData)
 		else
@@ -424,14 +451,19 @@ for tableId, tableData in pairs(tables) do
 	
 	-- Game state updates
 	tableData.remoteEvents.GameStateUpdate.OnClientEvent:Connect(function(state, data)
+		print("[DEBUG] GameStateUpdate received for table:", tableData.id, "State:", state)
+		
 		if state == "countdown_start" then
+			print("[DEBUG] Countdown starting for table:", tableData.id)
 			tableData.isCountdownActive = true
 			tableData.gameActive = false
 			if tableData.gameUI then
+				print("[DEBUG] Hiding TurnFrame for countdown")
 				tableData.gameUI.TurnFrame.Visible = false
 			end
 			
 		elseif state == "game_start" then
+			print("[DEBUG] Game starting for table:", tableData.id)
 			tableData.isCountdownActive = false
 			tableData.gameActive = true
 			tableData.selectedCards = {}
@@ -442,10 +474,13 @@ for tableId, tableData in pairs(tables) do
 			
 			-- Update UI if seated at this table
 			if getCurrentTable() == tableData then
+				print("[DEBUG] Player is at this table, showing game UI")
 				if not tableData.gameUI then
 					createGameUI(tableData)
 				end
 				tableData.gameUI.TurnFrame.Visible = true
+			else
+				print("[DEBUG] Player is NOT at this table")
 			end
 			
 			-- Create highlights for all cards
