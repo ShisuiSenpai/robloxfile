@@ -157,34 +157,36 @@ local function createGameUI(tableData)
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = player:WaitForChild("PlayerGui")
 	
-	-- Turn indicator
+	-- Turn indicator frame (transparent background, visible by default)
 	local turnFrame = Instance.new("Frame")
 	turnFrame.Name = "TurnFrame"
-	turnFrame.Size = UDim2.new(0, 300, 0, 50)
+	turnFrame.Size = UDim2.new(0, 300, 0, 60)
 	turnFrame.Position = UDim2.new(0.5, -150, 0, 20)
-	turnFrame.BackgroundTransparency = 0.3
-	turnFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-	turnFrame.BorderSizePixel = 0
+	turnFrame.BackgroundTransparency = 1
+	turnFrame.Visible = true  -- Visible by default like original
 	turnFrame.Parent = screenGui
 	
 	local turnLabel = Instance.new("TextLabel")
 	turnLabel.Name = "TurnLabel"
 	turnLabel.Size = UDim2.new(1, 0, 1, 0)
 	turnLabel.BackgroundTransparency = 1
-	turnLabel.Text = "Waiting for players..."
+	turnLabel.Text = "Waiting for players"
 	turnLabel.TextColor3 = Color3.new(1, 1, 1)
 	turnLabel.TextScaled = true
 	turnLabel.Font = Enum.Font.SourceSansBold
 	turnLabel.Parent = turnFrame
+	
+	local turnStroke = Instance.new("UIStroke")
+	turnStroke.Color = Color3.new(0, 0, 0)
+	turnStroke.Thickness = 3
+	turnStroke.Parent = turnLabel
 	
 	-- Status frame for win/lose
 	local statusFrame = Instance.new("Frame")
 	statusFrame.Name = "StatusFrame"
 	statusFrame.Size = UDim2.new(0, 400, 0, 100)
 	statusFrame.Position = UDim2.new(0.5, -200, 0.5, -50)
-	statusFrame.BackgroundTransparency = 0.2
-	statusFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-	statusFrame.BorderSizePixel = 0
+	statusFrame.BackgroundTransparency = 1
 	statusFrame.Visible = false
 	statusFrame.Parent = screenGui
 	
@@ -197,6 +199,11 @@ local function createGameUI(tableData)
 	statusLabel.TextScaled = true
 	statusLabel.Font = Enum.Font.SourceSansBold
 	statusLabel.Parent = statusFrame
+	
+	local statusStroke = Instance.new("UIStroke")
+	statusStroke.Color = Color3.new(0, 0, 0)
+	statusStroke.Thickness = 4
+	statusStroke.Parent = statusLabel
 	
 	tableData.gameUI = screenGui
 	tableData.turnLabel = turnLabel
@@ -389,16 +396,24 @@ local checkSeatingStatus = function(tableData)
 	end
 	
 	-- Update UI based on game state
-	if tableData.gameUI then
-		if not tableData.gameActive and not tableData.isCountdownActive then
+	if tableData.gameUI and tableData.gameUI.TurnFrame then
+		if isSeated and not tableData.gameActive and not tableData.isCountdownActive then
+			-- Show waiting UI when seated but game hasn't started
 			tableData.gameUI.TurnFrame.Visible = true
-			if bothSeated then
-				stopWaitingAnimation(tableData)
-				-- Don't show "Starting soon..." - let the countdown handle it
-				tableData.gameUI.TurnFrame.Visible = false
-			else
-				startWaitingAnimation(tableData, tableData.turnLabel)
-			end
+			stopWaitingAnimation(tableData) -- Stop any existing animation first
+			startWaitingAnimation(tableData, tableData.turnLabel)
+		elseif isSeated and tableData.gameActive then
+			-- Keep UI visible during game
+			tableData.gameUI.TurnFrame.Visible = true
+			stopWaitingAnimation(tableData)
+		elseif tableData.isCountdownActive then
+			-- Hide during countdown
+			tableData.gameUI.TurnFrame.Visible = false
+			stopWaitingAnimation(tableData)
+		else
+			-- Hide UI when not seated
+			tableData.gameUI.TurnFrame.Visible = false
+			stopWaitingAnimation(tableData)
 		end
 	end
 end
@@ -447,16 +462,22 @@ for tableId, tableData in pairs(tables) do
 			tableData.isMyTurn = false
 			tableData.isCountdownActive = false
 			
-			-- Show winner/loser message if at this table
+						-- Show winner/loser message if at this table
 			if tableData.gameUI and getCurrentTable() == tableData then
 				local statusFrame = tableData.gameUI.StatusFrame
 				statusFrame.Visible = true
 				tableData.gameUI.TurnFrame.Visible = false
-				
+
 				local statusLabel = statusFrame.StatusLabel
 				if data.winner == player.Name then
 					statusLabel.Text = "You Win!"
 					statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+					-- Add pulse effect for winner
+					local pulseEffect = TweenService:Create(statusLabel,
+						TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 3, true),
+						{TextTransparency = 0.3}
+					)
+					pulseEffect:Play()
 				elseif data.loser == player.Name then
 					if data.reason == "poker_picked" then
 						statusLabel.Text = "You found the Poker! You Lose!"
@@ -468,15 +489,41 @@ for tableId, tableData in pairs(tables) do
 					statusLabel.Text = data.winner .. " Wins!"
 					statusLabel.TextColor3 = Color3.new(1, 1, 1)
 				end
-				
-				-- Hide after delay
+
+				-- Hide after delay and show waiting UI again
 				coroutine.wrap(function()
-					wait(3)
+					local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+					local hideDelay = data.winner == player.Name and 2 or 3
+					wait(hideDelay)
+					
 					if tableData.gameUI then
-						statusFrame.Visible = false
-						-- Check seating status after game end
-						task.wait(0.5)
-						checkSeatingStatus(tableData)
+						-- Fade out status frame
+						local fadeTween = TweenService:Create(statusFrame,
+							TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+							{Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}
+						)
+						fadeTween:Play()
+						
+						fadeTween.Completed:Connect(function()
+							statusFrame.Visible = false
+							statusFrame.Size = UDim2.new(0, 400, 0, 100)
+							statusFrame.Position = UDim2.new(0.5, -200, 0.5, -50)
+							
+							-- Check if still seated and show waiting UI
+							if humanoid and humanoid.SeatPart then
+								for _, seat in ipairs(tableData.seats) do
+									if humanoid.SeatPart == seat then
+										-- Still seated at this table
+										if not tableData.gameActive then
+											tableData.gameUI.TurnFrame.Visible = true
+											stopWaitingAnimation(tableData)
+											startWaitingAnimation(tableData, tableData.turnLabel)
+										end
+										break
+									end
+								end
+							end
+						end)
 					end
 				end)()
 			end
