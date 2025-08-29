@@ -52,6 +52,7 @@ local function storeOriginalCardPositions()
 		if card:IsA("BasePart") then
 			originalCardCFrames[card] = card.CFrame
 			count = count + 1
+			print("[PokerGame DEBUG] Stored", card.Name, "with CFrame:", card.CFrame)
 		end
 	end
 	print("[PokerGame] Stored", count, "original card positions")
@@ -231,11 +232,13 @@ local function flipCard(card)
 	-- Get the card's current CFrame
 	local currentCFrame = card.CFrame
 	
-	-- Try different flip approaches based on how cards are oriented
-	-- Most Roblox cards have faces on the top when flipped
-	-- We'll flip around the local X axis (like flipping a card on a table)
-	local halfFlipCFrame = currentCFrame * CFrame.Angles(math.rad(90), 0, 0)
-	local fullFlipCFrame = currentCFrame * CFrame.Angles(math.rad(180), 0, 0)
+	-- The cards start with a specific rotation
+	-- We need to flip them to show the opposite face
+	-- Since cards are lying flat on table, we rotate around their forward vector
+	
+	-- Flip around the Z axis (the card's forward/back axis when lying flat)
+	local halfFlipCFrame = currentCFrame * CFrame.Angles(0, 0, math.rad(90))
+	local fullFlipCFrame = currentCFrame * CFrame.Angles(0, 0, math.rad(180))
 	
 	print("[PokerGame DEBUG] Card orientation - Current:", currentCFrame)
 	print("[PokerGame DEBUG] Card orientation - Half flip:", halfFlipCFrame)
@@ -278,14 +281,19 @@ local function resetCard(card)
 		flipTweens[card] = nil
 	end
 	
-		-- Reset rotation to face-down (use original stored CFrame)
+		-- Reset to exact original CFrame (face-down position)
 	local originalCFrame = originalCardCFrames[card]
 	if originalCFrame then
-		print("[PokerGame DEBUG] Resetting", card.Name, "to original CFrame")
+		print("[PokerGame DEBUG] Resetting", card.Name, "to original CFrame:", originalCFrame)
 		card.CFrame = originalCFrame
+		
+		-- Verify reset worked
+		if card.CFrame ~= originalCFrame then
+			print("[PokerGame DEBUG] ERROR: Card did not reset properly!")
+		end
 	else
 		print("[PokerGame DEBUG] WARNING: No original CFrame for", card.Name)
-		-- Fallback: just reset position without rotation
+		-- This shouldn't happen, but as a fallback...
 		local currentPos = card.Position
 		card.CFrame = CFrame.new(currentPos)
 	end

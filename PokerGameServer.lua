@@ -189,17 +189,17 @@ local function endGame(winner, loser, reason)
 	if not GameState.isActive then return end
 	
 	GameState.isActive = false
-	print("[PokerGame] Game ended! Winner:", winner.Name, "Reason:", reason)
+	print("[PokerGame] Game ended! Winner:", winner and winner.Name or "None", "Reason:", reason)
 	
 	-- Notify all clients
 	gameStateEvent:FireAllClients("game_end", {
-		winner = winner.Name,
-		loser = loser.Name,
+		winner = winner and winner.Name or "None",
+		loser = loser and loser.Name or "None",
 		reason = reason
 	})
 	
 	-- Kill the loser if they picked the poker
-	if reason == "poker_picked" and loser.Character then
+	if reason == "poker_picked" and loser and loser.Character then
 		local humanoid = loser.Character:FindFirstChild("Humanoid")
 		if humanoid then
 			humanoid.Health = 0
@@ -209,7 +209,7 @@ local function endGame(winner, loser, reason)
 	-- Force winner to stand up after a short delay
 	wait(1.5) -- Give time for death animation and victory message
 	
-	if winner.Character then
+	if winner and winner.Character then
 		local humanoid = winner.Character:FindFirstChild("Humanoid")
 		if humanoid and humanoid.SeatPart then
 			humanoid.Sit = false
