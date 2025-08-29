@@ -413,11 +413,7 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 		isMyTurn = false
 		isCountdownActive = false -- Ensure countdown flag is reset
 		
-		-- After game ends, check if we should show waiting UI again
-		task.wait(3) -- Wait for win/lose message to disappear
-		checkSeatingStatus()
-		
-		-- Show winner/loser message
+		-- Show winner/loser message FIRST
 		if gameUI then
 			local statusFrame = gameUI.StatusFrame
 			statusFrame.Visible = true
@@ -462,18 +458,37 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 			)
 			showTween:Play()
 			
-			-- Hide after delay (shorter for winner since they'll be standing up)
-			local hideDelay = data.winner == player.Name and 2 or 3
-			task.wait(hideDelay)
-			
-			local hideTween = TweenService:Create(statusFrame,
-				TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-				{
-					Size = UDim2.new(0, 0, 0, 0),
-					Position = UDim2.new(0.5, 0, 0.5, 0)
-				}
-			)
-			hideTween:Play()
+			-- Use coroutine to handle the delayed hide and UI check
+			coroutine.wrap(function()
+				-- Hide after delay (shorter for winner since they'll be standing up)
+				local hideDelay = data.winner == player.Name and 2 or 3
+				task.wait(hideDelay)
+				
+				local hideTween = TweenService:Create(statusFrame,
+					TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+					{
+						Size = UDim2.new(0, 0, 0, 0),
+						Position = UDim2.new(0.5, 0, 0.5, 0)
+					}
+				)
+				hideTween:Play()
+				
+				-- After message disappears, check if we should show waiting UI
+				hideTween.Completed:Connect(function()
+					-- Check seating status is defined later, so we directly check here
+					if player.Character then
+						local humanoid = player.Character:FindFirstChild("Humanoid")
+						if humanoid and humanoid.SeatPart and (humanoid.SeatPart == player1Chair or humanoid.SeatPart == player2Chair) then
+							-- Still seated, show waiting UI
+							if gameUI and gameUI.TurnFrame and not gameActive then
+								gameUI.TurnFrame.Visible = true
+								stopWaitingAnimation()
+								startWaitingAnimation()
+							end
+						end
+					end
+				end)
+			end)()
 		end
 		
 		-- Disable all highlights
