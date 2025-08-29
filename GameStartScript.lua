@@ -240,31 +240,44 @@ local function startGameCountdown()
 			countdownConnection:Disconnect()
 			destroyCountdownUI()
 			isGameStarting = false
+			
+			-- Reset countdown state for next game
+			currentCountdown = COUNTDOWN_TIME
+			
 			print("[GameStart] Game countdown complete!")
 		end
 	end)
 end
 
--- Monitor seating
+-- Monitor both seats for occupancy changes
+local function checkBothSeats()
+	-- Small delay to ensure seat states are updated
+	task.wait(0.1)
+	
+	local player1Occupied = player1Chair.Occupant ~= nil
+	local player2Occupied = player2Chair.Occupant ~= nil
+	
+	if player1Occupied and player2Occupied and not isGameStarting then
+		-- Both seats occupied, start countdown
+		startGameCountdown()
+	elseif (not player1Occupied or not player2Occupied) and isGameStarting then
+		-- Someone left during countdown
+		isGameStarting = false
+		destroyCountdownUI()
+		print("[GameStart] Game start cancelled - player left seat")
+	end
+end
+
+-- Monitor seat changes
+player1Chair:GetPropertyChangedSignal("Occupant"):Connect(checkBothSeats)
+player2Chair:GetPropertyChangedSignal("Occupant"):Connect(checkBothSeats)
+
+-- Also monitor local player seating
 local function onCharacterAdded(character)
 	local humanoid = character:WaitForChild("Humanoid")
 	
 	humanoid.Seated:Connect(function(isSeated, seatPart)
-		if isSeated and (seatPart == player1Chair or seatPart == player2Chair) then
-			-- Player sat at the table
-			startGameCountdown()
-		else
-			-- Player left the seat
-			if isGameStarting then
-				-- Cancel countdown
-				isGameStarting = false
-				destroyCountdownUI()
-				
-								-- Game cancelled
-				
-				print("[GameStart] Game start cancelled - player left seat")
-			end
-		end
+		checkBothSeats()
 	end)
 end
 

@@ -363,6 +363,11 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 			gameUI.TurnFrame.Visible = false
 		end
 		
+		-- Stop waiting animation
+		stopWaitingAnimation()
+		
+		print("[PokerGame] Countdown started, hiding waiting UI")
+		
 	elseif state == "game_start" then
 		-- Countdown is complete, game actually starts
 		isCountdownActive = false
@@ -407,6 +412,10 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 		gameActive = false
 		isMyTurn = false
 		isCountdownActive = false -- Ensure countdown flag is reset
+		
+		-- After game ends, check if we should show waiting UI again
+		task.wait(3) -- Wait for win/lose message to disappear
+		checkSeatingStatus()
 		
 		-- Show winner/loser message
 		if gameUI then
@@ -578,6 +587,11 @@ local function checkSeatingStatus()
 	
 	local isSeated = isSeatedAtTable()
 	
+	-- Ensure UI exists
+	if not gameUI then
+		createGameUI()
+	end
+	
 	if gameUI and gameUI.TurnFrame then
 		if isSeated and not gameActive and not isCountdownActive then
 			-- Show waiting UI when seated but game hasn't started and countdown isn't active
@@ -666,5 +680,20 @@ if player.Character then
 	onCharacterAdded(player.Character)
 end
 player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Monitor seat occupancy changes to update UI consistently
+player1Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
+	task.wait(0.1)
+	checkSeatingStatus()
+end)
+
+player2Chair:GetPropertyChangedSignal("Occupant"):Connect(function()
+	task.wait(0.1)
+	checkSeatingStatus()
+end)
+
+-- Initial check after a short delay
+task.wait(0.5)
+checkSeatingStatus()
 
 print("[PokerGame] Client initialized")
