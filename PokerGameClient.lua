@@ -179,6 +179,9 @@ local function updateCardHighlighting()
 	end
 end
 
+-- Store active flip tweens
+local flipTweens = {}
+
 -- Flip a card animation
 local function flipCard(card)
 	if flippedCards[card] then return end
@@ -191,6 +194,14 @@ local function flipCard(card)
 	end
 	
 	local originalCFrame = originalCardCFrames[card]
+	
+	-- Cancel any existing flip tweens for this card
+	if flipTweens[card] then
+		for _, tween in ipairs(flipTweens[card]) do
+			tween:Cancel()
+		end
+	end
+	flipTweens[card] = {}
 	
 	-- Create flip animation
 	local flipTweenInfo = TweenInfo.new(
@@ -213,12 +224,35 @@ local function flipCard(card)
 		CFrame = fullFlipCFrame
 	})
 	
+	table.insert(flipTweens[card], flipTween1)
+	table.insert(flipTweens[card], flipTween2)
+	
 	flipTween1:Play()
 	flipTween1.Completed:Connect(function()
 		flipTween2:Play()
 	end)
 	
 	updateCardHighlighting()
+end
+
+-- Reset a card to face-down position
+local function resetCard(card)
+	-- Cancel any active tweens
+	if flipTweens[card] then
+		for _, tween in ipairs(flipTweens[card]) do
+			tween:Cancel()
+		end
+		flipTweens[card] = nil
+	end
+	
+	-- Reset to original position if we have it
+	if originalCardCFrames[card] then
+		card.CFrame = originalCardCFrames[card]
+	end
+	
+	-- Clear flip state
+	flippedCards[card] = nil
+	selectedCards[card] = nil
 end
 
 -- Handle mouse movement
@@ -362,10 +396,22 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 		end
 		
 	elseif state == "cards_reset" then
-		-- Reset card states
+		-- Reset all card states
+		for _, card in ipairs(table1:GetChildren()) do
+			if card:IsA("BasePart") then
+				resetCard(card)
+			end
+		end
+		
+		-- Clear all states
 		selectedCards = {}
 		flippedCards = {}
+		originalCardCFrames = {}
+		
+		-- Update highlighting
 		updateCardHighlighting()
+		
+		print("[PokerGame] Cards reset received")
 	end
 end)
 
@@ -406,9 +452,24 @@ end)
 cardFlipEvent.OnClientEvent:Connect(function(cardOrAction)
 	if cardOrAction == "reset_all_cards" then
 		-- Reset all cards to face down
+		for _, card in ipairs(table1:GetChildren()) do
+			if card:IsA("BasePart") then
+				resetCard(card)
+			end
+		end
+		
+		-- Clear all states
 		selectedCards = {}
 		flippedCards = {}
 		originalCardCFrames = {}
+		
+		-- Cancel all active tweens
+		for card, tweens in pairs(flipTweens) do
+			for _, tween in ipairs(tweens) do
+				tween:Cancel()
+			end
+		end
+		flipTweens = {}
 		
 		-- Reset all highlights
 		for card, highlight in pairs(cardHighlights) do
@@ -420,7 +481,7 @@ cardFlipEvent.OnClientEvent:Connect(function(cardOrAction)
 		isMyTurn = false
 		currentHoveredCard = nil
 		
-		print("[PokerGame] All cards reset")
+		print("[PokerGame] All cards fully reset")
 	else
 		-- Normal card flip
 		flipCard(cardOrAction)
@@ -479,6 +540,21 @@ end
 player.CharacterRemoving:Connect(function()
 	stopWaitingAnimation()
 	
+	-- Reset all cards before leaving
+	for _, card in ipairs(table1:GetChildren()) do
+		if card:IsA("BasePart") then
+			resetCard(card)
+		end
+	end
+	
+	-- Cancel all tweens
+	for card, tweens in pairs(flipTweens) do
+		for _, tween in ipairs(tweens) do
+			tween:Cancel()
+		end
+	end
+	flipTweens = {}
+	
 	if gameUI then
 		gameUI:Destroy()
 		gameUI = nil
@@ -489,6 +565,11 @@ player.CharacterRemoving:Connect(function()
 		highlight:Destroy()
 	end
 	cardHighlights = {}
+	
+	-- Clear all states
+	selectedCards = {}
+	flippedCards = {}
+	originalCardCFrames = {}
 end)
 
 -- Initialize

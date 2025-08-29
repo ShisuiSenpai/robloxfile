@@ -61,15 +61,25 @@ end
 local function resetCards()
 	GameState.selectedCards = {}
 	
-	-- Reset all card positions
+	-- Reset all card positions and rotations to original state
 	for card, originalCFrame in pairs(originalCardCFrames) do
 		if card.Parent then
+			-- Make sure card is face down (original rotation)
 			card.CFrame = originalCFrame
+		end
+	end
+	
+	-- Force reset all card rotations to ensure they're face down
+	for _, card in ipairs(cards) do
+		if card.Parent and originalCardCFrames[card] then
+			card.CFrame = originalCardCFrames[card]
 		end
 	end
 	
 	-- Tell all clients to reset their card states
 	gameStateEvent:FireAllClients("cards_reset")
+	
+	print("[PokerGame] All cards reset to original positions")
 end
 
 -- Check if both seats are occupied
