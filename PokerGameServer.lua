@@ -111,73 +111,63 @@ local function shuffleArray(array)
 	return shuffled
 end
 
--- Server-side shuffle animation using TweenService
-local function animateShuffleOnServer()
-	local TweenService = game:GetService("TweenService")
-	local centerPosition = table1.Position
+-- Hide all card parts and decals
+local function setCardVisibility(card, visible)
+	-- Set main part transparency
+	card.Transparency = visible and 0 or 1
 	
-	-- Store current positions
+	-- Handle all descendants (decals, textures, etc)
+	for _, descendant in ipairs(card:GetDescendants()) do
+		if descendant:IsA("Decal") then
+			descendant.Transparency = visible and 0 or 1
+		elseif descendant:IsA("Texture") then
+			descendant.Transparency = visible and 0 or 1
+		elseif descendant:IsA("SurfaceGui") then
+			descendant.Enabled = visible
+		elseif descendant:IsA("BillboardGui") then
+			descendant.Enabled = visible
+		elseif descendant:IsA("BasePart") then
+			descendant.Transparency = visible and 0 or 1
+		end
+	end
+end
+
+-- Server-side shuffle coordination
+local function performShuffleSequence()
+	-- Get current positions
 	local positions = {}
 	for _, card in ipairs(cards) do
 		table.insert(positions, card.CFrame)
 	end
 	
-	-- Shuffle the positions for later
+	-- Shuffle the positions
 	local shuffledPositions = shuffleArray(positions)
 	
-	-- Make sure all cards are anchored
+	-- Step 1: Hide all server cards
 	for _, card in ipairs(cards) do
-		card.Anchored = true
+		setCardVisibility(card, false)
 	end
 	
-	-- Phase 1: Cards rise up and gather
-	local riseTweens = {}
-	for i, card in ipairs(cards) do
-		local raisedCFrame = CFrame.new(centerPosition + Vector3.new(0, 8 + (i * 0.05), 0))
-		local tween = TweenService:Create(card,
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{CFrame = raisedCFrame}
-		)
-		table.insert(riseTweens, tween)
-		tween:Play()
-	end
+	-- Step 2: Tell clients to start animation
+	gameStateEvent:FireAllClients("shuffle_animation_start")
 	
-	wait(0.5)
+	-- Step 3: Wait for animation duration (2.5 seconds total)
+	wait(2.5)
 	
-	-- Phase 2: Quick spin animation
-	local spinTweens = {}
-	for i, card in ipairs(cards) do
-		-- Create a spinning effect by rotating cards
-		local spinCFrame = card.CFrame * CFrame.Angles(0, math.pi * 4, 0) -- 2 full rotations
-		local tween = TweenService:Create(card,
-			TweenInfo.new(1, Enum.EasingStyle.Linear),
-			{CFrame = spinCFrame}
-		)
-		table.insert(spinTweens, tween)
-		tween:Play()
-	end
-	
-	wait(1)
-	
-	-- Phase 3: Cards drop to new shuffled positions
-	local dropTweens = {}
-	for i, card in ipairs(cards) do
-		local tween = TweenService:Create(card,
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{CFrame = shuffledPositions[i]}
-		)
-		table.insert(dropTweens, tween)
-		tween:Play()
-	end
-	
-	wait(0.5)
-	
-	-- Ensure cards are in final positions
+	-- Step 4: Move cards to shuffled positions while still invisible
 	for i, card in ipairs(cards) do
 		card.CFrame = shuffledPositions[i]
 	end
 	
-	print("[PokerGame] Shuffle animation complete")
+	-- Step 5: Make cards visible again
+	for _, card in ipairs(cards) do
+		setCardVisibility(card, true)
+	end
+	
+	-- Step 6: Tell clients animation is done
+	gameStateEvent:FireAllClients("shuffle_animation_end")
+	
+	print("[PokerGame] Shuffle complete")
 end
 
 -- Start the game
@@ -192,14 +182,11 @@ local function startGame()
 	-- Randomly select who goes first
 	GameState.currentTurn = math.random(2) == 1 and GameState.player1 or GameState.player2
 	
-	-- Notify clients that shuffle is starting
-	gameStateEvent:FireAllClients("shuffle_start")
+	-- Wait for countdown to complete
+	wait(3)
 	
-	-- Wait for countdown
-	wait(1)
-	
-	-- Perform server-side shuffle animation
-	animateShuffleOnServer()
+	-- Perform shuffle sequence (hides cards, waits for animation, shows cards)
+	performShuffleSequence()
 	
 	-- Reset game state
 	GameState.selectedCards = {}
