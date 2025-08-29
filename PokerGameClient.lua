@@ -228,8 +228,11 @@ local function flipCard(card)
 	print("[PokerGame DEBUG] Card current position:", currentPos)
 	
 	-- Calculate flip rotations (keep position, only rotate)
-	local halfFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(90), 0, 0)
-	local fullFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(180), 0, 0)
+	-- Get the card's current orientation to preserve any initial rotation
+	local _, currentRotY, _ = card.CFrame:ToEulerAnglesXYZ()
+	
+	local halfFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(90), currentRotY, 0)
+	local fullFlipCFrame = CFrame.new(currentPos) * CFrame.Angles(math.rad(180), currentRotY, 0)
 	
 	-- First half of flip
 	local flipTween1 = TweenService:Create(card, flipTweenInfo, {
