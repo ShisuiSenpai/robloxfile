@@ -356,8 +356,12 @@ local function onMouseClick()
 		return -- Card already selected
 	end
 	
-	-- Play click sound
-	SoundManager:PlayClickSound(currentHoveredCard.Position)
+	-- Play appropriate click sound
+	if currentHoveredCard.Name == "Poker" then
+		SoundManager:PlayPokerClickSound(currentHoveredCard.Position)
+	else
+		SoundManager:PlayClickSound(currentHoveredCard.Position)
+	end
 	
 	-- Send card selection to server
 	cardClickEvent:FireServer(currentHoveredCard)
@@ -438,9 +442,6 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 				statusLabel.Text = "You Win!"
 				statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 				
-				-- Play win sound
-				SoundManager:PlayWinSound()
-				
 				-- Add extra effect for winner
 				local pulseEffect = TweenService:Create(statusLabel,
 					TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 3, true),
@@ -455,9 +456,6 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 					statusLabel.Text = "You Lose!"
 				end
 				statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-				
-				-- Play lose sound
-				SoundManager:PlayLoseSound()
 			else
 				statusLabel.Text = data.winner .. " Wins!"
 				statusLabel.TextColor3 = Color3.new(1, 1, 1)

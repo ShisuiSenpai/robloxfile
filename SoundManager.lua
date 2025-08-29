@@ -11,8 +11,7 @@ local SoundManager = {}
 local SOUND_IDS = {
 	CARD_HOVER = "rbxassetid://0", -- Replace with hover sound ID
 	CARD_CLICK = "rbxassetid://0", -- Replace with click sound ID
-	GAME_WIN = "rbxassetid://0", -- Replace with win sound ID
-	GAME_LOSE = "rbxassetid://0", -- Replace with lose sound ID
+	POKER_CLICK = "rbxassetid://0", -- Replace with poker card click sound ID
 	COUNTDOWN_TICK = "rbxassetid://0", -- Replace with countdown tick sound ID (optional)
 	GAME_START = "rbxassetid://0", -- Replace with game start sound ID (optional)
 }
@@ -29,15 +28,10 @@ local SOUND_CONFIG = {
 		Pitch = 1,
 		EmitterSize = 10,
 	},
-	GAME_WIN = {
-		Volume = 0.7,
-		Pitch = 1,
-		EmitterSize = 20,
-	},
-	GAME_LOSE = {
-		Volume = 0.6,
-		Pitch = 0.8,
-		EmitterSize = 20,
+	POKER_CLICK = {
+		Volume = 0.8,
+		Pitch = 0.9,
+		EmitterSize = 15,
 	},
 	COUNTDOWN_TICK = {
 		Volume = 0.4,
@@ -136,14 +130,9 @@ function SoundManager:PlayClickSound(position)
 	self:PlaySound("CARD_CLICK", position)
 end
 
--- Play win sound
-function SoundManager:PlayWinSound()
-	self:PlaySound("GAME_WIN")
-end
-
--- Play lose sound
-function SoundManager:PlayLoseSound()
-	self:PlaySound("GAME_LOSE")
+-- Play poker click sound
+function SoundManager:PlayPokerClickSound(position)
+	self:PlaySound("POKER_CLICK", position)
 end
 
 -- Play countdown tick
