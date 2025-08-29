@@ -70,6 +70,7 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 		flippedCards = {},
 		originalCardCFrames = {},
 		cardHighlights = {},
+		currentHoveredCard = nil,
 		gameUI = nil
 	}
 	
@@ -113,6 +114,37 @@ end
 -- UI Colors
 local HIGHLIGHT_COLOR = Color3.fromRGB(150, 255, 150)
 local SELECTED_CARD_COLOR = Color3.fromRGB(100, 100, 100)
+
+-- Waiting animation variables
+local waitingAnimations = {}
+
+-- Start waiting animation
+local function startWaitingAnimation(tableData, turnLabel)
+	if waitingAnimations[tableData.id] then return end
+	
+	local dots = ""
+	local frameCount = 0
+	
+	waitingAnimations[tableData.id] = RunService.Heartbeat:Connect(function()
+		frameCount = frameCount + 1
+		if frameCount % 60 == 0 then -- Update every second (60 frames)
+			if #dots >= 3 then
+				dots = ""
+			else
+				dots = dots .. "."
+			end
+			turnLabel.Text = "Waiting for players" .. dots
+		end
+	end)
+end
+
+-- Stop waiting animation
+local function stopWaitingAnimation(tableData)
+	if waitingAnimations[tableData.id] then
+		waitingAnimations[tableData.id]:Disconnect()
+		waitingAnimations[tableData.id] = nil
+	end
+end
 
 -- Create game UI for a table
 local function createGameUI(tableData)
@@ -167,6 +199,8 @@ local function createGameUI(tableData)
 	statusLabel.Parent = statusFrame
 	
 	tableData.gameUI = screenGui
+	tableData.turnLabel = turnLabel
+	tableData.statusLabel = statusLabel
 	return screenGui, turnLabel, statusLabel
 end
 
@@ -250,11 +284,16 @@ local function resetCard(tableData, card)
 end
 
 -- Handle mouse movement
-local currentHoveredCard = nil
 local function onMouseMove()
 	local currentTable = getCurrentTable()
 	if not currentTable then
-		currentHoveredCard = nil
+		-- Clear hover for all tables
+		for _, tableData in pairs(tables) do
+			if tableData.currentHoveredCard then
+				tableData.currentHoveredCard = nil
+				updateCardHighlighting(tableData)
+			end
+		end
 		return
 	end
 	
@@ -262,7 +301,8 @@ local function onMouseMove()
 	local cardTarget = nil
 	
 	if target then
-		if target.Parent == currentTable.tablePart and target:IsA("BasePart") and target.Name ~= "CameraPart" .. currentTable.id then
+		-- Check if hovering over a card (exclude camera parts)
+		if target.Parent == currentTable.tablePart and target:IsA("BasePart") and not target.Name:match("Camera") then
 			cardTarget = target
 		elseif target.Parent and target.Parent.Parent == currentTable.tablePart and target.Parent:IsA("BasePart") then
 			cardTarget = target.Parent
@@ -270,8 +310,8 @@ local function onMouseMove()
 	end
 	
 	if cardTarget then
-		if currentHoveredCard ~= cardTarget then
-			currentHoveredCard = cardTarget
+		if currentTable.currentHoveredCard ~= cardTarget then
+			currentTable.currentHoveredCard = cardTarget
 			updateCardHighlighting(currentTable)
 			
 			if soundsEnabled and currentTable.gameActive and currentTable.isMyTurn and not currentTable.selectedCards[cardTarget] then
@@ -279,8 +319,8 @@ local function onMouseMove()
 			end
 		end
 	else
-		if currentHoveredCard then
-			currentHoveredCard = nil
+		if currentTable.currentHoveredCard then
+			currentTable.currentHoveredCard = nil
 			updateCardHighlighting(currentTable)
 		end
 	end
@@ -290,23 +330,23 @@ end
 local function onMouseClick()
 	local currentTable = getCurrentTable()
 	if not currentTable or not currentTable.gameActive or not currentTable.isMyTurn or 
-	   not currentHoveredCard or currentTable.isCountdownActive then
+	   not currentTable.currentHoveredCard or currentTable.isCountdownActive then
 		return
 	end
 	
-	if currentTable.selectedCards[currentHoveredCard] then
+	if currentTable.selectedCards[currentTable.currentHoveredCard] then
 		return
 	end
 	
 	if soundsEnabled then
-		if currentHoveredCard.Name == "Poker" then
-			SoundManager:PlayPokerClickSound(currentHoveredCard.Position)
+		if currentTable.currentHoveredCard.Name == "Poker" then
+			SoundManager:PlayPokerClickSound(currentTable.currentHoveredCard.Position)
 		else
-			SoundManager:PlayClickSound(currentHoveredCard.Position)
+			SoundManager:PlayClickSound(currentTable.currentHoveredCard.Position)
 		end
 	end
 	
-	currentTable.remoteEvents.CardClick:FireServer(currentHoveredCard)
+	currentTable.remoteEvents.CardClick:FireServer(currentTable.currentHoveredCard)
 end
 
 -- Connect events for each table
@@ -328,10 +368,13 @@ for tableId, tableData in pairs(tables) do
 			tableData.selectedCards = {}
 			tableData.flippedCards = {}
 			
-			-- Create UI if seated at this table
+			-- Stop waiting animation
+			stopWaitingAnimation(tableData)
+			
+			-- Update UI if seated at this table
 			if getCurrentTable() == tableData then
 				if not tableData.gameUI then
-					screenGui, turnLabel, statusLabel = createGameUI(tableData)
+					createGameUI(tableData)
 				end
 				tableData.gameUI.TurnFrame.Visible = true
 			end
@@ -377,6 +420,9 @@ for tableId, tableData in pairs(tables) do
 					wait(3)
 					if tableData.gameUI then
 						statusFrame.Visible = false
+						-- Check seating status after game end
+						task.wait(0.5)
+						checkSeatingStatus(tableData)
 					end
 				end)()
 			end
@@ -427,6 +473,112 @@ for tableId, tableData in pairs(tables) do
 		end
 	end)
 end
+
+-- Check seating status for a table
+local function checkSeatingStatus(tableData)
+	if not player.Character then return end
+	local humanoid = player.Character:FindFirstChild("Humanoid")
+	if not humanoid then return end
+	
+	-- Check if seated at this table
+	local isSeated = false
+	for _, seat in ipairs(tableData.seats) do
+		if humanoid.SeatPart == seat then
+			isSeated = true
+			break
+		end
+	end
+	
+	if not isSeated then
+		-- Not seated at this table
+		if tableData.gameUI then
+			tableData.gameUI:Destroy()
+			tableData.gameUI = nil
+		end
+		stopWaitingAnimation(tableData)
+		return
+	end
+	
+	-- Seated at this table
+	if not tableData.gameUI then
+		createGameUI(tableData)
+	end
+	
+	-- Check if both seats are occupied
+	local bothSeated = true
+	for _, seat in ipairs(tableData.seats) do
+		if not seat.Occupant then
+			bothSeated = false
+			break
+		end
+	end
+	
+	-- Update UI based on game state
+	if tableData.gameUI then
+		if not tableData.gameActive and not tableData.isCountdownActive then
+			tableData.gameUI.TurnFrame.Visible = true
+			if bothSeated then
+				stopWaitingAnimation(tableData)
+				tableData.turnLabel.Text = "Starting soon..."
+			else
+				startWaitingAnimation(tableData, tableData.turnLabel)
+			end
+		end
+	end
+end
+
+-- Monitor character and seating
+local function onCharacterAdded(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	
+	-- Check all tables when seated
+	humanoid.Seated:Connect(function()
+		task.wait(0.2)
+		for _, tableData in pairs(tables) do
+			checkSeatingStatus(tableData)
+		end
+	end)
+	
+	-- Monitor seat changes
+	humanoid:GetPropertyChangedSignal("SeatPart"):Connect(function()
+		for _, tableData in pairs(tables) do
+			checkSeatingStatus(tableData)
+		end
+	end)
+	
+	-- Initial check
+	task.wait(0.5)
+	for _, tableData in pairs(tables) do
+		checkSeatingStatus(tableData)
+	end
+end
+
+-- Monitor seat occupancy changes
+for tableId, tableData in pairs(tables) do
+	for _, seat in ipairs(tableData.seats) do
+		seat:GetPropertyChangedSignal("Occupant"):Connect(function()
+			task.wait(0.1)
+			checkSeatingStatus(tableData)
+		end)
+	end
+end
+
+-- Connect to character
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Clean up on character removal
+player.CharacterRemoving:Connect(function()
+	for _, tableData in pairs(tables) do
+		stopWaitingAnimation(tableData)
+		if tableData.gameUI then
+			tableData.gameUI:Destroy()
+			tableData.gameUI = nil
+		end
+	end
+end)
 
 -- Connect mouse events
 mouse.Move:Connect(onMouseMove)
