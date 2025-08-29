@@ -26,26 +26,12 @@ local table1 = table1Folder:WaitForChild("Table1")
 local player1Chair = table1Folder:WaitForChild("Player1Chair"):WaitForChild("Seat")
 local player2Chair = table1Folder:WaitForChild("Player2Chair"):WaitForChild("Seat")
 
--- Create RemoteEvents in ReplicatedStorage
-local remoteEvents = Instance.new("Folder")
-remoteEvents.Name = "PokerGameEvents"
-remoteEvents.Parent = ReplicatedStorage
-
-local cardClickEvent = Instance.new("RemoteEvent")
-cardClickEvent.Name = "CardClick"
-cardClickEvent.Parent = remoteEvents
-
-local gameStateEvent = Instance.new("RemoteEvent")
-gameStateEvent.Name = "GameStateUpdate"
-gameStateEvent.Parent = remoteEvents
-
-local turnUpdateEvent = Instance.new("RemoteEvent")
-turnUpdateEvent.Name = "TurnUpdate"
-turnUpdateEvent.Parent = remoteEvents
-
-local cardFlipEvent = Instance.new("RemoteEvent")
-cardFlipEvent.Name = "CardFlip"
-cardFlipEvent.Parent = remoteEvents
+-- Get RemoteEvents from ReplicatedStorage
+local remoteEvents = ReplicatedStorage:WaitForChild("PokerGameEvents")
+local cardClickEvent = remoteEvents:WaitForChild("CardClick")
+local gameStateEvent = remoteEvents:WaitForChild("GameStateUpdate")
+local turnUpdateEvent = remoteEvents:WaitForChild("TurnUpdate")
+local cardFlipEvent = remoteEvents:WaitForChild("CardFlip")
 
 -- Get all cards and identify the poker
 local cards = {}
