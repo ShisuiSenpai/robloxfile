@@ -44,6 +44,17 @@ local gameUI = nil
 local turnLabel = nil
 local statusLabel = nil
 
+-- Store all card positions at startup
+local function storeOriginalCardPositions()
+	originalCardCFrames = {}
+	for _, card in ipairs(table1:GetChildren()) do
+		if card:IsA("BasePart") then
+			originalCardCFrames[card] = card.CFrame
+		end
+	end
+	print("[PokerGame] Stored", #originalCardCFrames, "original card positions")
+end
+
 -- Animate waiting dots
 local function startWaitingAnimation()
 	if waitingDotsConnection then
@@ -188,12 +199,12 @@ local function flipCard(card)
 	flippedCards[card] = true
 	selectedCards[card] = true
 	
-	-- Store original CFrame if not stored
-	if not originalCardCFrames[card] then
-		originalCardCFrames[card] = card.CFrame
-	end
-	
+	-- Get the original CFrame (should already be stored)
 	local originalCFrame = originalCardCFrames[card]
+	if not originalCFrame then
+		print("[PokerGame] Warning: No original CFrame for card", card.Name)
+		originalCFrame = card.CFrame
+	end
 	
 	-- Cancel any existing flip tweens for this card
 	if flipTweens[card] then
@@ -403,10 +414,9 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 			end
 		end
 		
-		-- Clear all states
+		-- Clear flip states (but keep original positions)
 		selectedCards = {}
 		flippedCards = {}
-		originalCardCFrames = {}
 		
 		-- Update highlighting
 		updateCardHighlighting()
@@ -458,10 +468,9 @@ cardFlipEvent.OnClientEvent:Connect(function(cardOrAction)
 			end
 		end
 		
-		-- Clear all states
+		-- Clear flip states (but keep original positions)
 		selectedCards = {}
 		flippedCards = {}
-		originalCardCFrames = {}
 		
 		-- Cancel all active tweens
 		for card, tweens in pairs(flipTweens) do
@@ -566,14 +575,16 @@ player.CharacterRemoving:Connect(function()
 	end
 	cardHighlights = {}
 	
-	-- Clear all states
+	-- Clear all states (but keep original positions)
 	selectedCards = {}
 	flippedCards = {}
-	originalCardCFrames = {}
 end)
 
 -- Initialize
 createGameUI()
+
+-- Store original card positions at startup
+storeOriginalCardPositions()
 
 if player.Character then
 	onCharacterAdded(player.Character)

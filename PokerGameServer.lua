@@ -39,14 +39,17 @@ local cardFlipEvent = remoteEvents:WaitForChild("CardFlip")
 -- Get all cards and identify the poker
 local cards = {}
 local pokerCard = nil
-local originalCardCFrames = {}
+local originalCardCFrames = {} -- The TRUE original positions (before any shuffles)
+local currentCardCFrames = {} -- Current positions (updated after shuffles)
 
 local function initializeCards()
 	cards = {}
 	for _, child in ipairs(table1:GetChildren()) do
 		if child:IsA("BasePart") then
 			table.insert(cards, child)
+			-- Store the TRUE original position (only set once at server start)
 			originalCardCFrames[child] = child.CFrame
+			currentCardCFrames[child] = child.CFrame
 			
 			if child.Name == "Poker" then
 				pokerCard = child
@@ -147,13 +150,17 @@ local function shuffleCards()
 	-- Pick a random card to swap with
 	local randomCard = otherCards[math.random(1, #otherCards)]
 	
-	-- Store their positions
-	local pokerCFrame = pokerCard.CFrame
-	local randomCardCFrame = randomCard.CFrame
+	-- Store their current positions
+	local pokerCFrame = currentCardCFrames[pokerCard]
+	local randomCardCFrame = currentCardCFrames[randomCard]
 	
 	-- Swap positions
 	pokerCard.CFrame = randomCardCFrame
 	randomCard.CFrame = pokerCFrame
+	
+	-- Update current positions
+	currentCardCFrames[pokerCard] = randomCardCFrame
+	currentCardCFrames[randomCard] = pokerCFrame
 	
 	print("[PokerGame] Poker card swapped with:", randomCard.Name)
 	print("[PokerGame] Poker card new position:", pokerCard.Position)
@@ -223,6 +230,12 @@ local function endGame(winner, loser, reason)
 	-- Reset game state
 	wait(2) -- Additional wait for cleanup
 	
+	-- First tell clients to reset their visual states
+	cardFlipEvent:FireAllClients("reset_all_cards")
+	
+	-- Small delay to ensure clients process the reset
+	wait(0.1)
+	
 	-- Clear game state
 	GameState.currentTurn = nil
 	GameState.turnNumber = 0
@@ -232,11 +245,13 @@ local function endGame(winner, loser, reason)
 	GameState.player2Seat = nil
 	GameState.selectedCards = {}
 	
-	-- Reset all cards to face down
+	-- Reset all cards to face down on server
 	resetCards()
 	
-	-- Reset card flips on all clients
-	cardFlipEvent:FireAllClients("reset_all_cards")
+	-- Update current positions to match original
+	for card, originalCFrame in pairs(originalCardCFrames) do
+		currentCardCFrames[card] = originalCFrame
+	end
 	
 	print("[PokerGame] Game fully reset, ready for next game")
 end
