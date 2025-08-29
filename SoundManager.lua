@@ -33,10 +33,13 @@ function SoundManager:PlaySoundAtPosition(soundId, position, volume, pitch)
 	if position then
 		-- 3D sound - create part at position
 		local part = Instance.new("Part")
+		part.Name = "SoundEmitter"
 		part.Anchored = true
 		part.CanCollide = false
+		part.CanQuery = false -- THIS IS KEY! Prevents mouse raycast detection
+		part.CanTouch = false -- Also prevents touch detection
 		part.Transparency = 1
-		part.Size = Vector3.new(1, 1, 1)
+		part.Size = Vector3.new(0.1, 0.1, 0.1) -- Make it tiny
 		part.Position = position
 		part.Parent = workspace
 		
