@@ -162,6 +162,39 @@ local function startGameCountdown(tableData)
 	
 	-- Create UI
 	local gui, countdownLabel = createCountdownUI(tableData)
+	local containerFrame = gui:FindFirstChild("ContainerFrame")
+	
+	-- Start with everything transparent for fade-in
+	containerFrame.BackgroundTransparency = 1
+	for _, child in ipairs(containerFrame:GetDescendants()) do
+		if child:IsA("TextLabel") then
+			child.TextTransparency = 1
+		elseif child:IsA("UIStroke") then
+			child.Transparency = 1
+		end
+	end
+	
+	-- Fade in animation
+	local fadeInTween = TweenService:Create(containerFrame,
+		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{BackgroundTransparency = 1} -- Keep background transparent
+	)
+	
+	for _, child in ipairs(containerFrame:GetDescendants()) do
+		if child:IsA("TextLabel") then
+			TweenService:Create(child,
+				TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{TextTransparency = 0}
+			):Play()
+		elseif child:IsA("UIStroke") then
+			TweenService:Create(child,
+				TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Transparency = 0}
+			):Play()
+		end
+	end
+	
+	fadeInTween:Play()
 	
 	tableData.currentCountdown = 3 + 0.1 -- Buffer
 	local lastDisplayedNumber = 4
@@ -169,10 +202,12 @@ local function startGameCountdown(tableData)
 	-- Show initial number
 	countdownLabel.Text = "3"
 	
-	-- Play first tick
-	if soundsEnabled and SoundManager then
-		SoundManager:PlayCountdownTick()
-	end
+	-- Play first tick after fade in
+	fadeInTween.Completed:Connect(function()
+		if soundsEnabled and SoundManager then
+			SoundManager:PlayCountdownTick()
+		end
+	end)
 	
 	-- Countdown logic
 	tableData.countdownConnection = RunService.Heartbeat:Connect(function(dt)
@@ -185,6 +220,20 @@ local function startGameCountdown(tableData)
 				lastDisplayedNumber = displayTime
 				countdownLabel.Text = tostring(displayTime)
 				
+				-- Animate number change with a subtle pop effect
+				local popTween = TweenService:Create(countdownLabel,
+					TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{TextTransparency = 0.1}
+				)
+				popTween:Play()
+				
+				popTween.Completed:Connect(function()
+					TweenService:Create(countdownLabel,
+						TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+						{TextTransparency = 0}
+					):Play()
+				end)
+				
 				if soundsEnabled and SoundManager and displayTime > 0 then
 					SoundManager:PlayCountdownTick()
 				end
@@ -196,19 +245,63 @@ local function startGameCountdown(tableData)
 				end
 				
 				countdownLabel.Text = "GO!"
+				countdownLabel.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green for GO!
+				
+				-- Hide title
 				local titleLabel = gui:FindFirstChild("ContainerFrame"):FindFirstChild("TitleLabel")
 				if titleLabel then
 					titleLabel.Visible = false
 				end
+				
+				-- Make GO! fill the container
 				countdownLabel.Size = UDim2.new(1, 0, 1, 0)
 				countdownLabel.Position = UDim2.new(0, 0, 0, 0)
+				
+				-- Animate GO! growing and fading
+				local growTween = TweenService:Create(countdownLabel,
+					TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+					{TextTransparency = 0.2}
+				)
+				growTween:Play()
 			end
 		else
-			tableData.countdownConnection:Disconnect()
-			destroyCountdownUI(tableData)
-			tableData.isGameStarting = false
-			tableData.currentCountdown = 3
-			print("[GameStart] Countdown complete for table", tableData.id)
+			-- Fade out and clean up
+			if not tableData.fadingOut then
+				tableData.fadingOut = true
+				
+				local containerFrame = gui:FindFirstChild("ContainerFrame")
+				if containerFrame then
+					local fadeTween = TweenService:Create(containerFrame,
+						TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+						{BackgroundTransparency = 1}
+					)
+					
+					-- Fade all text elements
+					for _, child in ipairs(containerFrame:GetDescendants()) do
+						if child:IsA("TextLabel") then
+							TweenService:Create(child,
+								TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+								{TextTransparency = 1}
+							):Play()
+						elseif child:IsA("UIStroke") then
+							TweenService:Create(child,
+								TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+								{Transparency = 1}
+							):Play()
+						end
+					end
+					
+					fadeTween:Play()
+					fadeTween.Completed:Connect(function()
+						tableData.countdownConnection:Disconnect()
+						destroyCountdownUI(tableData)
+						tableData.isGameStarting = false
+						tableData.fadingOut = false
+						tableData.currentCountdown = 3
+						print("[GameStart] Countdown complete for table", tableData.id)
+					end)
+				end
+			end
 		end
 	end)
 end
