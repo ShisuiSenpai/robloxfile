@@ -314,29 +314,46 @@ end
 
 -- Reset card
 local function resetCard(tableData, card)
+	-- Clear card state
 	tableData.flippedCards[card] = nil
 	tableData.selectedCards[card] = nil
 	
+	-- Clear highlight state for this card
+	local highlight = tableData.cardHighlights[card]
+	if highlight and highlight.Parent then
+		highlight.Enabled = false
+	end
+	
 	local originalCFrame = tableData.originalCardCFrames[card]
-	if originalCFrame then
-		-- Smooth reset animation
-		coroutine.wrap(function()
-			local startCFrame = card.CFrame
-			local duration = 0.3
-			local elapsed = 0
-			
-			while elapsed < duration and card.Parent do
-				elapsed = elapsed + RunService.Heartbeat:Wait()
-				local alpha = math.min(elapsed / duration, 1)
-				alpha = alpha * alpha * (3 - 2 * alpha) -- Smooth step
+	if originalCFrame and card.Parent then
+		-- Cancel any existing animations by setting directly first
+		card.CFrame = originalCFrame
+		
+		-- Then do smooth animation if card is visibly flipped
+		local angleDiff = math.abs((card.CFrame:ToEulerAnglesXYZ()) - (originalCFrame:ToEulerAnglesXYZ()))
+		if angleDiff > 0.1 then
+			-- Smooth reset animation
+			coroutine.wrap(function()
+				local startCFrame = card.CFrame
+				local duration = 0.3
+				local elapsed = 0
 				
-				card.CFrame = startCFrame:Lerp(originalCFrame, alpha)
-			end
-			
-			if card.Parent then
-				card.CFrame = originalCFrame
-			end
-		end)()
+				while elapsed < duration and card.Parent do
+					elapsed = elapsed + RunService.Heartbeat:Wait()
+					local alpha = math.min(elapsed / duration, 1)
+					alpha = alpha * alpha * (3 - 2 * alpha) -- Smooth step
+					
+					if card.Parent then
+						card.CFrame = startCFrame:Lerp(originalCFrame, alpha)
+					end
+				end
+				
+				-- Final position
+				if card.Parent then
+					card.CFrame = originalCFrame
+				end
+			end)()
+		end
 	end
 end
 
@@ -567,20 +584,19 @@ for tableId, tableData in pairs(tables) do
 			updateCardHighlighting(tableData)
 			
 		elseif state == "game_end" then
+			-- Immediately set game as inactive
 			tableData.gameActive = false
 			tableData.isMyTurn = false
 			tableData.isCountdownActive = false
+			tableData.currentHoveredCard = nil
 			
-			-- Clean up highlights when game ends
+			-- Don't destroy highlights yet - just disable them
+			-- They will be destroyed on full_reset
 			for card, highlight in pairs(tableData.cardHighlights) do
-				if highlight then
-					highlight:Destroy()
+				if highlight and highlight.Parent then
+					highlight.Enabled = false
 				end
 			end
-			tableData.cardHighlights = {}
-			tableData.selectedCards = {}
-			tableData.flippedCards = {}
-			tableData.currentHoveredCard = nil
 			
 						-- Show winner/loser message if at this table
 			if tableData.gameUI and getCurrentTable() == tableData then
@@ -652,6 +668,26 @@ for tableId, tableData in pairs(tables) do
 			tableData.selectedCards = {}
 			tableData.flippedCards = {}
 			updateCardHighlighting(tableData)
+			
+		elseif state == "full_reset" then
+			-- Complete reset of table state
+			tableData.gameActive = false
+			tableData.isMyTurn = false
+			tableData.isCountdownActive = false
+			tableData.selectedCards = {}
+			tableData.flippedCards = {}
+			tableData.currentHoveredCard = nil
+			
+			-- Ensure all highlights are properly cleaned
+			for card, highlight in pairs(tableData.cardHighlights) do
+				if highlight and highlight.Parent then
+					highlight:Destroy()
+				end
+			end
+			tableData.cardHighlights = {}
+			
+			-- Check if player is still seated and update UI accordingly
+			checkSeatingStatus(tableData)
 		end
 	end)
 	
@@ -680,8 +716,17 @@ for tableId, tableData in pairs(tables) do
 		if cardOrAction == "reset_all_cards" then
 			-- Reset all cards for this table
 			for _, card in ipairs(tableData.tablePart:GetChildren()) do
-				if card:IsA("BasePart") then
+				if card:IsA("BasePart") and not card.Name:match("Camera") then
 					resetCard(tableData, card)
+				end
+			end
+			
+			-- Also check descendants if table is a model
+			if tableData.tablePart:IsA("Model") then
+				for _, child in ipairs(tableData.tablePart:GetDescendants()) do
+					if child:IsA("BasePart") and child.Parent == tableData.tablePart and not child.Name:match("Camera") then
+						resetCard(tableData, child)
+					end
 				end
 			end
 			
@@ -690,7 +735,7 @@ for tableId, tableData in pairs(tables) do
 			tableData.flippedCards = {}
 			tableData.currentHoveredCard = nil
 			
-			-- Disable all highlights
+			-- Disable and clean all highlights
 			for card, highlight in pairs(tableData.cardHighlights) do
 				if highlight and highlight.Parent then
 					highlight.Enabled = false
@@ -705,6 +750,23 @@ end
 -- Monitor character and seating
 local function onCharacterAdded(character)
 	local humanoid = character:WaitForChild("Humanoid")
+	
+	-- Reset all table states on respawn
+	for _, tableData in pairs(tables) do
+		-- Clear any leftover state
+		tableData.gameActive = false
+		tableData.isMyTurn = false
+		tableData.isCountdownActive = false
+		tableData.currentHoveredCard = nil
+		
+		-- Destroy old highlights
+		for card, highlight in pairs(tableData.cardHighlights) do
+			if highlight and highlight.Parent then
+				highlight:Destroy()
+			end
+		end
+		tableData.cardHighlights = {}
+	end
 	
 	-- Check all tables when seated
 	humanoid.Seated:Connect(function()

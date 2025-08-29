@@ -135,27 +135,30 @@ local function endGame(tableInstance, winner, loser, reason)
 	tableInstance.gameState.isActive = false
 	print("[PokerGame] Game ended at table", tableInstance.tableId, "! Winner:", winner and winner.Name or "None", "Reason:", reason)
 	
-	-- Restore jumping
-	restoreJumping(tableInstance, tableInstance.gameState.player1)
-	restoreJumping(tableInstance, tableInstance.gameState.player2)
-	
-	-- Notify clients
+	-- Immediately notify clients that game has ended
 	tableInstance.remoteEvents.GameStateUpdate:FireAllClients("game_end", {
 		winner = winner and winner.Name or "None",
 		loser = loser and loser.Name or "None",
 		reason = reason
 	})
 	
+	-- Restore jumping for both players
+	restoreJumping(tableInstance, tableInstance.gameState.player1)
+	restoreJumping(tableInstance, tableInstance.gameState.player2)
+	
 	-- Kill the loser if they picked the poker
 	if reason == "poker_picked" and loser and loser.Character then
+		wait(0.5) -- Brief delay for dramatic effect
 		local humanoid = loser.Character:FindFirstChild("Humanoid")
 		if humanoid then
 			humanoid.Health = 0
 		end
 	end
 	
+	-- Wait for UI to show results
+	wait(2)
+	
 	-- Force winner to stand up
-	wait(1.5)
 	if winner and winner.Character then
 		local humanoid = winner.Character:FindFirstChild("Humanoid")
 		if humanoid and humanoid.SeatPart then
@@ -163,32 +166,34 @@ local function endGame(tableInstance, winner, loser, reason)
 		end
 	end
 	
-	-- Reset game
-	wait(2)
-	resetCards(tableInstance)
+	-- Wait a bit more before resetting
+	wait(1.5)
 	
-	for card, originalCFrame in pairs(tableInstance.originalCardCFrames) do
-		tableInstance.currentCardCFrames[card] = originalCFrame
-	end
-	
-	wait(0.1)
-	tableInstance.remoteEvents.CardFlip:FireAllClients("reset_all_cards")
-	
-	-- Force server-side reset
+	-- Reset all cards server-side first
 	for _, card in ipairs(tableInstance.cards) do
 		if card and card.Parent and tableInstance.originalCardCFrames[card] then
 			card.CFrame = tableInstance.originalCardCFrames[card]
 		end
 	end
 	
-	wait(0.5)
+	-- Update current positions
+	for card, originalCFrame in pairs(tableInstance.originalCardCFrames) do
+		tableInstance.currentCardCFrames[card] = originalCFrame
+	end
 	
-	-- Clear game state
+	-- Clear server game state
 	tableInstance.gameState.currentTurn = nil
 	tableInstance.gameState.turnNumber = 0
 	tableInstance.gameState.player1 = nil
 	tableInstance.gameState.player2 = nil
 	tableInstance.gameState.selectedCards = {}
+	
+	-- Tell clients to reset their cards and state
+	tableInstance.remoteEvents.CardFlip:FireAllClients("reset_all_cards")
+	
+	-- Final state reset notification
+	wait(0.1)
+	tableInstance.remoteEvents.GameStateUpdate:FireAllClients("full_reset")
 	
 	print("[PokerGame] Table", tableInstance.tableId, "fully reset")
 end
