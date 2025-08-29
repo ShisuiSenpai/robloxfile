@@ -62,12 +62,25 @@ end
 
 -- Reset card states
 local function resetCards()
+	print("[PokerGame DEBUG] resetCards() called")
 	GameState.selectedCards = {}
+	
+	-- Debug: Show what we're resetting
+	print("[PokerGame DEBUG] Number of cards to reset:", #cards)
+	print("[PokerGame DEBUG] Original positions stored:", #originalCardCFrames)
 	
 	-- Reset all card positions and rotations to original state
 	for _, card in ipairs(cards) do
-		if card.Parent and originalCardCFrames[card] then
-			card.CFrame = originalCardCFrames[card]
+		if card and card.Parent then
+			local originalCFrame = originalCardCFrames[card]
+			if originalCFrame then
+				print("[PokerGame DEBUG] Resetting card:", card.Name, "to position:", originalCFrame.Position)
+				card.CFrame = originalCFrame
+			else
+				print("[PokerGame DEBUG] WARNING: No original CFrame for card:", card.Name)
+			end
+		else
+			print("[PokerGame DEBUG] WARNING: Card is nil or has no parent")
 		end
 	end
 	

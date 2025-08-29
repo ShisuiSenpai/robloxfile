@@ -50,9 +50,16 @@ local function storeOriginalCardPositions()
 	local count = 0
 	for _, card in ipairs(table1:GetChildren()) do
 		if card:IsA("BasePart") then
-			originalCardCFrames[card] = card.CFrame
+			-- Store the face-down position (cards might start face-up, so flip them first)
+			local faceDownCFrame = card.CFrame
+			
+			-- Check if card needs to be flipped to face-down
+			-- If the card's orientation suggests it's face-up, flip it
+			local x, y, z = faceDownCFrame:ToEulerAnglesXYZ()
+			print("[PokerGame DEBUG] Card", card.Name, "initial rotation:", math.deg(x), math.deg(y), math.deg(z))
+			
+			originalCardCFrames[card] = faceDownCFrame
 			count = count + 1
-			print("[PokerGame DEBUG] Stored", card.Name, "with CFrame:", card.CFrame)
 		end
 	end
 	print("[PokerGame] Stored", count, "original card positions")
@@ -200,9 +207,9 @@ local flipTweens = {}
 local function flipCard(card)
 	print("[PokerGame DEBUG] flipCard called for", card.Name)
 	
-	if flippedCards[card] then 
+	if flippedCards[card] then
 		print("[PokerGame DEBUG] Card already flipped")
-		return 
+		return
 	end
 	
 	flippedCards[card] = true
@@ -232,13 +239,11 @@ local function flipCard(card)
 	-- Get the card's current CFrame
 	local currentCFrame = card.CFrame
 	
-	-- The cards start with a specific rotation
-	-- We need to flip them to show the opposite face
-	-- Since cards are lying flat on table, we rotate around their forward vector
-	
-	-- Flip around the Z axis (the card's forward/back axis when lying flat)
-	local halfFlipCFrame = currentCFrame * CFrame.Angles(0, 0, math.rad(90))
-	local fullFlipCFrame = currentCFrame * CFrame.Angles(0, 0, math.rad(180))
+	-- Cards flip around X axis (like a card on a table flipping over)
+	-- Since cards start face-down (after CardOrientationFixer runs),
+	-- we flip 180 degrees to show face
+	local halfFlipCFrame = currentCFrame * CFrame.Angles(math.rad(90), 0, 0)
+	local fullFlipCFrame = currentCFrame * CFrame.Angles(math.rad(180), 0, 0)
 	
 	print("[PokerGame DEBUG] Card orientation - Current:", currentCFrame)
 	print("[PokerGame DEBUG] Card orientation - Half flip:", halfFlipCFrame)
@@ -284,13 +289,26 @@ local function resetCard(card)
 		-- Reset to exact original CFrame (face-down position)
 	local originalCFrame = originalCardCFrames[card]
 	if originalCFrame then
-		print("[PokerGame DEBUG] Resetting", card.Name, "to original CFrame:", originalCFrame)
-		card.CFrame = originalCFrame
+		print("[PokerGame DEBUG] Resetting", card.Name, "to face-down")
 		
-		-- Verify reset worked
-		if card.CFrame ~= originalCFrame then
-			print("[PokerGame DEBUG] ERROR: Card did not reset properly!")
+		-- Use a tween to smoothly reset the card
+		local resetTweenInfo = TweenInfo.new(
+			0.3,
+			Enum.EasingStyle.Quad,
+			Enum.EasingDirection.Out
+		)
+		
+		local resetTween = TweenService:Create(card, resetTweenInfo, {
+			CFrame = originalCFrame
+		})
+		
+		resetTween:Play()
+		
+		-- Store the tween so we can cancel it if needed
+		if not flipTweens[card] then
+			flipTweens[card] = {}
 		end
+		table.insert(flipTweens[card], resetTween)
 	else
 		print("[PokerGame DEBUG] WARNING: No original CFrame for", card.Name)
 		-- This shouldn't happen, but as a fallback...
