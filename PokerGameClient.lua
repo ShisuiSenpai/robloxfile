@@ -302,9 +302,21 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 			local statusFrame = gameUI.StatusFrame
 			statusFrame.Visible = true
 			
+			-- Update turn label to hide it
+			turnLabel.Text = ""
+			gameUI.TurnFrame.Visible = false
+			
 			if data.winner == player.Name then
 				statusLabel.Text = "You Win!"
 				statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+				
+				-- Add extra effect for winner
+				local pulseEffect = TweenService:Create(statusLabel,
+					TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 3, true),
+					{TextTransparency = 0.3}
+				)
+				pulseEffect:Play()
+				
 			elseif data.loser == player.Name then
 				if data.reason == "poker_picked" then
 					statusLabel.Text = "You found the Poker! You Lose!"
@@ -330,8 +342,10 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 			)
 			showTween:Play()
 			
-			-- Hide after delay
-			task.wait(3)
+			-- Hide after delay (shorter for winner since they'll be standing up)
+			local hideDelay = data.winner == player.Name and 2 or 3
+			task.wait(hideDelay)
+			
 			local hideTween = TweenService:Create(statusFrame,
 				TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
 				{
@@ -342,7 +356,10 @@ gameStateEvent.OnClientEvent:Connect(function(state, data)
 			hideTween:Play()
 		end
 		
-		updateCardHighlighting()
+		-- Disable all highlights
+		for card, highlight in pairs(cardHighlights) do
+			highlight.Enabled = false
+		end
 		
 	elseif state == "cards_reset" then
 		-- Reset card states
@@ -386,8 +403,28 @@ turnUpdateEvent.OnClientEvent:Connect(function(currentTurnPlayer)
 end)
 
 -- Handle card flip events from server
-cardFlipEvent.OnClientEvent:Connect(function(card)
-	flipCard(card)
+cardFlipEvent.OnClientEvent:Connect(function(cardOrAction)
+	if cardOrAction == "reset_all_cards" then
+		-- Reset all cards to face down
+		selectedCards = {}
+		flippedCards = {}
+		originalCardCFrames = {}
+		
+		-- Reset all highlights
+		for card, highlight in pairs(cardHighlights) do
+			highlight.Enabled = false
+		end
+		
+		-- Clear any active game state
+		gameActive = false
+		isMyTurn = false
+		currentHoveredCard = nil
+		
+		print("[PokerGame] All cards reset")
+	else
+		-- Normal card flip
+		flipCard(cardOrAction)
+	end
 end)
 
 -- Connect mouse events

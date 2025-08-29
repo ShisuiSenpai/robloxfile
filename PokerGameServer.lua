@@ -181,18 +181,35 @@ local function endGame(winner, loser, reason)
 		end
 	end
 	
-	-- Reset game after delay
-	wait(GAME_RESET_TIME)
+	-- Force winner to stand up after a short delay
+	wait(1.5) -- Give time for death animation and victory message
+	
+	if winner.Character then
+		local humanoid = winner.Character:FindFirstChild("Humanoid")
+		if humanoid and humanoid.SeatPart then
+			humanoid.Sit = false
+		end
+	end
+	
+	-- Reset game state
+	wait(2) -- Additional wait for cleanup
 	
 	-- Clear game state
 	GameState.currentTurn = nil
 	GameState.turnNumber = 0
+	GameState.player1 = nil
+	GameState.player2 = nil
+	GameState.player1Seat = nil
+	GameState.player2Seat = nil
+	GameState.selectedCards = {}
+	
+	-- Reset all cards to face down
 	resetCards()
 	
-	-- Check if players are still seated to start new game
-	if checkSeating() then
-		startGame()
-	end
+	-- Reset card flips on all clients
+	cardFlipEvent:FireAllClients("reset_all_cards")
+	
+	print("[PokerGame] Game fully reset, ready for next game")
 end
 
 -- Handle card selection
