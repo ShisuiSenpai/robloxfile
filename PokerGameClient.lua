@@ -10,7 +10,7 @@ local RunService = game:GetService("RunService")
 local HIGHLIGHT_COLOR = Color3.fromRGB(100, 255, 100) -- Green for your turn
 local OPPONENT_HIGHLIGHT_COLOR = Color3.fromRGB(255, 100, 100) -- Red for opponent's turn
 local SELECTED_CARD_COLOR = Color3.fromRGB(150, 150, 150) -- Gray for selected cards
-local FLIP_DURATION = 0.4
+local FLIP_DURATION = 0.3 -- Reduced for snappier animation
 
 -- References
 local player = Players.LocalPlayer
@@ -206,10 +206,7 @@ local flipTweens = {}
 
 -- Flip a card animation
 local function flipCard(card)
-	print("[PokerGame DEBUG] flipCard called for", card.Name)
-	
 	if flippedCards[card] then
-		print("[PokerGame DEBUG] Card already flipped")
 		return
 	end
 	
@@ -224,52 +221,29 @@ local function flipCard(card)
 	end
 	flipTweens[card] = {}
 	
-	-- Create flip animation
+	-- Create flip animation with optimal settings for smoothness
 	local flipTweenInfo = TweenInfo.new(
-		FLIP_DURATION / 2,
-		Enum.EasingStyle.Quart,
-		Enum.EasingDirection.InOut
+		FLIP_DURATION,
+		Enum.EasingStyle.Back, -- Provides a nice "snap" feel
+		Enum.EasingDirection.Out,
+		0, -- RepeatCount
+		false, -- Reverses
+		0 -- DelayTime
 	)
 	
-	-- Get current position and rotation
-	local currentPos = card.Position
-	
-	print("[PokerGame DEBUG] Card current position:", currentPos)
-	
-	-- Calculate flip rotations (keep position, only rotate)
-	-- Get the card's current CFrame
+	-- Get current CFrame and calculate target
 	local currentCFrame = card.CFrame
+	local targetCFrame = currentCFrame * CFrame.Angles(math.rad(180), 0, 0)
 	
-	-- Cards flip around X axis (like a card on a table flipping over)
-	-- Since cards start face-down (after CardOrientationFixer runs),
-	-- we flip 180 degrees to show face
-	local halfFlipCFrame = currentCFrame * CFrame.Angles(math.rad(90), 0, 0)
-	local fullFlipCFrame = currentCFrame * CFrame.Angles(math.rad(180), 0, 0)
-	
-	print("[PokerGame DEBUG] Card orientation - Current:", currentCFrame)
-	print("[PokerGame DEBUG] Card orientation - Half flip:", halfFlipCFrame)
-	print("[PokerGame DEBUG] Card orientation - Full flip:", fullFlipCFrame)
-	
-	-- First half of flip
-	local flipTween1 = TweenService:Create(card, flipTweenInfo, {
-		CFrame = halfFlipCFrame
+	-- Create and play the flip animation
+	local flipTween = TweenService:Create(card, flipTweenInfo, {
+		CFrame = targetCFrame
 	})
 	
-	-- Second half of flip
-	local flipTween2 = TweenService:Create(card, flipTweenInfo, {
-		CFrame = fullFlipCFrame
-	})
+	table.insert(flipTweens[card], flipTween)
 	
-	table.insert(flipTweens[card], flipTween1)
-	table.insert(flipTweens[card], flipTween2)
-	
-	print("[PokerGame DEBUG] Starting flip animation")
-	
-	flipTween1:Play()
-	flipTween1.Completed:Connect(function()
-		print("[PokerGame DEBUG] First half of flip complete")
-		flipTween2:Play()
-	end)
+	-- Play the animation
+	flipTween:Play()
 	
 	updateCardHighlighting()
 end
