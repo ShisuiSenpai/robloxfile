@@ -349,6 +349,60 @@ local function onMouseClick()
 	currentTable.remoteEvents.CardClick:FireServer(currentTable.currentHoveredCard)
 end
 
+-- Check seating status for a table
+local checkSeatingStatus = function(tableData)
+	if not player.Character then return end
+	local humanoid = player.Character:FindFirstChild("Humanoid")
+	if not humanoid then return end
+	
+	-- Check if seated at this table
+	local isSeated = false
+	for _, seat in ipairs(tableData.seats) do
+		if humanoid.SeatPart == seat then
+			isSeated = true
+			break
+		end
+	end
+	
+	if not isSeated then
+		-- Not seated at this table
+		if tableData.gameUI then
+			tableData.gameUI:Destroy()
+			tableData.gameUI = nil
+		end
+		stopWaitingAnimation(tableData)
+		return
+	end
+	
+	-- Seated at this table
+	if not tableData.gameUI then
+		createGameUI(tableData)
+	end
+	
+	-- Check if both seats are occupied
+	local bothSeated = true
+	for _, seat in ipairs(tableData.seats) do
+		if not seat.Occupant then
+			bothSeated = false
+			break
+		end
+	end
+	
+	-- Update UI based on game state
+	if tableData.gameUI then
+		if not tableData.gameActive and not tableData.isCountdownActive then
+			tableData.gameUI.TurnFrame.Visible = true
+			if bothSeated then
+				stopWaitingAnimation(tableData)
+				-- Don't show "Starting soon..." - let the countdown handle it
+				tableData.gameUI.TurnFrame.Visible = false
+			else
+				startWaitingAnimation(tableData, tableData.turnLabel)
+			end
+		end
+	end
+end
+
 -- Connect events for each table
 for tableId, tableData in pairs(tables) do
 	local screenGui, turnLabel, statusLabel
@@ -472,59 +526,6 @@ for tableId, tableData in pairs(tables) do
 			flipCard(tableData, cardOrAction)
 		end
 	end)
-end
-
--- Check seating status for a table
-local function checkSeatingStatus(tableData)
-	if not player.Character then return end
-	local humanoid = player.Character:FindFirstChild("Humanoid")
-	if not humanoid then return end
-	
-	-- Check if seated at this table
-	local isSeated = false
-	for _, seat in ipairs(tableData.seats) do
-		if humanoid.SeatPart == seat then
-			isSeated = true
-			break
-		end
-	end
-	
-	if not isSeated then
-		-- Not seated at this table
-		if tableData.gameUI then
-			tableData.gameUI:Destroy()
-			tableData.gameUI = nil
-		end
-		stopWaitingAnimation(tableData)
-		return
-	end
-	
-	-- Seated at this table
-	if not tableData.gameUI then
-		createGameUI(tableData)
-	end
-	
-	-- Check if both seats are occupied
-	local bothSeated = true
-	for _, seat in ipairs(tableData.seats) do
-		if not seat.Occupant then
-			bothSeated = false
-			break
-		end
-	end
-	
-	-- Update UI based on game state
-	if tableData.gameUI then
-		if not tableData.gameActive and not tableData.isCountdownActive then
-			tableData.gameUI.TurnFrame.Visible = true
-			if bothSeated then
-				stopWaitingAnimation(tableData)
-				tableData.turnLabel.Text = "Starting soon..."
-			else
-				startWaitingAnimation(tableData, tableData.turnLabel)
-			end
-		end
-	end
 end
 
 -- Monitor character and seating
