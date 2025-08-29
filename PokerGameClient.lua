@@ -203,7 +203,7 @@ local function getOrCreateHighlight(card)
 	highlight.Adornee = card
 	highlight.FillTransparency = 0.7
 	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded -- Changed from AlwaysOnTop to prevent raycast interference
 	highlight.Enabled = false
 	
 	cardHighlights[card] = highlight
@@ -333,24 +333,40 @@ end
 -- Handle mouse movement
 local function onMouseMove()
 	if not isSeatedAtTable() then
-		currentHoveredCard = nil
-		updateCardHighlighting()
+		if currentHoveredCard then
+			currentHoveredCard = nil
+			updateCardHighlighting()
+		end
 		return
 	end
 	
+	-- Get the mouse target, ignoring any GUI elements
 	local target = mouse.Target
 	
-	if target and target.Parent == table1 and target:IsA("BasePart") then
-		if currentHoveredCard ~= target then
-			currentHoveredCard = target
+	-- Check if we're hovering over a card (or a child of a card like a decal)
+	local cardTarget = nil
+	if target then
+		if target.Parent == table1 and target:IsA("BasePart") and target.Name ~= "CameraPartTable1" then
+			cardTarget = target
+		elseif target.Parent and target.Parent.Parent == table1 and target.Parent:IsA("BasePart") then
+			-- Handle case where we're hovering over a decal/texture inside a card
+			cardTarget = target.Parent
+		end
+	end
+	
+	if cardTarget then
+		-- Only update if the target has actually changed
+		if currentHoveredCard ~= cardTarget then
+			currentHoveredCard = cardTarget
 			updateCardHighlighting()
 			
 			-- Play hover sound only during active game and your turn
-			if soundsEnabled and gameActive and isMyTurn and not selectedCards[target] then
-				SoundManager:PlayHoverSound(target.Position)
+			if soundsEnabled and gameActive and isMyTurn and not selectedCards[cardTarget] then
+				SoundManager:PlayHoverSound(cardTarget.Position)
 			end
 		end
 	else
+		-- Only clear if we actually had a card hovered
 		if currentHoveredCard then
 			currentHoveredCard = nil
 			updateCardHighlighting()
