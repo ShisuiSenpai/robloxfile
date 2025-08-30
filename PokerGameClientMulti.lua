@@ -140,14 +140,29 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 	
 	-- Get UI references (but don't enable yet)
 	local playerGui = player:WaitForChild("PlayerGui")
+	print("[PokerGame] Looking for UI folder in PlayerGui...")
+	
+	-- Debug: List all children of PlayerGui
+	print("[PokerGame] PlayerGui children:")
+	for _, child in ipairs(playerGui:GetChildren()) do
+		print("  -", child.Name, "Type:", child.ClassName)
+	end
+	
 	local uiFolder = playerGui:WaitForChild("PokerGameUI_Table", 5) -- Wait up to 5 seconds
 	local uiName = "PokerGameUI_" .. tableId
 	local screenGui = nil
 	
 	if uiFolder then
+		print("[PokerGame] Found UI folder, looking for:", uiName)
 		screenGui = uiFolder:FindFirstChild(uiName)
+		if not screenGui then
+			print("[PokerGame] UI children in folder:")
+			for _, child in ipairs(uiFolder:GetChildren()) do
+				print("  -", child.Name, "Type:", child.ClassName)
+			end
+		end
 	else
-		warn("[PokerGame] UI folder 'PokerGameUI_Table' not found in PlayerGui")
+		warn("[PokerGame] UI folder 'PokerGameUI_Table' not found in PlayerGui after 5 seconds")
 	end
 	
 	if screenGui then
@@ -510,8 +525,13 @@ local checkSeatingStatus = function(tableData)
 	if not tableData.gameUI then
 		-- print("[DEBUG] Creating UI for table:", tableData.id)
 		setupGameUI(tableData)
-		-- Enable the UI when player sits
-		tableData.gameUI.Enabled = true
+		-- Enable the UI when player sits (only if UI exists)
+		if tableData.gameUI then
+			tableData.gameUI.Enabled = true
+		else
+			warn("[PokerGame] Cannot enable UI - UI not found for table:", tableData.id)
+			return
+		end
 	end
 	
 	-- Check if both seats are occupied
@@ -589,10 +609,17 @@ for tableId, tableData in pairs(tables) do
 				-- print("[DEBUG] Player is at this table, showing game UI")
 				if not tableData.gameUI then
 					setupGameUI(tableData)
-		-- Enable the UI when player sits
-		tableData.gameUI.Enabled = true
+					-- Enable the UI when player sits (only if UI exists)
+					if tableData.gameUI then
+						tableData.gameUI.Enabled = true
+					else
+						warn("[PokerGame] Cannot show turn UI - UI not found for table:", tableData.id)
+						return
+					end
 				end
-				tableData.gameUI.TurnFrame.Visible = true
+				if tableData.gameUI and tableData.gameUI.TurnFrame then
+					tableData.gameUI.TurnFrame.Visible = true
+				end
 			else
 				-- print("[DEBUG] Player is NOT at this table")
 			end
