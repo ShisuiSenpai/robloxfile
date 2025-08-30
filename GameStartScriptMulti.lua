@@ -83,16 +83,16 @@ local allSeats = {}
 local seatToTable = {}
 
 print("[DEBUG GameStart] Initializing tables from TABLE_CONFIGS...")
--- Wait a bit for all assets to load
-wait(1)
+-- Wait longer for all assets to load (seats might stream in late)
+wait(3)
 
 for tableId, config in pairs(TABLE_CONFIGS) do
-	print("[DEBUG GameStart] Setting up table:", tableId)
+	-- print("[DEBUG GameStart] Setting up table:", tableId)
 	
 	local folder = workspace:WaitForChild(config.folderName)
 	local remoteFolder = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild(config.remoteFolder)
 	
-	print("[DEBUG GameStart] Found folder:", folder.Name, "and remote folder:", remoteFolder.Name)
+	-- print("[DEBUG GameStart] Found folder:", folder.Name, "and remote folder:", remoteFolder.Name)
 	
 	local tableData = {
 		id = tableId,
@@ -111,7 +111,21 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 	for _, seatName in ipairs(config.seats) do
 		local chair = folder:FindFirstChild(seatName)
 		if chair then
-			print("[DEBUG GameStart] Found chair:", seatName, "Type:", chair.ClassName)
+			-- print("[DEBUG GameStart] Found chair:", seatName, "Type:", chair.ClassName)
+			
+			-- Wait for chair contents to load if it's a model
+			if chair:IsA("Model") then
+				-- Wait for at least one child
+				local attempts = 0
+				while #chair:GetChildren() == 0 and attempts < 10 do
+					wait(0.1)
+					attempts = attempts + 1
+				end
+				
+				if attempts >= 10 then
+					print("[DEBUG GameStart] WARNING: Chair model has no children after waiting")
+				end
+			end
 			
 			-- Try different ways to find the seat
 			local seat = chair:FindFirstChild("Seat") or chair:FindFirstChildWhichIsA("Seat") or chair:FindFirstChildWhichIsA("VehicleSeat")
@@ -121,7 +135,7 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 				for _, child in ipairs(chair:GetDescendants()) do
 					if child:IsA("Seat") or child:IsA("VehicleSeat") or (child:IsA("Part") and child.Name == "Seat") then
 						seat = child
-						print("[DEBUG GameStart] Found seat in descendants:", child:GetFullName())
+						-- print("[DEBUG GameStart] Found seat in descendants:", child:GetFullName())
 						break
 					end
 				end
@@ -131,21 +145,9 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 				table.insert(tableData.seats, seat)
 				table.insert(allSeats, seat)
 				seatToTable[seat] = tableData
-				print("[DEBUG GameStart] Added seat:", seatName, "to table:", tableId, "Seat:", seat:GetFullName())
+				-- print("[DEBUG GameStart] Added seat:", seatName, "to table:", tableId, "Seat:", seat:GetFullName())
 			else
-				print("[DEBUG GameStart] WARNING: No Seat part in chair:", seatName)
-				-- List all children for debugging
-				print("[DEBUG GameStart] Chair children:")
-				for _, child in ipairs(chair:GetChildren()) do
-					print("  -", child.Name, "Type:", child.ClassName)
-				end
-				-- Also check descendants
-				print("[DEBUG GameStart] All descendants:")
-				for _, desc in ipairs(chair:GetDescendants()) do
-					if desc:IsA("BasePart") then
-						print("  -", desc:GetFullName(), "Type:", desc.ClassName)
-					end
-				end
+				warn("[DEBUG GameStart] WARNING: No Seat part in chair:", seatName, "for table:", tableId)
 			end
 		else
 			print("[DEBUG GameStart] WARNING: Chair not found:", seatName)
@@ -153,10 +155,77 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 	end
 	
 	tables[tableId] = tableData
-	print("[DEBUG GameStart] Table", tableId, "initialized with", #tableData.seats, "seats")
+	-- print("[DEBUG GameStart] Table", tableId, "initialized with", #tableData.seats, "seats")
 end
 
-print("[DEBUG GameStart] Total tables initialized:", #tables)
+-- Count successfully initialized tables
+local tablesWithSeats = 0
+for _, tableData in pairs(tables) do
+	if #tableData.seats > 0 then
+		tablesWithSeats = tablesWithSeats + 1
+	end
+end
+
+print("[DEBUG GameStart] Total tables found:", #tables, "Tables with seats:", tablesWithSeats)
+
+-- If no tables have seats, try again after a longer wait
+if tablesWithSeats == 0 then
+	warn("[GameStart] No seats found in any table! Retrying in 2 seconds...")
+	wait(2)
+	
+	-- Retry seat detection for all tables
+	for tableId, tableData in pairs(tables) do
+		local config = TABLE_CONFIGS[tableId]
+		local folder = workspace:FindFirstChild(config.folderName)
+		
+		if folder then
+			-- Clear existing seats
+			tableData.seats = {}
+			
+			-- Try to find seats again
+			for _, seatName in ipairs(config.seats) do
+				local chair = folder:FindFirstChild(seatName)
+				if chair then
+					-- Wait for chair to load if needed
+					if chair:IsA("Model") and #chair:GetChildren() == 0 then
+						chair:WaitForChild("Seat", 2)
+					end
+					
+					local seat = chair:FindFirstChild("Seat") or chair:FindFirstChildWhichIsA("Seat") or chair:FindFirstChildWhichIsA("VehicleSeat")
+					
+					if not seat and chair:IsA("Model") then
+						for _, child in ipairs(chair:GetDescendants()) do
+							if child:IsA("Seat") or child:IsA("VehicleSeat") then
+								seat = child
+								break
+							end
+						end
+					end
+					
+					if seat then
+						table.insert(tableData.seats, seat)
+						seatToTable[seat] = tableData
+						print("[GameStart] Found seat on retry:", seatName, "for table:", tableId)
+					end
+				end
+			end
+		end
+	end
+end
+
+-- Final count
+local finalTablesWithSeats = 0
+for _, tableData in pairs(tables) do
+	if #tableData.seats > 0 then
+		finalTablesWithSeats = finalTablesWithSeats + 1
+	end
+end
+
+if finalTablesWithSeats > 0 then
+	print("[GameStart] Successfully initialized", finalTablesWithSeats, "tables with seats")
+else
+	warn("[GameStart] CRITICAL: No tables have seats! Countdown UI will not work!")
+end
 
 -- Get current table
 local function getCurrentTable()
