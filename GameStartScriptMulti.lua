@@ -166,7 +166,13 @@ for _, tableData in pairs(tables) do
 	end
 end
 
-print("[DEBUG GameStart] Total tables found:", #tables, "Tables with seats:", tablesWithSeats)
+-- Count total tables
+local totalTables = 0
+for _ in pairs(tables) do
+	totalTables = totalTables + 1
+end
+
+print("[DEBUG GameStart] Total tables found:", totalTables, "Tables with seats:", tablesWithSeats)
 
 -- If no tables have seats, try again after a longer wait
 if tablesWithSeats == 0 then

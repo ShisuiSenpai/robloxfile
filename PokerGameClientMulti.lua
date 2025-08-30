@@ -94,6 +94,9 @@ local tables = {}
 local allSeats = {}
 local seatToTable = {}
 
+-- Wait for UI folder to be ready
+wait(1)
+
 for tableId, config in pairs(TABLE_CONFIGS) do
 	local folder = workspace:WaitForChild(config.folderName)
 	local tablePart = folder:WaitForChild(config.tableName)
@@ -137,9 +140,15 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 	
 	-- Get UI references (but don't enable yet)
 	local playerGui = player:WaitForChild("PlayerGui")
-	local uiFolder = playerGui:WaitForChild("PokerGameUI_Table")
+	local uiFolder = playerGui:WaitForChild("PokerGameUI_Table", 5) -- Wait up to 5 seconds
 	local uiName = "PokerGameUI_" .. tableId
-	local screenGui = uiFolder:FindFirstChild(uiName)
+	local screenGui = nil
+	
+	if uiFolder then
+		screenGui = uiFolder:FindFirstChild(uiName)
+	else
+		warn("[PokerGame] UI folder 'PokerGameUI_Table' not found in PlayerGui")
+	end
 	
 	if screenGui then
 		tableData.gameUI = screenGui
