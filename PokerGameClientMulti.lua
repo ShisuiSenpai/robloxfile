@@ -137,8 +137,9 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 	
 	-- Get UI references (but don't enable yet)
 	local playerGui = player:WaitForChild("PlayerGui")
+	local uiFolder = playerGui:WaitForChild("PokerGameUI_Table")
 	local uiName = "PokerGameUI_" .. tableId
-	local screenGui = playerGui:FindFirstChild(uiName)
+	local screenGui = uiFolder:FindFirstChild(uiName)
 	
 	if screenGui then
 		tableData.gameUI = screenGui
