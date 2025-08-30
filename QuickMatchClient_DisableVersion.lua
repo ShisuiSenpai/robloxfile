@@ -16,6 +16,8 @@ local quickMatchBtn = quickMatchUI:WaitForChild("QuickMatchBtn")
 local quickMatchEvent = ReplicatedStorage:WaitForChild("QuickMatchEvent")
 local quickMatchRemote = quickMatchEvent:WaitForChild("QuickMatchFunction")
 
+print("[QuickMatch] Client initializing, RemoteFunction found:", quickMatchRemote ~= nil)
+
 -- UI feedback elements (create if they don't exist)
 local feedbackLabel = quickMatchUI:FindFirstChild("FeedbackLabel")
 if not feedbackLabel then
@@ -83,7 +85,10 @@ end
 
 -- Handle button click
 quickMatchBtn.MouseButton1Click:Connect(function()
+	print("[QuickMatch] Button clicked, enabled:", isButtonEnabled, "cooldown:", isOnCooldown)
+	
 	if not isButtonEnabled then
+		print("[QuickMatch] Button disabled, ignoring click")
 		return
 	end
 	
@@ -99,8 +104,27 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 	local originalText = quickMatchBtn.Text
 	quickMatchBtn.Text = "Finding match..."
 	
-	-- Request quick match
-	local result = quickMatchRemote:InvokeServer()
+	print("[QuickMatch] Invoking server...")
+	
+	-- Request quick match with pcall for error handling
+	local success, result = pcall(function()
+		return quickMatchRemote:InvokeServer()
+	end)
+	
+	if not success then
+		print("[QuickMatch] Server invocation failed:", result)
+		showFeedback("Connection error! Please try again.", false)
+		-- Reset button text
+		if isButtonEnabled then
+			quickMatchBtn.Text = originalText
+		end
+		-- Reset cooldown
+		wait(COOLDOWN_TIME)
+		isOnCooldown = false
+		return
+	end
+	
+	print("[QuickMatch] Server response:", result)
 	
 	-- Reset button text if still enabled
 	if isButtonEnabled then
@@ -115,7 +139,7 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 			-- Optional: Add success sound or animation
 		end
 	else
-		showFeedback("Connection error! Please try again.", false)
+		showFeedback("No response from server!", false)
 	end
 	
 	-- Reset cooldown

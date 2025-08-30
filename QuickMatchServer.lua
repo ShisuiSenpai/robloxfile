@@ -12,9 +12,12 @@ local quickMatchRemote = quickMatchEvent:WaitForChild("QuickMatchFunction")
 
 -- Handle quick match requests
 quickMatchRemote.OnServerInvoke = function(player)
+	print("[QuickMatch Server] Request from:", player.Name)
+	
 	-- Check if player is already seated
 	local currentTable = TableManager.getPlayerTable(player)
 	if currentTable then
+		print("[QuickMatch Server] Player already seated at table:", currentTable.tableId)
 		return {
 			success = false,
 			message = "You are already seated at a table!"
@@ -23,6 +26,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 	
 	-- Check if player has a character
 	if not player.Character then
+		print("[QuickMatch Server] No character found for player")
 		return {
 			success = false,
 			message = "Character not found!"
@@ -31,21 +35,27 @@ quickMatchRemote.OnServerInvoke = function(player)
 	
 	local humanoid = player.Character:FindFirstChild("Humanoid")
 	if not humanoid then
+		print("[QuickMatch Server] No humanoid found in character")
 		return {
 			success = false,
 			message = "Humanoid not found!"
 		}
 	end
 	
+	print("[QuickMatch Server] Player checks passed, looking for tables...")
+	
 	-- Find best available table
 	local tableInstance, seat = TableManager.getBestTableForQuickMatch()
 	
 	if not tableInstance or not seat then
+		print("[QuickMatch Server] No available tables found")
 		return {
 			success = false,
 			message = "No available tables found!"
 		}
 	end
+	
+	print("[QuickMatch Server] Found table:", tableInstance.tableId, "seat:", seat.Name)
 	
 	-- Teleport player to the seat
 	local success = pcall(function()

@@ -314,7 +314,71 @@ function TableManager.initializeAllTables()
 			tableInstance:initializeCards()
 		end
 	end
-	print("[TableManager] All tables initialized")
+	
+	-- Setup player cleanup handlers
+	game.Players.PlayerRemoving:Connect(function(player)
+		TableManager.cleanupPlayer(player)
+	end)
+	
+	-- Also cleanup when character is removed (handles respawn)
+	game.Players.PlayerAdded:Connect(function(player)
+		player.CharacterRemoving:Connect(function(character)
+			-- Small delay to ensure death handling completes
+			task.wait(0.1)
+			TableManager.cleanupPlayer(player)
+		end)
+	end)
+	
+	-- Handle existing players
+	for _, player in ipairs(game.Players:GetPlayers()) do
+		if player.Character then
+			player.CharacterRemoving:Connect(function(character)
+				task.wait(0.1)
+				TableManager.cleanupPlayer(player)
+			end)
+		end
+	end
+	
+	print("[TableManager] All tables initialized with player cleanup")
+end
+
+-- Cleanup player from any table they might be associated with
+function TableManager.cleanupPlayer(player)
+	for tableId, tableInstance in pairs(activeTables) do
+		-- Check if player is in this table's game state
+		if tableInstance.gameState.player1 == player or tableInstance.gameState.player2 == player then
+			print("[TableManager] Cleaning up player", player.Name, "from table", tableId)
+			
+			-- If game is active and player was playing, end the game
+			if tableInstance.gameState.isActive then
+				local otherPlayer = tableInstance.gameState.player1 == player 
+					and tableInstance.gameState.player2 
+					or tableInstance.gameState.player1
+				
+				-- Don't call endGame here as it might interfere with death handling
+				-- Just mark that a player left
+				tableInstance.gameState.playerLeft = true
+			end
+			
+			-- Clear player from game state
+			if tableInstance.gameState.player1 == player then
+				tableInstance.gameState.player1 = nil
+			end
+			if tableInstance.gameState.player2 == player then
+				tableInstance.gameState.player2 = nil
+			end
+			
+			-- Clear from selected cards tracking
+			for i = #tableInstance.gameState.selectedCards, 1, -1 do
+				if tableInstance.gameState.selectedCards[i].player == player then
+					table.remove(tableInstance.gameState.selectedCards, i)
+				end
+			end
+			
+			-- Update table state if needed
+			tableInstance:checkSeating()
+		end
+	end
 end
 
 -- Get a specific table instance

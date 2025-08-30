@@ -921,22 +921,25 @@ UserInputService.TouchTap:Connect(function(touchPositions, gameProcessedEvent)
 	end
 end)
 
--- Also handle touch began for more responsive feel
-UserInputService.TouchBegan:Connect(function(touch, gameProcessedEvent)
+-- Also handle input began for touch
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	if gameProcessedEvent then return end
-	handleTouch(touch.Position)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		handleTouch(input.Position)
+	end
 end)
 
--- Handle touch movement for card highlighting
-UserInputService.TouchMoved:Connect(function(touch, gameProcessedEvent)
+-- Handle input changed for touch movement
+UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
 	if gameProcessedEvent then return end
+	if input.UserInputType ~= Enum.UserInputType.Touch then return end
 	
 	-- Get the camera
 	local camera = workspace.CurrentCamera
 	if not camera then return end
 	
 	-- Cast a ray from touch position
-	local ray = camera:ScreenPointToRay(touch.Position.X, touch.Position.Y)
+	local ray = camera:ScreenPointToRay(input.Position.X, input.Position.Y)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 	raycastParams.FilterDescendantsInstances = {player.Character}
@@ -986,7 +989,9 @@ UserInputService.TouchMoved:Connect(function(touch, gameProcessedEvent)
 end)
 
 -- Handle touch ended to clear hover state
-UserInputService.TouchEnded:Connect(function(touch, gameProcessedEvent)
+-- Clear hover state on input end
+UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
+	if input.UserInputType ~= Enum.UserInputType.Touch then return end
 	if gameProcessedEvent then return end
 	
 	-- Clear hover state when touch ends
