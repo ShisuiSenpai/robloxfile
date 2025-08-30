@@ -1,8 +1,9 @@
--- QuickMatchServer.lua
--- Server-side quick match system
+-- QuickMatchServerV2.lua
+-- Server-side quick match system using RemoteEvents (more reliable)
 -- Place this in ServerScriptService
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 -- Try to find TableManager with error handling
 local TableManager
@@ -11,7 +12,7 @@ local success, err = pcall(function()
 end)
 
 if not success then
-	warn("[QuickMatch Server] Failed to load TableManager:", err)
+	warn("[QuickMatch Server V2] Failed to load TableManager:", err)
 	-- Try alternative paths
 	local serverStorage = game:GetService("ServerStorage")
 	local serverScriptService = game:GetService("ServerScriptService")
@@ -25,25 +26,50 @@ if not success then
 	
 	if moduleScript then
 		TableManager = require(moduleScript)
-		print("[QuickMatch Server] Found TableManager at:", moduleScript:GetFullName())
+		print("[QuickMatch Server V2] Found TableManager at:", moduleScript:GetFullName())
 	else
-		error("[QuickMatch Server] Could not find TableManager module!")
+		error("[QuickMatch Server V2] Could not find TableManager module!")
 	end
 end
 
--- Get RemoteFunction for QuickMatch
+-- Create RemoteEvents for QuickMatch
 local quickMatchEvent = ReplicatedStorage:WaitForChild("QuickMatchEvent")
-local quickMatchRemote = quickMatchEvent:WaitForChild("QuickMatchFunction")
+
+-- Create request and response events
+local requestEvent = quickMatchEvent:FindFirstChild("QuickMatchRequest")
+if not requestEvent then
+	requestEvent = Instance.new("RemoteEvent")
+	requestEvent.Name = "QuickMatchRequest"
+	requestEvent.Parent = quickMatchEvent
+end
+
+local responseEvent = quickMatchEvent:FindFirstChild("QuickMatchResponse")
+if not responseEvent then
+	responseEvent = Instance.new("RemoteEvent")
+	responseEvent.Name = "QuickMatchResponse"
+	responseEvent.Parent = quickMatchEvent
+end
+
+-- Track pending requests to prevent spam
+local pendingRequests = {}
 
 -- Handle quick match requests
-quickMatchRemote.OnServerInvoke = function(player)
-	print("[QuickMatch Server] Request from:", player.Name)
+requestEvent.OnServerEvent:Connect(function(player)
+	-- Prevent spam
+	if pendingRequests[player] then
+		print("[QuickMatch Server V2] Ignoring duplicate request from:", player.Name)
+		return
+	end
 	
-	-- Wrap everything in pcall to catch any errors
+	pendingRequests[player] = true
+	
+	print("[QuickMatch Server V2] Request from:", player.Name)
+	
+	-- Process request
 	local success, result = pcall(function()
 		-- Check if player exists
 		if not player or not player.Parent then
-			print("[QuickMatch Server] Player object invalid")
+			print("[QuickMatch Server V2] Player object invalid")
 			return {
 				success = false,
 				message = "Invalid player!"
@@ -56,7 +82,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 		end)
 		
 		if not checkSuccess then
-			print("[QuickMatch Server] Error checking player table:", currentTable)
+			print("[QuickMatch Server V2] Error checking player table:", currentTable)
 			return {
 				success = false,
 				message = "Error checking current table!"
@@ -64,7 +90,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 		end
 		
 		if currentTable then
-			print("[QuickMatch Server] Player already seated at table:", currentTable.tableId)
+			print("[QuickMatch Server V2] Player already seated at table:", currentTable.tableId)
 			return {
 				success = false,
 				message = "You are already seated at a table!"
@@ -73,7 +99,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 		
 		-- Check if player has a character
 		if not player.Character then
-			print("[QuickMatch Server] No character found for player")
+			print("[QuickMatch Server V2] No character found for player")
 			return {
 				success = false,
 				message = "Character not found!"
@@ -82,7 +108,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 		
 		-- Check character parent (might be nil during respawn)
 		if not player.Character.Parent then
-			print("[QuickMatch Server] Character has no parent (respawning?)")
+			print("[QuickMatch Server V2] Character has no parent (respawning?)")
 			return {
 				success = false,
 				message = "Character is respawning, please try again!"
@@ -91,14 +117,14 @@ quickMatchRemote.OnServerInvoke = function(player)
 		
 		local humanoid = player.Character:FindFirstChild("Humanoid")
 		if not humanoid then
-			print("[QuickMatch Server] No humanoid found in character")
+			print("[QuickMatch Server V2] No humanoid found in character")
 			return {
 				success = false,
 				message = "Humanoid not found!"
 			}
 		end
 		
-		print("[QuickMatch Server] Player checks passed, looking for tables...")
+		print("[QuickMatch Server V2] Player checks passed, looking for tables...")
 		
 		-- Find best available table
 		local tableInstance, seat
@@ -107,7 +133,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 		end)
 		
 		if not findSuccess then
-			print("[QuickMatch Server] Error finding table:", findError)
+			print("[QuickMatch Server V2] Error finding table:", findError)
 			return {
 				success = false,
 				message = "Error finding available table!"
@@ -115,14 +141,14 @@ quickMatchRemote.OnServerInvoke = function(player)
 		end
 		
 		if not tableInstance or not seat then
-			print("[QuickMatch Server] No available tables found")
+			print("[QuickMatch Server V2] No available tables found")
 			return {
 				success = false,
 				message = "No available tables found!"
 			}
 		end
 		
-		print("[QuickMatch Server] Found table:", tableInstance.tableId, "seat:", seat.Name)
+		print("[QuickMatch Server V2] Found table:", tableInstance.tableId, "seat:", seat.Name)
 		
 		-- Teleport player to the seat
 		local teleportSuccess = pcall(function()
@@ -146,7 +172,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 		
 		if teleportSuccess then
 			-- Log the match
-			print("[QuickMatch] Player", player.Name, "matched to table", tableInstance.tableId)
+			print("[QuickMatch Server V2] Player", player.Name, "matched to table", tableInstance.tableId)
 			
 			return {
 				success = true,
@@ -154,7 +180,7 @@ quickMatchRemote.OnServerInvoke = function(player)
 				message = "Successfully matched to table " .. tableInstance.tableId .. "!"
 			}
 		else
-			print("[QuickMatch] Failed to teleport player to seat")
+			print("[QuickMatch Server V2] Failed to teleport player to seat")
 			return {
 				success = false,
 				message = "Failed to teleport to seat!"
@@ -162,27 +188,25 @@ quickMatchRemote.OnServerInvoke = function(player)
 		end
 	end)
 	
-	-- Handle pcall results
-	if success then
-		print("[QuickMatch Server] Request completed successfully")
-		return result
+	-- Clear pending flag
+	pendingRequests[player] = nil
+	
+	-- Send response
+	if success and result then
+		print("[QuickMatch Server V2] Sending response to", player.Name, "- Success:", result.success)
+		responseEvent:FireClient(player, result)
 	else
-		print("[QuickMatch Server] Error during request:", result)
-		return {
+		print("[QuickMatch Server V2] Error during request:", result)
+		responseEvent:FireClient(player, {
 			success = false,
 			message = "Server error: " .. tostring(result)
-		}
+		})
 	end
-end
-
--- Test the RemoteFunction connection
-spawn(function()
-	wait(2)
-	print("[QuickMatch Server] Testing RemoteFunction...")
-	local testSuccess = pcall(function()
-		local _ = quickMatchRemote.OnServerInvoke
-	end)
-	print("[QuickMatch Server] RemoteFunction test:", testSuccess and "PASSED" or "FAILED")
 end)
 
-print("[QuickMatch] Server initialized - TableManager:", TableManager ~= nil, "RemoteFunction:", quickMatchRemote ~= nil)
+-- Clean up pending requests when player leaves
+Players.PlayerRemoving:Connect(function(player)
+	pendingRequests[player] = nil
+end)
+
+print("[QuickMatch Server V2] Initialized with RemoteEvents")
