@@ -21,6 +21,12 @@ The Quick Match system automatically finds and seats players at the best availab
 - Shows feedback messages
 - Implements cooldown system
 - Provides visual feedback
+- **NEW**: Automatically hides/disables UI when seated
+- **NEW**: Shows UI again when game ends
+
+**Two Versions Available:**
+- **QuickMatchClient.lua** - Hides entire UI when seated
+- **QuickMatchClient_DisableVersion.lua** - Keeps UI visible but disables button
 
 ### 3. **TableManager.lua** (Updated)
 Added:
@@ -60,7 +66,8 @@ game
 │
 ├── ReplicatedStorage
 │   ├── SoundManager (ModuleScript)
-│   ├── QuickMatchFunction (RemoteFunction) [AUTO-CREATED]
+│   ├── QuickMatchEvent (Folder) [USER CREATED]
+│   │   └── QuickMatchFunction (RemoteFunction) [USER CREATED]
 │   └── RemoteEvents (Folder)
 │       ├── Table1 (Folder)
 │       │   ├── CardClick (RemoteEvent)

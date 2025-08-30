@@ -6,10 +6,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TableManager = require(script.Parent:WaitForChild("TableManager"))
 
--- Create RemoteFunction for QuickMatch
-local quickMatchRemote = Instance.new("RemoteFunction")
-quickMatchRemote.Name = "QuickMatchFunction"
-quickMatchRemote.Parent = ReplicatedStorage
+-- Get RemoteFunction for QuickMatch
+local quickMatchEvent = ReplicatedStorage:WaitForChild("QuickMatchEvent")
+local quickMatchRemote = quickMatchEvent:WaitForChild("QuickMatchFunction")
 
 -- Handle quick match requests
 quickMatchRemote.OnServerInvoke = function(player)

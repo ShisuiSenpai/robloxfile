@@ -1,5 +1,5 @@
--- QuickMatchClient.lua
--- Client-side quick match button handler
+-- QuickMatchClient.lua (Disable Button Version)
+-- Client-side quick match button handler with disable functionality
 -- Place this in StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -31,9 +31,31 @@ if not feedbackLabel then
 	feedbackLabel.Parent = quickMatchUI
 end
 
+-- Button state management
+local isButtonEnabled = true
+local originalButtonColor = quickMatchBtn.BackgroundColor3
+local disabledButtonColor = Color3.fromRGB(100, 100, 100)
+
 -- Cooldown tracking
 local isOnCooldown = false
 local COOLDOWN_TIME = 2 -- seconds
+
+-- UI State Management (Disable version)
+local function setButtonEnabled(enabled)
+	isButtonEnabled = enabled
+	quickMatchBtn.Active = enabled
+	quickMatchBtn.AutoButtonColor = enabled
+	
+	if enabled then
+		quickMatchBtn.Text = "Quick Match"
+		quickMatchBtn.BackgroundColor3 = originalButtonColor
+		quickMatchBtn.TextTransparency = 0
+	else
+		quickMatchBtn.Text = "In Game"
+		quickMatchBtn.BackgroundColor3 = disabledButtonColor
+		quickMatchBtn.TextTransparency = 0.5
+	end
+end
 
 -- Show feedback message
 local function showFeedback(message, isSuccess)
@@ -59,6 +81,10 @@ end
 
 -- Handle button click
 quickMatchBtn.MouseButton1Click:Connect(function()
+	if not isButtonEnabled then
+		return
+	end
+	
 	if isOnCooldown then
 		showFeedback("Please wait before trying again...", false)
 		return
@@ -74,8 +100,10 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 	-- Request quick match
 	local result = quickMatchRemote:InvokeServer()
 	
-	-- Reset button text
-	quickMatchBtn.Text = originalText
+	-- Reset button text if still enabled
+	if isButtonEnabled then
+		quickMatchBtn.Text = originalText
+	end
 	
 	-- Show result
 	if result then
@@ -83,7 +111,6 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 		
 		if result.success then
 			-- Optional: Add success sound or animation
-			-- Play a success sound if you have one
 		end
 	else
 		showFeedback("Connection error! Please try again.", false)
@@ -94,9 +121,9 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 	isOnCooldown = false
 end)
 
--- Optional: Add hover effects
+-- Optional: Add hover effects (only when enabled)
 quickMatchBtn.MouseEnter:Connect(function()
-	if not isOnCooldown then
+	if isButtonEnabled and not isOnCooldown then
 		TweenService:Create(quickMatchBtn,
 			TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{BackgroundColor3 = Color3.fromRGB(100, 255, 100)}
@@ -105,20 +132,13 @@ quickMatchBtn.MouseEnter:Connect(function()
 end)
 
 quickMatchBtn.MouseLeave:Connect(function()
-	TweenService:Create(quickMatchBtn,
-		TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{BackgroundColor3 = Color3.fromRGB(255, 255, 255)}
-	):Play()
+	if isButtonEnabled then
+		TweenService:Create(quickMatchBtn,
+			TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundColor3 = originalButtonColor}
+		):Play()
+	end
 end)
-
--- UI Visibility Management
-local function setUIEnabled(enabled)
-	quickMatchUI.Visible = enabled
-	-- Alternative: Keep visible but disable button
-	-- quickMatchBtn.Active = enabled
-	-- quickMatchBtn.AutoButtonColor = enabled
-	-- quickMatchBtn.BackgroundColor3 = enabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 100, 100)
-end
 
 -- Monitor seating state
 local function checkSeatingState()
@@ -128,11 +148,11 @@ local function checkSeatingState()
 	local humanoid = character:FindFirstChild("Humanoid")
 	if not humanoid then return end
 	
-	-- Hide UI if seated, show if not
+	-- Disable button if seated, enable if not
 	if humanoid.SeatPart then
-		setUIEnabled(false)
+		setButtonEnabled(false)
 	else
-		setUIEnabled(true)
+		setButtonEnabled(true)
 	end
 end
 
@@ -161,15 +181,15 @@ for i = 1, 10 do
 		local gameStateEvent = tableFolder:FindFirstChild("GameStateUpdate")
 		if gameStateEvent then
 			gameStateEvent.OnClientEvent:Connect(function(state, data)
-				-- Show UI when game ends
+				-- Re-enable button when game ends
 				if state == "game_end" or state == "full_reset" then
 					-- Delay to allow for end game animations
 					wait(3)
 					checkSeatingState()
 				elseif state == "table_state_changed" and data then
-					-- Hide UI during active game states
+					-- Disable button during active game states
 					if data.state == "IN_GAME" or data.state == "COUNTDOWN" then
-						setUIEnabled(false)
+						setButtonEnabled(false)
 					end
 				end
 			end)
@@ -177,4 +197,4 @@ for i = 1, 10 do
 	end
 end
 
-print("[QuickMatch] Client initialized with UI visibility management")
+print("[QuickMatch] Client initialized with button disable management")
