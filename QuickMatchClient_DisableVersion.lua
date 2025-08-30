@@ -106,14 +106,38 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 	
 	print("[QuickMatch] Invoking server...")
 	
-	-- Request quick match with pcall for error handling
-	local success, result = pcall(function()
-		return quickMatchRemote:InvokeServer()
-	end)
+	-- Request quick match with timeout
+	local result = nil
+	local finished = false
 	
-	if not success then
-		print("[QuickMatch] Server invocation failed:", result)
-		showFeedback("Connection error! Please try again.", false)
+	-- Invoke server in a coroutine with timeout
+	coroutine.wrap(function()
+		local invokeSuccess, invokeResult = pcall(function()
+			return quickMatchRemote:InvokeServer()
+		end)
+		
+		if invokeSuccess then
+			result = invokeResult
+		else
+			print("[QuickMatch] Server invocation error:", invokeResult)
+			result = {
+				success = false,
+				message = "Server error: " .. tostring(invokeResult)
+			}
+		end
+		finished = true
+	end)()
+	
+	-- Wait for response with timeout
+	local timeoutCounter = 0
+	while not finished and timeoutCounter < 50 do -- 5 second timeout
+		wait(0.1)
+		timeoutCounter = timeoutCounter + 1
+	end
+	
+	if not finished then
+		print("[QuickMatch] Server invocation timed out!")
+		showFeedback("Server timeout! Please try again.", false)
 		-- Reset button text
 		if isButtonEnabled then
 			quickMatchBtn.Text = originalText
