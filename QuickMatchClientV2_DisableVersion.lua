@@ -9,11 +9,6 @@ local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
--- Wait for UI
-local playerGui = player:WaitForChild("PlayerGui")
-local quickMatchUI = playerGui:WaitForChild("QuickMatchUI")
-local quickMatchBtn = quickMatchUI:WaitForChild("QuickMatchBtn")
-
 -- Get RemoteEvents
 local quickMatchEvent = ReplicatedStorage:WaitForChild("QuickMatchEvent")
 local requestEvent = quickMatchEvent:WaitForChild("QuickMatchRequest")
@@ -21,54 +16,51 @@ local responseEvent = quickMatchEvent:WaitForChild("QuickMatchResponse")
 
 print("[QuickMatch V2] Client initializing, RemoteEvents found")
 
--- UI feedback elements (create if they don't exist)
-local feedbackLabel = quickMatchUI:FindFirstChild("FeedbackLabel")
-if not feedbackLabel then
-	feedbackLabel = Instance.new("TextLabel")
-	feedbackLabel.Name = "FeedbackLabel"
-	feedbackLabel.Size = UDim2.new(0.8, 0, 0, 30)
-	feedbackLabel.Position = UDim2.new(0.1, 0, 1, 10)
-	feedbackLabel.BackgroundTransparency = 1
-	feedbackLabel.TextScaled = true
-	feedbackLabel.Font = Enum.Font.SourceSansBold
-	feedbackLabel.TextColor3 = Color3.new(1, 1, 1)
-	feedbackLabel.Text = ""
-	feedbackLabel.Parent = quickMatchUI
-end
+-- UI references (will be updated when UI loads/reloads)
+local playerGui
+local quickMatchUI
+local quickMatchBtn
+local feedbackLabel
 
--- Button state management
+-- State management
 local isButtonEnabled = true
-local originalButtonColor = quickMatchBtn.BackgroundColor3
+local originalButtonColor = Color3.fromRGB(255, 255, 255)
 local disabledButtonColor = Color3.fromRGB(100, 100, 100)
-
--- Cooldown tracking
 local isOnCooldown = false
 local COOLDOWN_TIME = 2 -- seconds
-
--- Track pending request
 local pendingRequest = false
+
+-- Connection storage for cleanup
+local buttonClickConnection
+local mouseEnterConnection
+local mouseLeaveConnection
 
 -- UI State Management (Disable version)
 local function setButtonEnabled(enabled, reason)
 	print("[QuickMatch V2] Setting button enabled:", enabled, "Reason:", reason or "unknown")
 	
 	isButtonEnabled = enabled
-	quickMatchBtn.Active = enabled
-	quickMatchBtn.AutoButtonColor = enabled
 	
-	if enabled then
-		quickMatchBtn.Text = "Quick Match"
-		quickMatchBtn.BackgroundColor3 = originalButtonColor
-		quickMatchBtn.TextTransparency = 0
-	else
-		quickMatchBtn.Text = "In Game"
-		quickMatchBtn.BackgroundColor3 = disabledButtonColor
-		quickMatchBtn.TextTransparency = 0.5
+	if quickMatchBtn then
+		quickMatchBtn.Active = enabled
+		quickMatchBtn.AutoButtonColor = enabled
+		
+		if enabled then
+			quickMatchBtn.Text = "Quick Match"
+			quickMatchBtn.BackgroundColor3 = originalButtonColor
+			quickMatchBtn.TextTransparency = 0
+		else
+			quickMatchBtn.Text = "In Game"
+			quickMatchBtn.BackgroundColor3 = disabledButtonColor
+			quickMatchBtn.TextTransparency = 0.5
+		end
 	end
 end
 
 -- Show feedback message
 local function showFeedback(message, isSuccess)
+	if not feedbackLabel then return end
+	
 	feedbackLabel.Text = message
 	feedbackLabel.TextColor3 = isSuccess and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
 	feedbackLabel.TextTransparency = 0
@@ -81,43 +73,18 @@ local function showFeedback(message, isSuccess)
 	fadeIn:Play()
 	
 	-- Fade out after delay
-	wait(2)
-	local fadeOut = TweenService:Create(feedbackLabel,
-		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{TextTransparency = 1}
-	)
-	fadeOut:Play()
+	task.wait(2)
+	if feedbackLabel and feedbackLabel.Parent then
+		local fadeOut = TweenService:Create(feedbackLabel,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{TextTransparency = 1}
+		)
+		fadeOut:Play()
+	end
 end
 
--- Handle server response
-responseEvent.OnClientEvent:Connect(function(result)
-	print("[QuickMatch V2] Received response:", result)
-	
-	pendingRequest = false
-	
-	-- Reset button text if still enabled
-	if isButtonEnabled then
-		quickMatchBtn.Text = "Quick Match"
-	end
-	
-	-- Show result
-	if result then
-		showFeedback(result.message, result.success)
-		
-		if result.success then
-			-- Optional: Add success sound or animation
-		end
-	else
-		showFeedback("Invalid server response!", false)
-	end
-	
-	-- Reset cooldown
-	wait(COOLDOWN_TIME)
-	isOnCooldown = false
-end)
-
 -- Handle button click
-quickMatchBtn.MouseButton1Click:Connect(function()
+local function onButtonClick()
 	print("[QuickMatch V2] Button clicked, enabled:", isButtonEnabled, "cooldown:", isOnCooldown, "pending:", pendingRequest)
 	
 	if not isButtonEnabled then
@@ -140,7 +107,9 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 	pendingRequest = true
 	
 	-- Visual feedback
-	quickMatchBtn.Text = "Finding match..."
+	if quickMatchBtn then
+		quickMatchBtn.Text = "Finding match..."
+	end
 	
 	print("[QuickMatch V2] Sending request to server...")
 	
@@ -148,40 +117,129 @@ quickMatchBtn.MouseButton1Click:Connect(function()
 	requestEvent:FireServer()
 	
 	-- Set a timeout in case server doesn't respond
-	task.wait(5)
-	if pendingRequest then
-		print("[QuickMatch V2] Request timed out")
-		pendingRequest = false
-		
-		if isButtonEnabled then
-			quickMatchBtn.Text = "Quick Match"
+	task.spawn(function()
+		task.wait(5)
+		if pendingRequest then
+			print("[QuickMatch V2] Request timed out")
+			pendingRequest = false
+			
+			if quickMatchBtn and isButtonEnabled then
+				quickMatchBtn.Text = "Quick Match"
+			end
+			
+			showFeedback("Server timeout! Please try again.", false)
+			
+			-- Reset cooldown
+			task.wait(COOLDOWN_TIME)
+			isOnCooldown = false
 		end
+	end)
+end
+
+-- Setup UI connections
+local function setupUI()
+	-- Clean up old connections
+	if buttonClickConnection then
+		buttonClickConnection:Disconnect()
+		buttonClickConnection = nil
+	end
+	if mouseEnterConnection then
+		mouseEnterConnection:Disconnect()
+		mouseEnterConnection = nil
+	end
+	if mouseLeaveConnection then
+		mouseLeaveConnection:Disconnect()
+		mouseLeaveConnection = nil
+	end
+	
+	-- Get UI references
+	playerGui = player:WaitForChild("PlayerGui")
+	quickMatchUI = playerGui:WaitForChild("QuickMatchUI", 5)
+	
+	if not quickMatchUI then
+		warn("[QuickMatch V2] QuickMatchUI not found!")
+		return false
+	end
+	
+	quickMatchBtn = quickMatchUI:WaitForChild("QuickMatchBtn", 5)
+	
+	if not quickMatchBtn then
+		warn("[QuickMatch V2] QuickMatchBtn not found!")
+		return false
+	end
+	
+	-- Store original color
+	originalButtonColor = quickMatchBtn.BackgroundColor3
+	
+	-- Create or find feedback label
+	feedbackLabel = quickMatchUI:FindFirstChild("FeedbackLabel")
+	if not feedbackLabel then
+		feedbackLabel = Instance.new("TextLabel")
+		feedbackLabel.Name = "FeedbackLabel"
+		feedbackLabel.Size = UDim2.new(0.8, 0, 0, 30)
+		feedbackLabel.Position = UDim2.new(0.1, 0, 1, 10)
+		feedbackLabel.BackgroundTransparency = 1
+		feedbackLabel.TextScaled = true
+		feedbackLabel.Font = Enum.Font.SourceSansBold
+		feedbackLabel.TextColor3 = Color3.new(1, 1, 1)
+		feedbackLabel.Text = ""
+		feedbackLabel.TextTransparency = 1
+		feedbackLabel.Parent = quickMatchUI
+	end
+	
+	-- Connect button events
+	buttonClickConnection = quickMatchBtn.MouseButton1Click:Connect(onButtonClick)
+	
+	-- Optional: Add hover effects
+	mouseEnterConnection = quickMatchBtn.MouseEnter:Connect(function()
+		if isButtonEnabled and not isOnCooldown and quickMatchBtn then
+			TweenService:Create(quickMatchBtn,
+				TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundColor3 = Color3.fromRGB(100, 255, 100)}
+			):Play()
+		end
+	end)
+	
+	mouseLeaveConnection = quickMatchBtn.MouseLeave:Connect(function()
+		if isButtonEnabled and quickMatchBtn then
+			TweenService:Create(quickMatchBtn,
+				TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundColor3 = originalButtonColor}
+			):Play()
+		end
+	end)
+	
+	print("[QuickMatch V2] UI setup complete")
+	return true
+end
+
+-- Handle server response
+responseEvent.OnClientEvent:Connect(function(result)
+	print("[QuickMatch V2] Received response:", result)
+	
+	pendingRequest = false
+	
+	-- Reset button text if still enabled
+	if quickMatchBtn and isButtonEnabled then
+		quickMatchBtn.Text = "Quick Match"
+	end
+	
+	-- Show result
+	if result then
+		showFeedback(result.message, result.success)
 		
-		showFeedback("Server timeout! Please try again.", false)
-		
-		-- Reset cooldown
-		wait(COOLDOWN_TIME)
+		if result.success then
+			-- Optional: Add success sound or animation
+		end
+	else
+		showFeedback("Invalid server response!", false)
+	end
+	
+	-- Reset cooldown
+	task.spawn(function()
+		task.wait(COOLDOWN_TIME)
 		isOnCooldown = false
-	end
-end)
-
--- Optional: Add hover effects (only when enabled)
-quickMatchBtn.MouseEnter:Connect(function()
-	if isButtonEnabled and not isOnCooldown then
-		TweenService:Create(quickMatchBtn,
-			TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundColor3 = Color3.fromRGB(100, 255, 100)}
-		):Play()
-	end
-end)
-
-quickMatchBtn.MouseLeave:Connect(function()
-	if isButtonEnabled then
-		TweenService:Create(quickMatchBtn,
-			TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundColor3 = originalButtonColor}
-		):Play()
-	end
+	end)
 end)
 
 -- Monitor seating state
@@ -207,10 +265,13 @@ local function onCharacterAdded(character)
 	local rootPart = character:WaitForChild("HumanoidRootPart")
 	
 	-- Add a small delay to ensure character is fully initialized
-	wait(0.5)
+	task.wait(0.5)
 	
-	-- Always enable button on respawn (player is not seated when they respawn)
-	setButtonEnabled(true, "Character respawned")
+	-- Setup/refresh UI (PlayerGui gets recreated on respawn)
+	if setupUI() then
+		-- Always enable button on respawn (player is not seated when they respawn)
+		setButtonEnabled(true, "Character respawned")
+	end
 	
 	-- Clear any pending requests
 	pendingRequest = false
@@ -247,12 +308,18 @@ local function onCharacterAdded(character)
 	end)
 end
 
--- Connect character events
-if player.Character then
-	task.spawn(function()
-		onCharacterAdded(player.Character)
-	end)
-end
+-- Initial setup
+task.spawn(function()
+	-- Wait a bit for UI to load
+	task.wait(1)
+	
+	if setupUI() then
+		-- Connect character events
+		if player.Character then
+			onCharacterAdded(player.Character)
+		end
+	end
+end)
 
 player.CharacterAdded:Connect(onCharacterAdded)
 
@@ -275,8 +342,10 @@ for i = 1, 10 do
 				-- Re-enable button when game ends
 				if state == "game_end" or state == "full_reset" then
 					-- Delay to allow for end game animations
-					wait(3)
-					checkSeatingState()
+					task.spawn(function()
+						task.wait(3)
+						checkSeatingState()
+					end)
 				elseif state == "table_state_changed" and data then
 					-- Only disable button if player is actually seated at a table
 					local character = player.Character
@@ -298,7 +367,7 @@ end
 -- Failsafe: Periodically check button state in case events are missed
 task.spawn(function()
 	while true do
-		wait(5) -- Check every 5 seconds
+		task.wait(5) -- Check every 5 seconds
 		if player.Character then
 			local humanoid = player.Character:FindFirstChild("Humanoid")
 			if humanoid then
