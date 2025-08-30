@@ -242,66 +242,36 @@ local function getCurrentTable()
 	return seatToTable[humanoid.SeatPart]
 end
 
--- Create countdown UI
-local function createCountdownUI(tableData)
-	if tableData.countdownGui then
-		tableData.countdownGui:Destroy()
-	end
+-- Get and setup countdown UI
+local function setupCountdownUI(tableData)
+	-- Get the pre-made UI from PlayerGui folder
+	local playerGui = player:WaitForChild("PlayerGui")
+	local uiFolder = playerGui:WaitForChild("GameStartCountdown_Table")
+	local uiName = "GameStartCountdown_" .. tableData.id
+	local screenGui = uiFolder:WaitForChild(uiName)
 	
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "GameStartCountdown_" .. tableData.id
-	screenGui.ResetOnSpawn = false
-	screenGui.Parent = player:WaitForChild("PlayerGui")
+	-- Get UI elements
+	local containerFrame = screenGui:WaitForChild("ContainerFrame") or screenGui:WaitForChild("CountdownFrame")
+	local titleLabel = containerFrame:WaitForChild("TitleLabel")
+	local countdownLabel = containerFrame:WaitForChild("CountdownLabel")
 	
-	local containerFrame = Instance.new("Frame")
-	containerFrame.Name = "ContainerFrame"
-	containerFrame.Size = UDim2.new(0, 400, 0, 200)
-	containerFrame.Position = UDim2.new(0.5, -200, 0, 50)
-	containerFrame.BackgroundTransparency = 1
-	containerFrame.Parent = screenGui
-	
-	-- Title label
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "TitleLabel"
-	titleLabel.Size = UDim2.new(1, 0, 0.3, 0)
-	titleLabel.Position = UDim2.new(0, 0, 0, 0)
-	titleLabel.BackgroundTransparency = 1
+	-- Reset to default state
 	titleLabel.Text = "Game Starting"
-	titleLabel.TextColor3 = Color3.new(1, 1, 1)
-	titleLabel.TextScaled = true
-	titleLabel.Font = Enum.Font.SourceSansBold
-	titleLabel.Parent = containerFrame
-	
-	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Color = Color3.new(0, 0, 0)
-	titleStroke.Thickness = 3
-	titleStroke.Parent = titleLabel
-	
-	-- Countdown label
-	local countdownLabel = Instance.new("TextLabel")
-	countdownLabel.Name = "CountdownLabel"
-	countdownLabel.Size = UDim2.new(1, 0, 0.7, 0)
-	countdownLabel.Position = UDim2.new(0, 0, 0.3, 0)
-	countdownLabel.BackgroundTransparency = 1
+	titleLabel.Visible = true
 	countdownLabel.Text = "3"
 	countdownLabel.TextColor3 = Color3.new(1, 1, 1)
-	countdownLabel.TextScaled = true
-	countdownLabel.Font = Enum.Font.SourceSansBold
-	countdownLabel.Parent = containerFrame
 	
-	local countdownStroke = Instance.new("UIStroke")
-	countdownStroke.Color = Color3.new(0, 0, 0)
-	countdownStroke.Thickness = 4
-	countdownStroke.Parent = countdownLabel
+	-- Enable the UI
+	screenGui.Enabled = true
 	
 	tableData.countdownGui = screenGui
 	return screenGui, countdownLabel
 end
 
--- Destroy countdown UI
-local function destroyCountdownUI(tableData)
+-- Disable countdown UI
+local function disableCountdownUI(tableData)
 	if tableData.countdownGui then
-		tableData.countdownGui:Destroy()
+		tableData.countdownGui.Enabled = false
 		tableData.countdownGui = nil
 	end
 	
@@ -324,7 +294,7 @@ local function startGameCountdown(tableData)
 	print("[DEBUG GameStart] Starting countdown for table", tableData.id)
 	
 	-- Create UI
-	local gui, countdownLabel = createCountdownUI(tableData)
+	local gui, countdownLabel = setupCountdownUI(tableData)
 	if not gui then
 		print("[DEBUG GameStart] ERROR: Failed to create countdown UI")
 		return
@@ -469,7 +439,7 @@ local function startGameCountdown(tableData)
 					fadeTween:Play()
 					fadeTween.Completed:Connect(function()
 						tableData.countdownConnection:Disconnect()
-						destroyCountdownUI(tableData)
+						disableCountdownUI(tableData)
 						tableData.isGameStarting = false
 						tableData.fadingOut = false
 						tableData.currentCountdown = 3
@@ -503,7 +473,7 @@ for tableId, tableData in pairs(tables) do
 			-- Clean up if game ends during countdown
 			if tableData.isGameStarting then
 				print("[DEBUG GameStart] Cleaning up countdown for table:", tableId)
-				destroyCountdownUI(tableData)
+				disableCountdownUI(tableData)
 				tableData.isGameStarting = false
 			end
 		end
