@@ -135,6 +135,25 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 		end
 	end
 	
+	-- Get UI references (but don't enable yet)
+	local playerGui = player:WaitForChild("PlayerGui")
+	local uiName = "PokerGameUI_" .. tableId
+	local screenGui = playerGui:FindFirstChild(uiName)
+	
+	if screenGui then
+		tableData.gameUI = screenGui
+		local turnFrame = screenGui:FindFirstChild("TurnFrame")
+		if turnFrame then
+			tableData.turnLabel = turnFrame:FindFirstChild("TurnLabel")
+		end
+		local statusFrame = screenGui:FindFirstChild("StatusFrame") 
+		if statusFrame then
+			tableData.statusLabel = statusFrame:FindFirstChild("StatusLabel")
+		end
+		-- Keep UI disabled until player sits at this table
+		screenGui.Enabled = false
+	end
+	
 	-- Store original card positions
 	for _, card in ipairs(tablePart:GetChildren()) do
 		if card:IsA("BasePart") then
@@ -207,12 +226,16 @@ end
 local function cleanupTableState(tableData)
 	-- print("[DEBUG] Cleaning up table state for:", tableData.id)
 	
-	-- Clean up UI
+	-- Disable UI instead of destroying (since they're pre-made)
 	if tableData.gameUI then
-		tableData.gameUI:Destroy()
-		tableData.gameUI = nil
-		tableData.turnLabel = nil
-		tableData.statusLabel = nil
+		tableData.gameUI.Enabled = false
+		-- Reset UI to default state
+		if tableData.turnLabel then
+			tableData.turnLabel.Text = "Waiting for players"
+		end
+		if tableData.statusLabel then
+			tableData.statusLabel.Parent.Visible = false -- Hide StatusFrame
+		end
 	end
 	
 	-- Stop animations
@@ -240,68 +263,22 @@ local function cleanupTableState(tableData)
 end
 
 -- Create game UI for a table
-local function createGameUI(tableData)
-	if tableData.gameUI then
-		tableData.gameUI:Destroy()
+local function setupGameUI(tableData)
+	-- We already have the UI references from initialization
+	if not tableData.gameUI then
+		warn("[PokerGame] No UI found for table:", tableData.id)
+		return
 	end
 	
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "PokerGameUI_" .. tableData.id
-	screenGui.ResetOnSpawn = false
-	screenGui.Parent = player:WaitForChild("PlayerGui")
+	-- Reset to default state
+	if tableData.turnLabel then
+		tableData.turnLabel.Text = "Waiting for players"
+	end
+	if tableData.statusLabel and tableData.statusLabel.Parent then
+		tableData.statusLabel.Parent.Visible = false -- Hide StatusFrame
+	end
 	
-	-- Turn indicator frame (transparent background, visible by default)
-	local turnFrame = Instance.new("Frame")
-	turnFrame.Name = "TurnFrame"
-	turnFrame.Size = UDim2.new(0, 300, 0, 60)
-	turnFrame.Position = UDim2.new(0.5, -150, 0, 20)
-	turnFrame.BackgroundTransparency = 1
-	turnFrame.Visible = true  -- Visible by default like original
-	turnFrame.Parent = screenGui
-	
-	local turnLabel = Instance.new("TextLabel")
-	turnLabel.Name = "TurnLabel"
-	turnLabel.Size = UDim2.new(1, 0, 1, 0)
-	turnLabel.BackgroundTransparency = 1
-	turnLabel.Text = "Waiting for players"
-	turnLabel.TextColor3 = Color3.new(1, 1, 1)
-	turnLabel.TextScaled = true
-	turnLabel.Font = Enum.Font.SourceSansBold
-	turnLabel.Parent = turnFrame
-	
-	local turnStroke = Instance.new("UIStroke")
-	turnStroke.Color = Color3.new(0, 0, 0)
-	turnStroke.Thickness = 3
-	turnStroke.Parent = turnLabel
-	
-	-- Status frame for win/lose
-	local statusFrame = Instance.new("Frame")
-	statusFrame.Name = "StatusFrame"
-	statusFrame.Size = UDim2.new(0, 400, 0, 100)
-	statusFrame.Position = UDim2.new(0.5, -200, 0.5, -50)
-	statusFrame.BackgroundTransparency = 1
-	statusFrame.Visible = false
-	statusFrame.Parent = screenGui
-	
-	local statusLabel = Instance.new("TextLabel")
-	statusLabel.Name = "StatusLabel"
-	statusLabel.Size = UDim2.new(1, 0, 1, 0)
-	statusLabel.BackgroundTransparency = 1
-	statusLabel.Text = ""
-	statusLabel.TextColor3 = Color3.new(1, 1, 1)
-	statusLabel.TextScaled = true
-	statusLabel.Font = Enum.Font.SourceSansBold
-	statusLabel.Parent = statusFrame
-	
-	local statusStroke = Instance.new("UIStroke")
-	statusStroke.Color = Color3.new(0, 0, 0)
-	statusStroke.Thickness = 4
-	statusStroke.Parent = statusLabel
-	
-	tableData.gameUI = screenGui
-	tableData.turnLabel = turnLabel
-	tableData.statusLabel = statusLabel
-	return screenGui, turnLabel, statusLabel
+	return tableData.gameUI, tableData.turnLabel, tableData.statusLabel
 end
 
 -- Get or create highlight for a card
@@ -522,7 +499,9 @@ local checkSeatingStatus = function(tableData)
 	-- Seated at this table
 	if not tableData.gameUI then
 		-- print("[DEBUG] Creating UI for table:", tableData.id)
-		createGameUI(tableData)
+		setupGameUI(tableData)
+		-- Enable the UI when player sits
+		tableData.gameUI.Enabled = true
 	end
 	
 	-- Check if both seats are occupied
@@ -599,7 +578,9 @@ for tableId, tableData in pairs(tables) do
 			if getCurrentTable() == tableData then
 				-- print("[DEBUG] Player is at this table, showing game UI")
 				if not tableData.gameUI then
-					createGameUI(tableData)
+					setupGameUI(tableData)
+		-- Enable the UI when player sits
+		tableData.gameUI.Enabled = true
 				end
 				tableData.gameUI.TurnFrame.Visible = true
 			else
