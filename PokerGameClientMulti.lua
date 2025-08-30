@@ -682,7 +682,8 @@ for tableId, tableData in pairs(tables) do
 				-- Hide after delay and show waiting UI again
 				coroutine.wrap(function()
 					local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
-					local hideDelay = data.winner == player.Name and 2 or 3
+					-- Show win/lose UI for 5 seconds
+					local hideDelay = 5
 					wait(hideDelay)
 					
 					if tableData.gameUI then
