@@ -41,7 +41,9 @@ local isOnCooldown = false
 local COOLDOWN_TIME = 2 -- seconds
 
 -- UI State Management (Disable version)
-local function setButtonEnabled(enabled)
+local function setButtonEnabled(enabled, reason)
+	print("[QuickMatch] Setting button enabled:", enabled, "Reason:", reason or "unknown")
+	
 	isButtonEnabled = enabled
 	quickMatchBtn.Active = enabled
 	quickMatchBtn.AutoButtonColor = enabled
@@ -150,29 +152,69 @@ local function checkSeatingState()
 	
 	-- Disable button if seated, enable if not
 	if humanoid.SeatPart then
-		setButtonEnabled(false)
+		setButtonEnabled(false, "Player is seated")
 	else
-		setButtonEnabled(true)
+		setButtonEnabled(true, "Player is not seated")
 	end
 end
 
 -- Monitor character and seating
 local function onCharacterAdded(character)
+	-- Wait for character to be fully loaded
 	local humanoid = character:WaitForChild("Humanoid")
+	local rootPart = character:WaitForChild("HumanoidRootPart")
 	
-	-- Check initial state
+	-- Add a small delay to ensure character is fully initialized
+	wait(0.5)
+	
+	-- Always enable button on respawn (player is not seated when they respawn)
+	setButtonEnabled(true, "Character respawned")
+	
+	-- Check initial state after delay
+	task.wait(0.1)
 	checkSeatingState()
 	
 	-- Monitor seating changes
-	humanoid.Seated:Connect(checkSeatingState)
-	humanoid:GetPropertyChangedSignal("SeatPart"):Connect(checkSeatingState)
+	local seatConnection
+	local seatPartConnection
+	
+	seatConnection = humanoid.Seated:Connect(function()
+		task.wait(0.1) -- Small delay to ensure seat state is updated
+		checkSeatingState()
+	end)
+	
+	seatPartConnection = humanoid:GetPropertyChangedSignal("SeatPart"):Connect(function()
+		task.wait(0.1) -- Small delay to ensure seat state is updated
+		checkSeatingState()
+	end)
+	
+	-- Clean up connections when character is removed
+	character.AncestryChanged:Connect(function()
+		if not character.Parent then
+			if seatConnection then
+				seatConnection:Disconnect()
+			end
+			if seatPartConnection then
+				seatPartConnection:Disconnect()
+			end
+		end
+	end)
 end
 
 -- Connect character events
 if player.Character then
-	onCharacterAdded(player.Character)
+	task.spawn(function()
+		onCharacterAdded(player.Character)
+	end)
 end
+
 player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Also handle character removal to ensure UI is re-enabled
+player.CharacterRemoving:Connect(function()
+	-- Enable UI when character is being removed (about to respawn)
+	setButtonEnabled(true, "Character removing")
+end)
 
 -- Listen for game state changes from all tables
 for i = 1, 10 do
@@ -187,9 +229,16 @@ for i = 1, 10 do
 					wait(3)
 					checkSeatingState()
 				elseif state == "table_state_changed" and data then
-					-- Disable button during active game states
-					if data.state == "IN_GAME" or data.state == "COUNTDOWN" then
-						setButtonEnabled(false)
+					-- Only disable button if player is actually seated at a table
+					local character = player.Character
+					if character then
+						local humanoid = character:FindFirstChild("Humanoid")
+						if humanoid and humanoid.SeatPart then
+							-- Disable button during active game states only if seated
+							if data.state == "IN_GAME" or data.state == "COUNTDOWN" then
+								setButtonEnabled(false, "Game state: " .. data.state)
+							end
+						end
 					end
 				end
 			end)
@@ -197,4 +246,21 @@ for i = 1, 10 do
 	end
 end
 
-print("[QuickMatch] Client initialized with button disable management")
+-- Failsafe: Periodically check button state in case events are missed
+task.spawn(function()
+	while true do
+		wait(5) -- Check every 5 seconds
+		if player.Character then
+			local humanoid = player.Character:FindFirstChild("Humanoid")
+			if humanoid then
+				-- If not seated but button is disabled, enable it
+				if not humanoid.SeatPart and not isButtonEnabled then
+					print("[QuickMatch] Failsafe: Re-enabling button")
+					setButtonEnabled(true, "Failsafe check - not seated")
+				end
+			end
+		end
+	end
+end)
+
+print("[QuickMatch] Client initialized with button disable management and respawn handling")
