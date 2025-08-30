@@ -20,6 +20,46 @@ local TABLE_CONFIGS = {
 		folderName = "Table2Folder",
 		remoteFolder = "Table2",
 		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table3 = {
+		folderName = "Table3Folder",
+		remoteFolder = "Table3",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table4 = {
+		folderName = "Table4Folder",
+		remoteFolder = "Table4",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table5 = {
+		folderName = "Table5Folder",
+		remoteFolder = "Table5",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table6 = {
+		folderName = "Table6Folder",
+		remoteFolder = "Table6",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table7 = {
+		folderName = "Table7Folder",
+		remoteFolder = "Table7",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table8 = {
+		folderName = "Table8Folder",
+		remoteFolder = "Table8",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table9 = {
+		folderName = "Table9Folder",
+		remoteFolder = "Table9",
+		seats = {"Player1Chair", "Player2Chair"}
+	},
+	Table10 = {
+		folderName = "Table10Folder",
+		remoteFolder = "Table10",
+		seats = {"Player1Chair", "Player2Chair"}
 	}
 }
 

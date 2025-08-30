@@ -29,7 +29,70 @@ local TABLE_CONFIGS = {
 		cameraPartName = "CameraPartTable2",
 		remoteFolder = "Table2"
 	},
-	-- Add more tables here as needed
+	Table3 = {
+		folderName = "Table3Folder",
+		tableName = "Table3",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable3",
+		remoteFolder = "Table3"
+	},
+	Table4 = {
+		folderName = "Table4Folder",
+		tableName = "Table4",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable4",
+		remoteFolder = "Table4"
+	},
+	Table5 = {
+		folderName = "Table5Folder",
+		tableName = "Table5",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable5",
+		remoteFolder = "Table5"
+	},
+	Table6 = {
+		folderName = "Table6Folder",
+		tableName = "Table6",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable6",
+		remoteFolder = "Table6"
+	},
+	Table7 = {
+		folderName = "Table7Folder",
+		tableName = "Table7",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable7",
+		remoteFolder = "Table7"
+	},
+	Table8 = {
+		folderName = "Table8Folder",
+		tableName = "Table8",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable8",
+		remoteFolder = "Table8"
+	},
+	Table9 = {
+		folderName = "Table9Folder",
+		tableName = "Table9",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable9",
+		remoteFolder = "Table9"
+	},
+	Table10 = {
+		folderName = "Table10Folder",
+		tableName = "Table10",
+		chair1Name = "Player1Chair",
+		chair2Name = "Player2Chair",
+		cameraPartName = "CameraPartTable10",
+		remoteFolder = "Table10"
+	}
 }
 
 -- Store active table instances
