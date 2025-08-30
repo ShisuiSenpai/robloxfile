@@ -822,4 +822,131 @@ end)
 mouse.Move:Connect(onMouseMove)
 mouse.Button1Down:Connect(onMouseClick)
 
-print("[PokerGame] Multi-table client initialized")
+-- Mobile touch support
+local function handleTouch(touchPos)
+	-- Get the camera
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	
+	-- Cast a ray from touch position
+	local ray = camera:ScreenPointToRay(touchPos.X, touchPos.Y)
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+	raycastParams.FilterDescendantsInstances = {player.Character}
+	
+	local raycastResult = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+	
+	if raycastResult then
+		local target = raycastResult.Instance
+		
+		-- Check if it's a card at current table
+		local currentTable = getCurrentTable()
+		if currentTable then
+			local cardTarget = nil
+			
+			-- Check if target is a card
+			if target.Parent == currentTable.tablePart and target:IsA("BasePart") and not target.Name:match("Camera") then
+				cardTarget = target
+			elseif target.Parent and target.Parent.Parent == currentTable.tablePart and target.Parent:IsA("BasePart") then
+				cardTarget = target.Parent
+			end
+			
+			if cardTarget then
+				-- Update hover state
+				if currentTable.currentHoveredCard ~= cardTarget then
+					currentTable.currentHoveredCard = cardTarget
+					updateCardHighlighting(currentTable)
+				end
+				
+				-- Simulate click
+				onMouseClick()
+			end
+		end
+	end
+end
+
+-- Touch events for mobile
+UserInputService.TouchTap:Connect(function(touchPositions, gameProcessedEvent)
+	if gameProcessedEvent then return end
+	if #touchPositions > 0 then
+		handleTouch(touchPositions[1])
+	end
+end)
+
+-- Also handle touch began for more responsive feel
+UserInputService.TouchBegan:Connect(function(touch, gameProcessedEvent)
+	if gameProcessedEvent then return end
+	handleTouch(touch.Position)
+end)
+
+-- Handle touch movement for card highlighting
+UserInputService.TouchMoved:Connect(function(touch, gameProcessedEvent)
+	if gameProcessedEvent then return end
+	
+	-- Get the camera
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	
+	-- Cast a ray from touch position
+	local ray = camera:ScreenPointToRay(touch.Position.X, touch.Position.Y)
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+	raycastParams.FilterDescendantsInstances = {player.Character}
+	
+	local raycastResult = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+	
+	if raycastResult then
+		-- Update mouse target for hover effect
+		local currentTable = getCurrentTable()
+		if currentTable then
+			local target = raycastResult.Instance
+			local cardTarget = nil
+			
+			-- Check if target is a card
+			if target.Parent == currentTable.tablePart and target:IsA("BasePart") and not target.Name:match("Camera") then
+				cardTarget = target
+			elseif target.Parent and target.Parent.Parent == currentTable.tablePart and target.Parent:IsA("BasePart") then
+				cardTarget = target.Parent
+			end
+			
+			-- Update hover state
+			if cardTarget then
+				if currentTable.currentHoveredCard ~= cardTarget then
+					currentTable.currentHoveredCard = cardTarget
+					updateCardHighlighting(currentTable)
+					
+					-- Play hover sound if appropriate
+					if soundsEnabled and currentTable.gameActive and currentTable.isMyTurn and not currentTable.selectedCards[cardTarget] then
+						SoundManager:PlayHoverSound(cardTarget.Position)
+					end
+				end
+			else
+				if currentTable.currentHoveredCard then
+					currentTable.currentHoveredCard = nil
+					updateCardHighlighting(currentTable)
+				end
+			end
+		end
+	else
+		-- Clear hover if not hitting anything
+		local currentTable = getCurrentTable()
+		if currentTable and currentTable.currentHoveredCard then
+			currentTable.currentHoveredCard = nil
+			updateCardHighlighting(currentTable)
+		end
+	end
+end)
+
+-- Handle touch ended to clear hover state
+UserInputService.TouchEnded:Connect(function(touch, gameProcessedEvent)
+	if gameProcessedEvent then return end
+	
+	-- Clear hover state when touch ends
+	local currentTable = getCurrentTable()
+	if currentTable and currentTable.currentHoveredCard then
+		currentTable.currentHoveredCard = nil
+		updateCardHighlighting(currentTable)
+	end
+end)
+
+print("[PokerGame] Multi-table client initialized with mobile support")
