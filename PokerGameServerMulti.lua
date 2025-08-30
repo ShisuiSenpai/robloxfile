@@ -122,6 +122,7 @@ local function startGame(tableInstance)
 	tableInstance.gameState.isActive = true
 	tableInstance.gameState.turnNumber = 1
 	tableInstance.gameState.currentTurn = math.random(2) == 1 and player1 or player2
+	tableInstance:updateTableState(TableManager.TableState.IN_GAME)
 	
 	tableInstance.gameState.selectedCards = {}
 	
@@ -140,6 +141,7 @@ local function endGame(tableInstance, winner, loser, reason)
 	if not tableInstance.gameState.isActive then return end
 	
 	tableInstance.gameState.isActive = false
+	tableInstance:updateTableState(TableManager.TableState.ENDING)
 	print("[PokerGame] Game ended at table", tableInstance.tableId, "! Winner:", winner and winner.Name or "None", "Reason:", reason)
 	
 	-- Immediately notify clients that game has ended
@@ -234,10 +236,11 @@ local function setupTableMonitoring(tableInstance)
 	tableInstance.seat1:GetPropertyChangedSignal("Occupant"):Connect(function()
 		local bothSeated = tableInstance:checkSeating()
 		
-		if bothSeated and not tableInstance.gameState.isActive then
-			wait(0.5)
-			tableInstance.remoteEvents.GameStateUpdate:FireAllClients("countdown_start")
-			startGame(tableInstance)
+			if bothSeated and not tableInstance.gameState.isActive then
+		tableInstance:updateTableState(TableManager.TableState.COUNTDOWN)
+		wait(0.5)
+		tableInstance.remoteEvents.GameStateUpdate:FireAllClients("countdown_start")
+		startGame(tableInstance)
 		elseif not bothSeated and tableInstance.gameState.isActive then
 			local remainingPlayer = tableInstance.gameState.player1 or tableInstance.gameState.player2
 			if remainingPlayer then
@@ -260,10 +263,11 @@ local function setupTableMonitoring(tableInstance)
 	tableInstance.seat2:GetPropertyChangedSignal("Occupant"):Connect(function()
 		local bothSeated = tableInstance:checkSeating()
 		
-		if bothSeated and not tableInstance.gameState.isActive then
-			wait(0.5)
-			tableInstance.remoteEvents.GameStateUpdate:FireAllClients("countdown_start")
-			startGame(tableInstance)
+			if bothSeated and not tableInstance.gameState.isActive then
+		tableInstance:updateTableState(TableManager.TableState.COUNTDOWN)
+		wait(0.5)
+		tableInstance.remoteEvents.GameStateUpdate:FireAllClients("countdown_start")
+		startGame(tableInstance)
 		elseif not bothSeated and tableInstance.gameState.isActive then
 			local remainingPlayer = tableInstance.gameState.player1 or tableInstance.gameState.player2
 			if remainingPlayer then

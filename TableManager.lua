@@ -95,6 +95,15 @@ local TABLE_CONFIGS = {
 	}
 }
 
+-- Table states
+TableManager.TableState = {
+	EMPTY = "EMPTY",                    -- No players seated
+	WAITING_FOR_PLAYER = "WAITING",     -- One player seated, waiting for opponent
+	COUNTDOWN = "COUNTDOWN",            -- Both players seated, countdown in progress
+	IN_GAME = "IN_GAME",               -- Game is active
+	ENDING = "ENDING"                   -- Game is ending
+}
+
 -- Store active table instances
 local activeTables = {}
 
@@ -169,7 +178,9 @@ function TableManager.new(tableId)
 		currentTurn = nil,
 		turnNumber = 0,
 		selectedCards = {},
-		pokerCard = nil
+		pokerCard = nil,
+		tableState = TableManager.TableState.EMPTY,
+		lastStateChange = tick()
 	}
 	
 	-- Card management
@@ -223,7 +234,57 @@ function TableManager:checkSeating()
 	self.gameState.player1 = newPlayer1
 	self.gameState.player2 = newPlayer2
 	
-	return newPlayer1 ~= nil and newPlayer2 ~= nil
+	-- Update table state based on seating
+	local bothSeated = newPlayer1 ~= nil and newPlayer2 ~= nil
+	local oneSeated = (newPlayer1 ~= nil and newPlayer2 == nil) or (newPlayer1 == nil and newPlayer2 ~= nil)
+	local noneSeated = newPlayer1 == nil and newPlayer2 == nil
+	
+	if noneSeated then
+		self:updateTableState(TableManager.TableState.EMPTY)
+	elseif oneSeated and self.gameState.tableState ~= TableManager.TableState.IN_GAME and 
+	       self.gameState.tableState ~= TableManager.TableState.COUNTDOWN and
+	       self.gameState.tableState ~= TableManager.TableState.ENDING then
+		self:updateTableState(TableManager.TableState.WAITING_FOR_PLAYER)
+	end
+	
+	return bothSeated
+end
+
+-- Update table state
+function TableManager:updateTableState(newState)
+	if self.gameState.tableState ~= newState then
+		self.gameState.tableState = newState
+		self.gameState.lastStateChange = tick()
+		
+		-- Notify clients of state change
+		if self.remoteEvents.GameStateUpdate then
+			self.remoteEvents.GameStateUpdate:FireAllClients("table_state_changed", {
+				tableId = self.tableId,
+				state = newState
+			})
+		end
+	end
+end
+
+-- Get current table state
+function TableManager:getTableState()
+	return self.gameState.tableState
+end
+
+-- Check if table is available for quick match
+function TableManager:isAvailableForQuickMatch()
+	local state = self.gameState.tableState
+	return state == TableManager.TableState.EMPTY or state == TableManager.TableState.WAITING_FOR_PLAYER
+end
+
+-- Get available seat
+function TableManager:getAvailableSeat()
+	if not self.seat1.Occupant then
+		return self.seat1
+	elseif not self.seat2.Occupant then
+		return self.seat2
+	end
+	return nil
 end
 
 -- Get which table a player is seated at
@@ -265,5 +326,34 @@ end
 function TableManager.getAllTables()
 	return activeTables
 end
+
+-- Get best table for quick match
+function TableManager.getBestTableForQuickMatch()
+	-- First priority: Find a table with one player waiting
+	for tableId, tableInstance in pairs(activeTables) do
+		if tableInstance:getTableState() == TableManager.TableState.WAITING_FOR_PLAYER then
+			local availableSeat = tableInstance:getAvailableSeat()
+			if availableSeat then
+				return tableInstance, availableSeat
+			end
+		end
+	end
+	
+	-- Second priority: Find an empty table
+	for tableId, tableInstance in pairs(activeTables) do
+		if tableInstance:getTableState() == TableManager.TableState.EMPTY then
+			local availableSeat = tableInstance:getAvailableSeat()
+			if availableSeat then
+				return tableInstance, availableSeat
+			end
+		end
+	end
+	
+	-- No available tables
+	return nil, nil
+end
+
+-- Expose table configurations
+TableManager.TABLE_CONFIGS = TABLE_CONFIGS
 
 return TableManager
