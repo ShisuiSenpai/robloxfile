@@ -32,23 +32,10 @@ if not success then
 	end
 end
 
--- Create RemoteEvents for QuickMatch
+-- Get RemoteEvents for QuickMatch
 local quickMatchEvent = ReplicatedStorage:WaitForChild("QuickMatchEvent")
-
--- Create request and response events
-local requestEvent = quickMatchEvent:FindFirstChild("QuickMatchRequest")
-if not requestEvent then
-	requestEvent = Instance.new("RemoteEvent")
-	requestEvent.Name = "QuickMatchRequest"
-	requestEvent.Parent = quickMatchEvent
-end
-
-local responseEvent = quickMatchEvent:FindFirstChild("QuickMatchResponse")
-if not responseEvent then
-	responseEvent = Instance.new("RemoteEvent")
-	responseEvent.Name = "QuickMatchResponse"
-	responseEvent.Parent = quickMatchEvent
-end
+local requestEvent = quickMatchEvent:WaitForChild("QuickMatchRequest")
+local responseEvent = quickMatchEvent:WaitForChild("QuickMatchResponse")
 
 -- Track pending requests to prevent spam
 local pendingRequests = {}
