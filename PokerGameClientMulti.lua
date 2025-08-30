@@ -532,6 +532,11 @@ for tableId, tableData in pairs(tables) do
 				tableData.gameUI.TurnFrame.Visible = false
 			end
 			
+		elseif state == "shuffle_start" then
+			-- Cards are being shuffled server-side
+			-- We could add a visual effect here if desired
+			-- For now, just prepare for game start
+			
 		elseif state == "game_start" then
 			-- print("[DEBUG] Game starting for table:", tableData.id)
 			tableData.isCountdownActive = false

@@ -43,7 +43,7 @@ local function resetCards(tableInstance)
 	print("[PokerGame] All cards reset for table:", tableInstance.tableId)
 end
 
--- Shuffle the poker card to a random position
+-- Shuffle all cards to random positions
 local function shuffleCards(tableInstance)
 	if not tableInstance.gameState.pokerCard then
 		warn("[PokerGame] No poker card found for table:", tableInstance.tableId)
@@ -51,26 +51,26 @@ local function shuffleCards(tableInstance)
 	end
 	
 	local cards = tableInstance.cards
-	local pokerCard = tableInstance.gameState.pokerCard
 	
-	-- Pick a random card that isn't the poker card
-	local randomCard
-	repeat
-		randomCard = cards[math.random(#cards)]
-	until randomCard ~= pokerCard
+	-- Create a list of all current positions
+	local positions = {}
+	for _, card in ipairs(cards) do
+		table.insert(positions, tableInstance.currentCardCFrames[card])
+	end
 	
-	-- Swap positions
-	local pokerPos = tableInstance.currentCardCFrames[pokerCard]
-	local randomPos = tableInstance.currentCardCFrames[randomCard]
+	-- Fisher-Yates shuffle algorithm to randomize positions
+	for i = #positions, 2, -1 do
+		local j = math.random(1, i)
+		positions[i], positions[j] = positions[j], positions[i]
+	end
 	
-	pokerCard.CFrame = randomPos
-	randomCard.CFrame = pokerPos
+	-- Assign shuffled positions to cards
+	for i, card in ipairs(cards) do
+		card.CFrame = positions[i]
+		tableInstance.currentCardCFrames[card] = positions[i]
+	end
 	
-	-- Update current positions
-	tableInstance.currentCardCFrames[pokerCard] = randomPos
-	tableInstance.currentCardCFrames[randomCard] = pokerPos
-	
-	print("[PokerGame] Poker card shuffled for table:", tableInstance.tableId)
+	print("[PokerGame] All cards shuffled for table:", tableInstance.tableId)
 end
 
 -- Start the game
@@ -110,11 +110,18 @@ local function startGame(tableInstance)
 	-- Wait for countdown
 	wait(4)
 	
+	-- Notify clients that shuffle is starting
+	tableInstance.remoteEvents.GameStateUpdate:FireAllClients("shuffle_start")
+	
+	-- Shuffle all cards
+	shuffleCards(tableInstance)
+	
+	-- Small delay for visual effect
+	wait(0.5)
+	
 	tableInstance.gameState.isActive = true
 	tableInstance.gameState.turnNumber = 1
 	tableInstance.gameState.currentTurn = math.random(2) == 1 and player1 or player2
-	
-	shuffleCards(tableInstance)
 	
 	tableInstance.gameState.selectedCards = {}
 	
