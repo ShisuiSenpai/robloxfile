@@ -94,9 +94,6 @@ local tables = {}
 local allSeats = {}
 local seatToTable = {}
 
--- Wait for UI folder to be ready
-wait(1)
-
 for tableId, config in pairs(TABLE_CONFIGS) do
 	local folder = workspace:WaitForChild(config.folderName)
 	local tablePart = folder:WaitForChild(config.tableName)
@@ -138,46 +135,7 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 		end
 	end
 	
-	-- Get UI references (but don't enable yet)
-	local playerGui = player:WaitForChild("PlayerGui")
-	print("[PokerGame] Looking for UI folder in PlayerGui...")
-	
-	-- Debug: List all children of PlayerGui
-	print("[PokerGame] PlayerGui children:")
-	for _, child in ipairs(playerGui:GetChildren()) do
-		print("  -", child.Name, "Type:", child.ClassName)
-	end
-	
-	local uiFolder = playerGui:WaitForChild("PokerGameUI_Table", 5) -- Wait up to 5 seconds
-	local uiName = "PokerGameUI_" .. tableId
-	local screenGui = nil
-	
-	if uiFolder then
-		print("[PokerGame] Found UI folder, looking for:", uiName)
-		screenGui = uiFolder:FindFirstChild(uiName)
-		if not screenGui then
-			print("[PokerGame] UI children in folder:")
-			for _, child in ipairs(uiFolder:GetChildren()) do
-				print("  -", child.Name, "Type:", child.ClassName)
-			end
-		end
-	else
-		warn("[PokerGame] UI folder 'PokerGameUI_Table' not found in PlayerGui after 5 seconds")
-	end
-	
-	if screenGui then
-		tableData.gameUI = screenGui
-		local turnFrame = screenGui:FindFirstChild("TurnFrame")
-		if turnFrame then
-			tableData.turnLabel = turnFrame:FindFirstChild("TurnLabel")
-		end
-		local statusFrame = screenGui:FindFirstChild("StatusFrame") 
-		if statusFrame then
-			tableData.statusLabel = statusFrame:FindFirstChild("StatusLabel")
-		end
-		-- Keep UI disabled until player sits at this table
-		screenGui.Enabled = false
-	end
+
 	
 	-- Store original card positions
 	for _, card in ipairs(tablePart:GetChildren()) do
@@ -251,16 +209,12 @@ end
 local function cleanupTableState(tableData)
 	-- print("[DEBUG] Cleaning up table state for:", tableData.id)
 	
-	-- Disable UI instead of destroying (since they're pre-made)
+	-- Clean up UI
 	if tableData.gameUI then
-		tableData.gameUI.Enabled = false
-		-- Reset UI to default state
-		if tableData.turnLabel then
-			tableData.turnLabel.Text = "Waiting for players"
-		end
-		if tableData.statusLabel then
-			tableData.statusLabel.Parent.Visible = false -- Hide StatusFrame
-		end
+		tableData.gameUI:Destroy()
+		tableData.gameUI = nil
+		tableData.turnLabel = nil
+		tableData.statusLabel = nil
 	end
 	
 	-- Stop animations
@@ -288,22 +242,68 @@ local function cleanupTableState(tableData)
 end
 
 -- Create game UI for a table
-local function setupGameUI(tableData)
-	-- We already have the UI references from initialization
-	if not tableData.gameUI then
-		warn("[PokerGame] No UI found for table:", tableData.id)
-		return
+local function createGameUI(tableData)
+	if tableData.gameUI then
+		tableData.gameUI:Destroy()
 	end
 	
-	-- Reset to default state
-	if tableData.turnLabel then
-		tableData.turnLabel.Text = "Waiting for players"
-	end
-	if tableData.statusLabel and tableData.statusLabel.Parent then
-		tableData.statusLabel.Parent.Visible = false -- Hide StatusFrame
-	end
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "PokerGameUI_" .. tableData.id
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = player:WaitForChild("PlayerGui")
 	
-	return tableData.gameUI, tableData.turnLabel, tableData.statusLabel
+	-- Turn indicator frame (transparent background, visible by default)
+	local turnFrame = Instance.new("Frame")
+	turnFrame.Name = "TurnFrame"
+	turnFrame.Size = UDim2.new(0, 300, 0, 60)
+	turnFrame.Position = UDim2.new(0.5, -150, 0, 20)
+	turnFrame.BackgroundTransparency = 1
+	turnFrame.Visible = true  -- Visible by default like original
+	turnFrame.Parent = screenGui
+	
+	local turnLabel = Instance.new("TextLabel")
+	turnLabel.Name = "TurnLabel"
+	turnLabel.Size = UDim2.new(1, 0, 1, 0)
+	turnLabel.BackgroundTransparency = 1
+	turnLabel.Text = "Waiting for players"
+	turnLabel.TextColor3 = Color3.new(1, 1, 1)
+	turnLabel.TextScaled = true
+	turnLabel.Font = Enum.Font.SourceSansBold
+	turnLabel.Parent = turnFrame
+	
+	local turnStroke = Instance.new("UIStroke")
+	turnStroke.Color = Color3.new(0, 0, 0)
+	turnStroke.Thickness = 3
+	turnStroke.Parent = turnLabel
+	
+	-- Status frame for win/lose
+	local statusFrame = Instance.new("Frame")
+	statusFrame.Name = "StatusFrame"
+	statusFrame.Size = UDim2.new(0, 400, 0, 100)
+	statusFrame.Position = UDim2.new(0.5, -200, 0.5, -50)
+	statusFrame.BackgroundTransparency = 1
+	statusFrame.Visible = false
+	statusFrame.Parent = screenGui
+	
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Name = "StatusLabel"
+	statusLabel.Size = UDim2.new(1, 0, 1, 0)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.Text = ""
+	statusLabel.TextColor3 = Color3.new(1, 1, 1)
+	statusLabel.TextScaled = true
+	statusLabel.Font = Enum.Font.SourceSansBold
+	statusLabel.Parent = statusFrame
+	
+	local statusStroke = Instance.new("UIStroke")
+	statusStroke.Color = Color3.new(0, 0, 0)
+	statusStroke.Thickness = 4
+	statusStroke.Parent = statusLabel
+	
+	tableData.gameUI = screenGui
+	tableData.turnLabel = turnLabel
+	tableData.statusLabel = statusLabel
+	return screenGui, turnLabel, statusLabel
 end
 
 -- Get or create highlight for a card
@@ -524,14 +524,7 @@ local checkSeatingStatus = function(tableData)
 	-- Seated at this table
 	if not tableData.gameUI then
 		-- print("[DEBUG] Creating UI for table:", tableData.id)
-		setupGameUI(tableData)
-		-- Enable the UI when player sits (only if UI exists)
-		if tableData.gameUI then
-			tableData.gameUI.Enabled = true
-		else
-			warn("[PokerGame] Cannot enable UI - UI not found for table:", tableData.id)
-			return
-		end
+		createGameUI(tableData)
 	end
 	
 	-- Check if both seats are occupied
@@ -617,9 +610,7 @@ for tableId, tableData in pairs(tables) do
 						return
 					end
 				end
-				if tableData.gameUI and tableData.gameUI.TurnFrame then
-					tableData.gameUI.TurnFrame.Visible = true
-				end
+				tableData.gameUI.TurnFrame.Visible = true
 			else
 				-- print("[DEBUG] Player is NOT at this table")
 			end
