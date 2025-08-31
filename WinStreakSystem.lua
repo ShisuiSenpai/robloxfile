@@ -7,7 +7,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 -- Configuration
-local MIN_STREAK_TO_SHOW = 2 -- Only show streak UI after 2 wins in a row
+local MIN_STREAK_TO_SHOW = 1 -- Show streak UI starting from 1 win
 local STREAK_UI_HEIGHT = 2.5 -- Height above character's head
 
 -- Table to track player streaks
@@ -36,19 +36,10 @@ end
 
 -- Create streak UI above character
 local function createStreakUI(character, streak)
-	print("[StreakManager] createStreakUI called")
-	if not character then 
-		print("[StreakManager] No character in createStreakUI")
-		return 
-	end
+	if not character then return end
 	
 	local head = character:WaitForChild("Head", 5)
-	if not head then 
-		print("[StreakManager] No head found in createStreakUI")
-		return 
-	end
-	
-	print("[StreakManager] Creating BillboardGui...")
+	if not head then return end
 	
 	-- Create BillboardGui
 	local billboardGui = Instance.new("BillboardGui")
@@ -110,19 +101,13 @@ local function createStreakUI(character, streak)
 		end)
 	end
 	
-	print("[StreakManager] BillboardGui created successfully, returning it")
 	return billboardGui
 end
 
 -- Update or create streak UI
 local function updateStreakUI(player, streak)
-	print("[StreakManager] updateStreakUI called for", player.Name, "with streak:", streak, "MIN_STREAK_TO_SHOW:", MIN_STREAK_TO_SHOW)
-	
 	local character = player.Character
-	if not character then 
-		print("[StreakManager] No character found for", player.Name)
-		return 
-	end
+	if not character then return end
 	
 	-- Remove old UI if exists
 	if streakUIs[player] then
@@ -132,19 +117,13 @@ local function updateStreakUI(player, streak)
 	
 	-- Create new UI if streak is high enough
 	if streak >= MIN_STREAK_TO_SHOW then
-		print("[StreakManager] Streak high enough, creating UI")
 		local success, result = pcall(function()
 			return createStreakUI(character, streak)
 		end)
 		
 		if success and result then
 			streakUIs[player] = result
-			print("[StreakManager] UI created and stored successfully")
-		else
-			warn("[StreakManager] Failed to create UI:", result)
 		end
-	else
-		print("[StreakManager] Streak too low:", streak, "<", MIN_STREAK_TO_SHOW)
 	end
 end
 
@@ -225,17 +204,7 @@ function _G.StreakManager.IncrementStreak(player)
 	playerStreaks[player] = playerStreaks[player] + 1
 	print("[StreakManager] " .. player.Name .. " win streak increased to: " .. playerStreaks[player])
 	
-	-- Add detailed logging
-	print("[StreakManager] About to call updateStreakUI for", player.Name)
-	local success, err = pcall(function()
-		updateStreakUI(player, playerStreaks[player])
-	end)
-	
-	if not success then
-		warn("[StreakManager] Error calling updateStreakUI:", err)
-	else
-		print("[StreakManager] updateStreakUI call completed")
-	end
+	updateStreakUI(player, playerStreaks[player])
 	
 	return playerStreaks[player]
 end
@@ -259,10 +228,7 @@ function _G.StreakManager.GetStreak(player)
 end
 
 -- Connect events
-Players.PlayerAdded:Connect(function(player)
-	print("[StreakManager] PlayerAdded event fired for", player.Name)
-	onPlayerAdded(player)
-end)
+Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 -- Handle existing players
