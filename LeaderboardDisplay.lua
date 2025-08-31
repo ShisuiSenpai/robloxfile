@@ -18,8 +18,70 @@ while not _G.WinsManager and attempts < 10 do
 	attempts = attempts + 1
 end
 
--- Create physical leaderboard (optional - remove if you only want the player list)
-local function createPhysicalLeaderboard()
+-- Find or create physical leaderboard
+local function getPhysicalLeaderboard()
+	-- First, try to find existing leaderboard in workspace
+	local existingLeaderboard = workspace:FindFirstChild("WinsLeaderboard") or workspace:FindFirstChild("Leaderboard")
+	
+	if existingLeaderboard then
+		print("[LeaderboardDisplay] Found existing leaderboard:", existingLeaderboard.Name)
+		
+		-- Try to find the GUI and slots
+		local base = existingLeaderboard:FindFirstChild("Base") or existingLeaderboard:FindFirstChildWhichIsA("Part")
+		if base then
+			local surfaceGui = base:FindFirstChildWhichIsA("SurfaceGui")
+			if surfaceGui then
+				-- Find all text labels that represent player slots
+				local slots = {}
+				for i = 1, LEADERBOARD_SIZE do
+					-- Look for slots by various naming patterns
+					local slot = surfaceGui:FindFirstChild("Slot" .. i) or 
+					           surfaceGui:FindFirstChild("Player" .. i) or
+					           surfaceGui:FindFirstChild(tostring(i))
+					
+					-- If not found by name, try to find by position/order
+					if not slot then
+						local labels = {}
+						for _, child in ipairs(surfaceGui:GetChildren()) do
+							if child:IsA("TextLabel") and child.Name ~= "Title" and child.Name ~= "TitleLabel" then
+								table.insert(labels, child)
+							end
+						end
+						-- Sort by Y position
+						table.sort(labels, function(a, b)
+							return a.Position.Y.Scale < b.Position.Y.Scale
+						end)
+						if labels[i] then
+							slot = labels[i]
+						end
+					end
+					
+					if slot then
+						slots[i] = slot
+						-- Set initial text if empty
+						if slot.Text == "" then
+							slot.Text = i .. ". ---"
+						end
+					end
+				end
+				
+				-- Return the slots we found
+				if #slots > 0 then
+					return slots
+				else
+					warn("[LeaderboardDisplay] Found leaderboard but no slots!")
+				end
+			else
+				warn("[LeaderboardDisplay] Found leaderboard but no SurfaceGui!")
+			end
+		else
+			warn("[LeaderboardDisplay] Found leaderboard but no base part!")
+		end
+	end
+	
+	-- If no existing leaderboard found, create one
+	print("[LeaderboardDisplay] No existing leaderboard found, creating new one...")
+	
 	local model = Instance.new("Model")
 	model.Name = "WinsLeaderboard"
 	
@@ -130,17 +192,23 @@ end
 
 -- Initialize
 local function initialize()
-	-- Create physical leaderboard (comment out if you don't want it)
-	local leaderboardSlots = createPhysicalLeaderboard()
+	-- Get existing leaderboard or create if needed
+	local leaderboardSlots = getPhysicalLeaderboard()
 	
-	-- Update loop
-	while true do
-		updateLeaderboard(leaderboardSlots)
-		wait(UPDATE_INTERVAL)
+	if leaderboardSlots and #leaderboardSlots > 0 then
+		print("[LeaderboardDisplay] Successfully initialized with", #leaderboardSlots, "slots")
+		
+		-- Update loop
+		while true do
+			updateLeaderboard(leaderboardSlots)
+			wait(UPDATE_INTERVAL)
+		end
+	else
+		warn("[LeaderboardDisplay] Failed to initialize leaderboard slots")
 	end
 end
 
 -- Start the leaderboard
 spawn(initialize)
 
-print("[LeaderboardDisplay] Physical leaderboard created")
+print("[LeaderboardDisplay] Leaderboard system initialized")
