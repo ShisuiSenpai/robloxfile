@@ -115,6 +115,8 @@ local function startTurnTimer(tableInstance)
 	
 	-- Start new timer
 	tableInstance.gameState.turnStartTime = tick()
+	
+	-- Create timer coroutine
 	tableInstance.gameState.turnTimer = task.spawn(function()
 		local startTime = tick()
 		
@@ -130,7 +132,17 @@ local function startTurnTimer(tableInstance)
 		
 		-- Time's up - select random card
 		if tableInstance.gameState.isActive and tableInstance.gameState.currentTurn then
-			print("[PokerGame] Timer expired for", tableInstance.gameState.currentTurn.Name, "at table", tableInstance.tableId)
+			-- Store current turn player before any changes
+			local currentPlayer = tableInstance.gameState.currentTurn
+			local currentTurnNumber = tableInstance.gameState.turnNumber
+			
+			-- Double-check this timer is still valid by checking if turnTimer exists
+			if not tableInstance.gameState.turnTimer then
+				print("[PokerGame] Timer was cancelled, not auto-selecting")
+				return
+			end
+			
+			print("[PokerGame] Timer expired for", currentPlayer.Name, "at table", tableInstance.tableId)
 			
 			-- Find available cards
 			local availableCards = {}
@@ -144,7 +156,14 @@ local function startTurnTimer(tableInstance)
 			if #availableCards > 0 then
 				local randomCard = availableCards[math.random(1, #availableCards)]
 				print("[PokerGame] Auto-selecting random card:", randomCard.Name)
-				selectCard(tableInstance, tableInstance.gameState.currentTurn, randomCard)
+				
+				-- Make sure turn hasn't changed while we were finding cards
+				if tableInstance.gameState.currentTurn == currentPlayer and 
+				   tableInstance.gameState.turnNumber == currentTurnNumber then
+					selectCard(tableInstance, currentPlayer, randomCard)
+				else
+					print("[PokerGame] Turn changed during auto-select, cancelling")
+				end
 			end
 		end
 	end)
@@ -323,9 +342,18 @@ end
 selectCard = function(tableInstance, player, card)
 	local gameState = tableInstance.gameState
 	
-	if not gameState.isActive then return end
-	if gameState.currentTurn ~= player then return end
-	if gameState.selectedCards[card] then return end
+	if not gameState.isActive then 
+		print("[PokerGame] SelectCard: Game not active")
+		return 
+	end
+	if gameState.currentTurn ~= player then 
+		print("[PokerGame] SelectCard: Not player's turn -", player.Name, "tried but current turn is", gameState.currentTurn.Name)
+		return 
+	end
+	if gameState.selectedCards[card] then 
+		print("[PokerGame] SelectCard: Card already selected")
+		return 
+	end
 	
 	gameState.selectedCards[card] = true
 	print("[PokerGame] Table", tableInstance.tableId, "-", player.Name, "selected card:", card.Name)
@@ -339,8 +367,12 @@ selectCard = function(tableInstance, player, card)
 		-- Cancel current timer
 		cancelTurnTimer(tableInstance)
 		
+		-- Switch turns
+		local previousPlayer = gameState.currentTurn
 		gameState.turnNumber = gameState.turnNumber + 1
 		gameState.currentTurn = (gameState.currentTurn == gameState.player1) and gameState.player2 or gameState.player1
+		
+		print("[PokerGame] Turn switched from", previousPlayer.Name, "to", gameState.currentTurn.Name)
 		
 		-- Start new timer for next turn
 		startTurnTimer(tableInstance)
