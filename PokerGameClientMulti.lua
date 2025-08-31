@@ -171,6 +171,30 @@ local waitingAnimations = {}
 -- Forward declaration
 local stopWaitingAnimation
 
+-- Validate UI components exist
+local function validateUI(tableData)
+	if not tableData.gameUI or not tableData.gameUI.Parent then
+		return false
+	end
+	
+	local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+	if not turnFrame then
+		return false
+	end
+	
+	local turnLabel = turnFrame:FindFirstChild("TurnLabel")
+	if not turnLabel then
+		return false
+	end
+	
+	local statusFrame = tableData.gameUI:FindFirstChild("StatusFrame")
+	if not statusFrame then
+		return false
+	end
+	
+	return true
+end
+
 -- Start waiting animation
 local function startWaitingAnimation(tableData, turnLabel)
 	-- print("[DEBUG] startWaitingAnimation called for table:", tableData.id)
@@ -546,27 +570,37 @@ local checkSeatingStatus = function(tableData)
 	--	"gameActive:", tableData.gameActive, "isCountdownActive:", tableData.isCountdownActive)
 	
 	-- Update UI based on game state
-	if tableData.gameUI and tableData.gameUI.TurnFrame then
-		if isSeated and not tableData.gameActive and not tableData.isCountdownActive then
-			-- Show waiting UI when seated but game hasn't started
-			-- print("[DEBUG] Showing waiting UI for table:", tableData.id)
-			tableData.gameUI.TurnFrame.Visible = true
-			stopWaitingAnimation(tableData) -- Stop any existing animation first
-			startWaitingAnimation(tableData, tableData.turnLabel)
-		elseif isSeated and tableData.gameActive then
-			-- Keep UI visible during game
-			-- print("[DEBUG] Showing game UI for table:", tableData.id)
-			tableData.gameUI.TurnFrame.Visible = true
-			stopWaitingAnimation(tableData)
-		elseif tableData.isCountdownActive then
-			-- Hide during countdown
-			-- print("[DEBUG] Hiding UI during countdown for table:", tableData.id)
-			tableData.gameUI.TurnFrame.Visible = false
-			stopWaitingAnimation(tableData)
+	if tableData.gameUI then
+		local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+		if turnFrame then
+			if isSeated and not tableData.gameActive and not tableData.isCountdownActive then
+				-- Show waiting UI when seated but game hasn't started
+				-- print("[DEBUG] Showing waiting UI for table:", tableData.id)
+				turnFrame.Visible = true
+				stopWaitingAnimation(tableData) -- Stop any existing animation first
+				startWaitingAnimation(tableData, tableData.turnLabel)
+			elseif isSeated and tableData.gameActive then
+				-- Keep UI visible during game
+				-- print("[DEBUG] Showing game UI for table:", tableData.id)
+				turnFrame.Visible = true
+				stopWaitingAnimation(tableData)
+			elseif tableData.isCountdownActive then
+				-- Hide during countdown
+				-- print("[DEBUG] Hiding UI during countdown for table:", tableData.id)
+				turnFrame.Visible = false
+				stopWaitingAnimation(tableData)
+			else
+				-- Hide UI when not seated
+				turnFrame.Visible = false
+				stopWaitingAnimation(tableData)
+			end
 		else
-			-- Hide UI when not seated
-			tableData.gameUI.TurnFrame.Visible = false
-			stopWaitingAnimation(tableData)
+			-- TurnFrame missing, try to recover
+			if isSeated then
+				warn("[PokerGame] TurnFrame missing for table", tableData.id, "- attempting to recover")
+				tableData.gameUI = nil
+				setupGameUI(tableData)
+			end
 		end
 	end
 end
@@ -585,7 +619,10 @@ for tableId, tableData in pairs(tables) do
 			tableData.gameActive = false
 			if tableData.gameUI then
 				-- print("[DEBUG] Hiding TurnFrame for countdown")
-				tableData.gameUI.TurnFrame.Visible = false
+				local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+				if turnFrame then
+					turnFrame.Visible = false
+				end
 			end
 			
 		elseif state == "shuffle_start" then
@@ -616,7 +653,22 @@ for tableId, tableData in pairs(tables) do
 						return
 					end
 				end
-				tableData.gameUI.TurnFrame.Visible = true
+				-- Safely show turn frame
+				local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+				if turnFrame then
+					turnFrame.Visible = true
+				else
+					warn("[PokerGame] TurnFrame missing, recreating UI")
+					tableData.gameUI = nil
+					setupGameUI(tableData)
+					if tableData.gameUI then
+						tableData.gameUI.Enabled = true
+						local newTurnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+						if newTurnFrame then
+							newTurnFrame.Visible = true
+						end
+					end
+				end
 			else
 				-- print("[DEBUG] Player is NOT at this table")
 			end
@@ -1067,3 +1119,33 @@ UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
 end)
 
 print("[PokerGame] Multi-table client initialized with mobile support")
+
+-- Periodic UI health check
+task.spawn(function()
+	while true do
+		task.wait(1) -- Check every second
+		
+		-- Check all active tables
+		for tableId, tableData in pairs(tables) do
+			if tableData.gameActive and getCurrentTable() == tableData then
+				-- Validate UI is intact
+				if not validateUI(tableData) then
+					warn("[PokerGame] UI validation failed for table", tableId, "- attempting recovery")
+					tableData.gameUI = nil
+					setupGameUI(tableData)
+					
+					-- Re-enable UI if setup successful
+					if tableData.gameUI then
+						tableData.gameUI.Enabled = true
+						
+						-- Restore turn frame visibility
+						local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+						if turnFrame then
+							turnFrame.Visible = true
+						end
+					end
+				end
+			end
+		end
+	end
+end)
