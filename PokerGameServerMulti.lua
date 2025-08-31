@@ -8,7 +8,17 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Wait for modules
 local TableManager = require(ServerScriptService:WaitForChild("TableManager"))
-local LeaderstatsManager = require(ServerScriptService:WaitForChild("LeaderstatsManager"))
+
+-- Wait for WinsManager to be available
+local attempts = 0
+while not _G.WinsManager and attempts < 10 do
+	wait(0.5)
+	attempts = attempts + 1
+end
+
+if not _G.WinsManager then
+	warn("[PokerGame] WinsManager not found, wins will not be tracked")
+end
 
 -- Random seed
 math.randomseed(tick())
@@ -146,8 +156,8 @@ local function endGame(tableInstance, winner, loser, reason)
 	print("[PokerGame] Game ended at table", tableInstance.tableId, "! Winner:", winner and winner.Name or "None", "Reason:", reason)
 	
 	-- Award win to the winner
-	if winner then
-		local success = LeaderstatsManager.IncrementWins(winner)
+	if winner and _G.WinsManager then
+		local success = _G.WinsManager.IncrementWins(winner)
 		if success then
 			print("[PokerGame] Awarded win to", winner.Name)
 		else

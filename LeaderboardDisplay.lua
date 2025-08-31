@@ -11,8 +11,12 @@ local LEADERBOARD_SIZE = 10 -- Show top 10 players
 local UPDATE_INTERVAL = 30 -- Update every 30 seconds
 local LEADERBOARD_POSITION = Vector3.new(0, 10, -20) -- Adjust position as needed
 
--- Wait for LeaderstatsManager
-local LeaderstatsManager = require(ServerScriptService:WaitForChild("LeaderstatsManager"))
+-- Wait for WinsManager to be available
+local attempts = 0
+while not _G.WinsManager and attempts < 10 do
+	wait(0.5)
+	attempts = attempts + 1
+end
 
 -- Create physical leaderboard (optional - remove if you only want the player list)
 local function createPhysicalLeaderboard()
@@ -82,13 +86,9 @@ local function getLeaderboardData()
 	for _, player in ipairs(Players:GetPlayers()) do
 		local wins = 0
 		
-		-- Try to get wins from LeaderstatsManager if available
-		local success, result = pcall(function()
-			return LeaderstatsManager.GetWins(player)
-		end)
-		
-		if success then
-			wins = result
+		-- Try to get wins from WinsManager if available
+		if _G.WinsManager then
+			wins = _G.WinsManager.GetWins(player)
 		else
 			-- Fallback to reading directly from leaderstats
 			if player:FindFirstChild("leaderstats") then
