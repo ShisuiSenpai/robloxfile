@@ -7,8 +7,8 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 -- Configuration
-local MIN_STREAK_TO_SHOW = 1 -- Only show streak UI after 1 win (lowered for testing)
-local STREAK_UI_HEIGHT = 3 -- Height above character's head
+local MIN_STREAK_TO_SHOW = 2 -- Only show streak UI after 2 wins in a row
+local STREAK_UI_HEIGHT = 2.5 -- Height above character's head
 
 -- Table to track player streaks
 local playerStreaks = {}
@@ -36,119 +36,64 @@ end
 
 -- Create streak UI above character
 local function createStreakUI(character, streak)
-	print("[StreakManager] createStreakUI called with streak:", streak)
-	if not character then 
-		print("[StreakManager] No character provided to createStreakUI")
-		return 
-	end
+	if not character then return end
 	
 	local head = character:WaitForChild("Head", 5)
-	if not head then 
-		print("[StreakManager] No Head found")
-		return 
-	end
-	
-	print("[StreakManager] Creating BillboardGui for streak:", streak)
+	if not head then return end
 	
 	-- Create BillboardGui
 	local billboardGui = Instance.new("BillboardGui")
 	billboardGui.Name = "StreakDisplay"
-	billboardGui.Size = UDim2.new(4, 0, 1.5, 0)
+	billboardGui.Size = UDim2.new(2, 0, 0.8, 0) -- Smaller size
 	billboardGui.StudsOffset = Vector3.new(0, STREAK_UI_HEIGHT, 0)
 	billboardGui.AlwaysOnTop = false
 	billboardGui.LightInfluence = 0
 	billboardGui.Parent = head
 	
-	-- Background frame with gradient
-	local bgFrame = Instance.new("Frame")
-	bgFrame.Name = "Background"
-	bgFrame.Size = UDim2.new(1, 0, 1, 0)
-	bgFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-	bgFrame.BackgroundTransparency = 0.3
-	bgFrame.BorderSizePixel = 0
-	bgFrame.Parent = billboardGui
-	
-	-- Add rounded corners
-	local uiCorner = Instance.new("UICorner")
-	uiCorner.CornerRadius = UDim.new(0.3, 0)
-	uiCorner.Parent = bgFrame
-	
-	-- Add gradient
-	local uiGradient = Instance.new("UIGradient")
-	uiGradient.Rotation = 90
-	uiGradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.3),
-		NumberSequenceKeypoint.new(0.5, 0.4),
-		NumberSequenceKeypoint.new(1, 0.3)
-	})
-	uiGradient.Parent = bgFrame
-	
-	-- Fire emoji
-	local fireLabel = Instance.new("TextLabel")
-	fireLabel.Name = "FireEmoji"
-	fireLabel.Size = UDim2.new(0.3, 0, 0.8, 0)
-	fireLabel.Position = UDim2.new(0.05, 0, 0.1, 0)
-	fireLabel.BackgroundTransparency = 1
-	fireLabel.Text = "🔥"
-	fireLabel.TextScaled = true
-	fireLabel.Font = Enum.Font.SourceSans
-	fireLabel.Parent = bgFrame
-	
-	-- Streak number
+	-- Single text label for fire emoji and number
 	local streakLabel = Instance.new("TextLabel")
-	streakLabel.Name = "StreakNumber"
-	streakLabel.Size = UDim2.new(0.4, 0, 0.8, 0)
-	streakLabel.Position = UDim2.new(0.3, 0, 0.1, 0)
-	streakLabel.BackgroundTransparency = 1
-	streakLabel.Text = tostring(streak)
+	streakLabel.Name = "StreakLabel"
+	streakLabel.Size = UDim2.new(1, 0, 1, 0)
+	streakLabel.Position = UDim2.new(0, 0, 0, 0)
+	streakLabel.BackgroundTransparency = 1 -- No background
+	streakLabel.Text = "🔥" .. tostring(streak)
 	streakLabel.TextScaled = true
 	streakLabel.TextColor3 = getStreakColor(streak)
 	streakLabel.Font = Enum.Font.SourceSansBold
-	streakLabel.Parent = bgFrame
+	streakLabel.Parent = billboardGui
 	
-	-- Add text stroke
+	-- Add text stroke for visibility
 	local textStroke = Instance.new("UIStroke")
 	textStroke.Color = Color3.new(0, 0, 0)
 	textStroke.Thickness = 2
+	textStroke.Transparency = 0
 	textStroke.Parent = streakLabel
-	
-	-- "WIN STREAK" text
-	local winStreakLabel = Instance.new("TextLabel")
-	winStreakLabel.Name = "WinStreakText"
-	winStreakLabel.Size = UDim2.new(0.3, 0, 0.4, 0)
-	winStreakLabel.Position = UDim2.new(0.65, 0, 0.3, 0)
-	winStreakLabel.BackgroundTransparency = 1
-	winStreakLabel.Text = "STREAK"
-	winStreakLabel.TextScaled = true
-	winStreakLabel.TextColor3 = Color3.new(1, 1, 1)
-	winStreakLabel.Font = Enum.Font.SourceSans
-	winStreakLabel.Parent = bgFrame
 	
 	-- Animate in
 	billboardGui.Size = UDim2.new(0, 0, 0, 0)
 	local sizeTween = TweenService:Create(
 		billboardGui,
-		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{Size = UDim2.new(4, 0, 1.5, 0)}
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Size = UDim2.new(2, 0, 0.8, 0)}
 	)
 	sizeTween:Play()
 	
-	-- Add pulsing effect for high streaks
+	-- Add pulsing effect for high streaks (scale pulsing)
 	if streak >= 10 then
 		spawn(function()
 			while billboardGui.Parent do
 				local pulseTween = TweenService:Create(
-					bgFrame,
-					TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-					{BackgroundTransparency = 0.1}
+					billboardGui,
+					TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+					{Size = UDim2.new(2.2, 0, 0.9, 0)}
 				)
 				pulseTween:Play()
 				pulseTween.Completed:Wait()
 				
 				local pulseTween2 = TweenService:Create(
-					bgFrame,
-					TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-					{BackgroundTransparency = 0.3}
+					billboardGui,
+					TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+					{Size = UDim2.new(2, 0, 0.8, 0)}
 				)
 				pulseTween2:Play()
 				pulseTween2.Completed:Wait()
@@ -156,19 +101,13 @@ local function createStreakUI(character, streak)
 		end)
 	end
 	
-	print("[StreakManager] Successfully created streak UI for streak:", streak)
 	return billboardGui
 end
 
 -- Update or create streak UI
 local function updateStreakUI(player, streak)
-	print("[StreakManager] updateStreakUI called for", player.Name, "with streak:", streak)
-	
 	local character = player.Character
-	if not character then 
-		print("[StreakManager] No character found for", player.Name)
-		return 
-	end
+	if not character then return end
 	
 	-- Remove old UI if exists
 	if streakUIs[player] then
@@ -178,19 +117,13 @@ local function updateStreakUI(player, streak)
 	
 	-- Create new UI if streak is high enough
 	if streak >= MIN_STREAK_TO_SHOW then
-		print("[StreakManager] Creating streak UI for", player.Name, "with streak:", streak)
 		local success, result = pcall(function()
 			return createStreakUI(character, streak)
 		end)
 		
 		if success and result then
 			streakUIs[player] = result
-			print("[StreakManager] Streak UI stored for", player.Name)
-		else
-			warn("[StreakManager] Failed to create streak UI:", result)
 		end
-	else
-		print("[StreakManager] Streak too low to show UI:", streak, "< MIN:", MIN_STREAK_TO_SHOW)
 	end
 end
 
@@ -200,7 +133,7 @@ local function removeStreakUI(player)
 		-- Animate out
 		local shrinkTween = TweenService:Create(
 			streakUIs[player],
-			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In),
 			{Size = UDim2.new(0, 0, 0, 0)}
 		)
 		shrinkTween:Play()
