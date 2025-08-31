@@ -34,6 +34,9 @@ end
 -- Random seed
 math.randomseed(tick())
 
+-- Forward declarations
+local selectCard
+
 -- Restore jumping for a player
 local function restoreJumping(tableInstance, player)
 	if player and player.Character and tableInstance.originalJumpPowers[player] then
@@ -313,7 +316,7 @@ local function endGame(tableInstance, winner, loser, reason)
 end
 
 -- Handle card selection
-local function selectCard(tableInstance, player, card)
+selectCard = function(tableInstance, player, card)
 	local gameState = tableInstance.gameState
 	
 	if not gameState.isActive then return end
