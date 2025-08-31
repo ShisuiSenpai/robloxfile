@@ -6,8 +6,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
--- Wait for TableManager
+-- Wait for modules
 local TableManager = require(ServerScriptService:WaitForChild("TableManager"))
+local LeaderstatsManager = require(ServerScriptService:WaitForChild("LeaderstatsManager"))
 
 -- Random seed
 math.randomseed(tick())
@@ -143,6 +144,16 @@ local function endGame(tableInstance, winner, loser, reason)
 	tableInstance.gameState.isActive = false
 	tableInstance:updateTableState(TableManager.TableState.ENDING)
 	print("[PokerGame] Game ended at table", tableInstance.tableId, "! Winner:", winner and winner.Name or "None", "Reason:", reason)
+	
+	-- Award win to the winner
+	if winner then
+		local success = LeaderstatsManager.IncrementWins(winner)
+		if success then
+			print("[PokerGame] Awarded win to", winner.Name)
+		else
+			warn("[PokerGame] Failed to award win to", winner.Name)
+		end
+	end
 	
 	-- Immediately notify clients that game has ended
 	tableInstance.remoteEvents.GameStateUpdate:FireAllClients("game_end", {
