@@ -36,10 +36,19 @@ end
 
 -- Create streak UI above character
 local function createStreakUI(character, streak)
-	if not character then return end
+	print("[StreakManager] createStreakUI called")
+	if not character then 
+		print("[StreakManager] No character in createStreakUI")
+		return 
+	end
 	
 	local head = character:WaitForChild("Head", 5)
-	if not head then return end
+	if not head then 
+		print("[StreakManager] No head found in createStreakUI")
+		return 
+	end
+	
+	print("[StreakManager] Creating BillboardGui...")
 	
 	-- Create BillboardGui
 	local billboardGui = Instance.new("BillboardGui")
@@ -101,13 +110,19 @@ local function createStreakUI(character, streak)
 		end)
 	end
 	
+	print("[StreakManager] BillboardGui created successfully, returning it")
 	return billboardGui
 end
 
 -- Update or create streak UI
 local function updateStreakUI(player, streak)
+	print("[StreakManager] updateStreakUI called for", player.Name, "with streak:", streak, "MIN_STREAK_TO_SHOW:", MIN_STREAK_TO_SHOW)
+	
 	local character = player.Character
-	if not character then return end
+	if not character then 
+		print("[StreakManager] No character found for", player.Name)
+		return 
+	end
 	
 	-- Remove old UI if exists
 	if streakUIs[player] then
@@ -117,13 +132,19 @@ local function updateStreakUI(player, streak)
 	
 	-- Create new UI if streak is high enough
 	if streak >= MIN_STREAK_TO_SHOW then
+		print("[StreakManager] Streak high enough, creating UI")
 		local success, result = pcall(function()
 			return createStreakUI(character, streak)
 		end)
 		
 		if success and result then
 			streakUIs[player] = result
+			print("[StreakManager] UI created and stored successfully")
+		else
+			warn("[StreakManager] Failed to create UI:", result)
 		end
+	else
+		print("[StreakManager] Streak too low:", streak, "<", MIN_STREAK_TO_SHOW)
 	end
 end
 
@@ -158,7 +179,13 @@ end
 
 -- Initialize player
 local function onPlayerAdded(player)
-	playerStreaks[player] = 0
+	-- Don't reset streak if player already has one
+	if playerStreaks[player] == nil then
+		playerStreaks[player] = 0
+		print("[StreakManager] Initialized", player.Name, "with streak 0")
+	else
+		print("[StreakManager] Player", player.Name, "rejoined with existing streak:", playerStreaks[player])
+	end
 	
 	-- Handle character spawning
 	player.CharacterAdded:Connect(onCharacterAdded)
@@ -171,6 +198,7 @@ end
 
 -- Clean up when player leaves
 local function onPlayerRemoving(player)
+	print("[StreakManager] Player", player.Name, "leaving with streak:", playerStreaks[player] or 0)
 	playerStreaks[player] = nil
 	if streakUIs[player] then
 		streakUIs[player]:Destroy()
