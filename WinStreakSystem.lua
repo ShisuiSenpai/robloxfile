@@ -216,15 +216,26 @@ function _G.StreakManager.IncrementStreak(player)
 		return 
 	end
 	
+	-- Ensure player is in our system
 	if playerStreaks[player] == nil then
-		warn("[StreakManager] Player", player.Name, "not initialized in playerStreaks")
-		playerStreaks[player] = 0
+		warn("[StreakManager] Player", player.Name, "not initialized, initializing now")
+		onPlayerAdded(player)
 	end
 	
 	playerStreaks[player] = playerStreaks[player] + 1
 	print("[StreakManager] " .. player.Name .. " win streak increased to: " .. playerStreaks[player])
 	
-	updateStreakUI(player, playerStreaks[player])
+	-- Add detailed logging
+	print("[StreakManager] About to call updateStreakUI for", player.Name)
+	local success, err = pcall(function()
+		updateStreakUI(player, playerStreaks[player])
+	end)
+	
+	if not success then
+		warn("[StreakManager] Error calling updateStreakUI:", err)
+	else
+		print("[StreakManager] updateStreakUI call completed")
+	end
 	
 	return playerStreaks[player]
 end
@@ -248,7 +259,10 @@ function _G.StreakManager.GetStreak(player)
 end
 
 -- Connect events
-Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerAdded:Connect(function(player)
+	print("[StreakManager] PlayerAdded event fired for", player.Name)
+	onPlayerAdded(player)
+end)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 -- Handle existing players
