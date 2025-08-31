@@ -144,6 +144,9 @@ for tableId, config in pairs(TABLE_CONFIGS) do
 		end
 	end
 	
+	-- Store all connections to prevent garbage collection
+	tableData.connections = {}
+	
 	tables[tableId] = tableData
 end
 
@@ -193,6 +196,37 @@ local function validateUI(tableData)
 	end
 	
 	return true
+end
+
+-- Force complete UI reset for a table
+local function forceUIReset(tableData)
+	print("[PokerGame] Forcing complete UI reset for table", tableData.id)
+	
+	-- Disable and clear existing UI
+	if tableData.gameUI then
+		tableData.gameUI.Enabled = false
+		tableData.gameUI = nil
+	end
+	
+	-- Clear all UI references
+	tableData.turnLabel = nil
+	tableData.statusLabel = nil
+	
+	-- Wait a frame to ensure cleanup
+	RunService.Heartbeat:Wait()
+	
+	-- Setup fresh UI
+	setupGameUI(tableData)
+	
+	-- Ensure UI is enabled
+	if tableData.gameUI then
+		tableData.gameUI.Enabled = true
+		print("[PokerGame] UI reset complete for table", tableData.id)
+		return true
+	else
+		warn("[PokerGame] UI reset failed for table", tableData.id)
+		return false
+	end
 end
 
 -- Start waiting animation
@@ -610,7 +644,7 @@ for tableId, tableData in pairs(tables) do
 	local screenGui, turnLabel, statusLabel
 	
 	-- Game state updates
-	tableData.remoteEvents.GameStateUpdate.OnClientEvent:Connect(function(state, data)
+	tableData.connections.gameStateUpdate = tableData.remoteEvents.GameStateUpdate.OnClientEvent:Connect(function(state, data)
 		-- print("[DEBUG] GameStateUpdate received for table:", tableData.id, "State:", state)
 		
 		if state == "countdown_start" then
@@ -641,7 +675,7 @@ for tableId, tableData in pairs(tables) do
 			-- For now, just prepare for game start
 			
 		elseif state == "game_start" then
-			-- print("[DEBUG] Game starting for table:", tableData.id)
+			print("[PokerGame] Game starting for table:", tableData.id, "- Player:", player.Name)
 			tableData.isCountdownActive = false
 			tableData.gameActive = true
 			tableData.selectedCards = {}
@@ -716,6 +750,9 @@ for tableId, tableData in pairs(tables) do
 		elseif state == "game_end" then
 			print("[PokerGame] Game ended for table", tableData.id, "- Player:", player.Name, "Winner:", data and data.winner)
 			
+			-- Check if we're the winner
+			local isWinner = data and data.winner == player.Name
+			
 			-- Immediately set game as inactive
 			tableData.gameActive = false
 			tableData.isMyTurn = false
@@ -761,10 +798,16 @@ for tableId, tableData in pairs(tables) do
 				-- Hide after delay and show waiting UI again
 				coroutine.wrap(function()
 					local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
-					local hideDelay = data.winner == player.Name and 2 or 3
-					wait(hideDelay)
-					
-					if tableData.gameUI then
+									local hideDelay = data.winner == player.Name and 2 or 3
+				wait(hideDelay)
+				
+				-- FORCE UI RESET FOR WINNERS
+				if isWinner and getCurrentTable() == tableData then
+					print("[PokerGame] Winner detected, forcing UI reset")
+					forceUIReset(tableData)
+				end
+				
+				if tableData.gameUI then
 						-- Fade out status frame
 						local fadeTween = TweenService:Create(statusFrame,
 							TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
@@ -836,7 +879,9 @@ for tableId, tableData in pairs(tables) do
 	end)
 	
 	-- Turn updates with error handling
-	tableData.remoteEvents.TurnUpdate.OnClientEvent:Connect(function(currentTurnPlayer, timeLeft)
+	tableData.connections.turnUpdate = tableData.remoteEvents.TurnUpdate.OnClientEvent:Connect(function(currentTurnPlayer, timeLeft)
+		print("[PokerGame] TurnUpdate received for table", tableData.id, "- Current turn:", currentTurnPlayer, "Time:", timeLeft)
+		
 		-- Validate inputs
 		if not currentTurnPlayer then
 			warn("[PokerGame] TurnUpdate: No player specified")
@@ -905,7 +950,7 @@ for tableId, tableData in pairs(tables) do
 	end)
 	
 	-- Card flip events
-	tableData.remoteEvents.CardFlip.OnClientEvent:Connect(function(cardOrAction)
+	tableData.connections.cardFlip = tableData.remoteEvents.CardFlip.OnClientEvent:Connect(function(cardOrAction)
 		if cardOrAction == "reset_all_cards" then
 			-- Reset all cards for this table
 			for _, card in ipairs(tableData.tablePart:GetChildren()) do
