@@ -168,6 +168,9 @@ local SELECTED_CARD_COLOR = Color3.fromRGB(100, 100, 100)
 -- Waiting animation variables
 local waitingAnimations = {}
 
+-- Forward declaration
+local stopWaitingAnimation
+
 -- Start waiting animation
 local function startWaitingAnimation(tableData, turnLabel)
 	-- print("[DEBUG] startWaitingAnimation called for table:", tableData.id)
@@ -198,7 +201,7 @@ local function startWaitingAnimation(tableData, turnLabel)
 end
 
 -- Stop waiting animation
-local function stopWaitingAnimation(tableData)
+stopWaitingAnimation = function(tableData)
 	if waitingAnimations[tableData.id] then
 		waitingAnimations[tableData.id]:Disconnect()
 		waitingAnimations[tableData.id] = nil
