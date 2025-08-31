@@ -80,7 +80,25 @@ local function getLeaderboardData()
 	
 	-- Collect all player wins
 	for _, player in ipairs(Players:GetPlayers()) do
-		local wins = LeaderstatsManager.GetWins(player)
+		local wins = 0
+		
+		-- Try to get wins from LeaderstatsManager if available
+		local success, result = pcall(function()
+			return LeaderstatsManager.GetWins(player)
+		end)
+		
+		if success then
+			wins = result
+		else
+			-- Fallback to reading directly from leaderstats
+			if player:FindFirstChild("leaderstats") then
+				local winsValue = player.leaderstats:FindFirstChild("Wins")
+				if winsValue then
+					wins = winsValue.Value
+				end
+			end
+		end
+		
 		if wins > 0 then
 			table.insert(playerData, {
 				name = player.Name,
