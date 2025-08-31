@@ -170,6 +170,10 @@ local function startTurnTimer(tableInstance)
 					print("[PokerGame] AUTO-SELECT: Calling selectCard for", currentPlayer.Name, "with card", randomCard.Name)
 					print("[PokerGame] AUTO-SELECT: Before - Current turn:", tableInstance.gameState.currentTurn.Name, "Turn #:", tableInstance.gameState.turnNumber)
 					
+					-- Clear the timer reference first to prevent self-cancellation
+					tableInstance.gameState.turnTimer = nil
+					
+					-- Now call selectCard
 					selectCard(tableInstance, currentPlayer, randomCard)
 					
 					print("[PokerGame] AUTO-SELECT: After - Current turn:", tableInstance.gameState.currentTurn.Name, "Turn #:", tableInstance.gameState.turnNumber)
@@ -185,9 +189,17 @@ end
 local function cancelTurnTimer(tableInstance)
 	if tableInstance.gameState.turnTimer then
 		print("[PokerGame] Cancelling timer thread...")
-		task.cancel(tableInstance.gameState.turnTimer)
+		local success, err = pcall(function()
+			task.cancel(tableInstance.gameState.turnTimer)
+		end)
+		
+		if success then
+			print("[PokerGame] Timer cancelled successfully")
+		else
+			print("[PokerGame] Timer already ended or error:", err)
+		end
+		
 		tableInstance.gameState.turnTimer = nil
-		print("[PokerGame] Timer cancelled successfully")
 	else
 		print("[PokerGame] No timer to cancel")
 	end
