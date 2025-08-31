@@ -614,9 +614,19 @@ for tableId, tableData in pairs(tables) do
 		-- print("[DEBUG] GameStateUpdate received for table:", tableData.id, "State:", state)
 		
 		if state == "countdown_start" then
-			-- print("[DEBUG] Countdown starting for table:", tableData.id)
+			print("[PokerGame] Countdown starting for table:", tableData.id, "- Player:", player.Name)
 			tableData.isCountdownActive = true
 			tableData.gameActive = false
+			
+			-- Force UI refresh for all players (especially winners who didn't respawn)
+			if getCurrentTable() == tableData then
+				if not validateUI(tableData) then
+					warn("[PokerGame] UI invalid at countdown start, recreating")
+					tableData.gameUI = nil
+					setupGameUI(tableData)
+				end
+			end
+			
 			if tableData.gameUI then
 				-- print("[DEBUG] Hiding TurnFrame for countdown")
 				local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
@@ -704,6 +714,8 @@ for tableId, tableData in pairs(tables) do
 			updateCardHighlighting(tableData)
 			
 		elseif state == "game_end" then
+			print("[PokerGame] Game ended for table", tableData.id, "- Player:", player.Name, "Winner:", data and data.winner)
+			
 			-- Immediately set game as inactive
 			tableData.gameActive = false
 			tableData.isMyTurn = false
@@ -771,9 +783,21 @@ for tableId, tableData in pairs(tables) do
 									if humanoid.SeatPart == seat then
 										-- Still seated at this table
 										if not tableData.gameActive then
-											tableData.gameUI.TurnFrame.Visible = true
-											stopWaitingAnimation(tableData)
-											startWaitingAnimation(tableData, tableData.turnLabel)
+											-- Validate UI before using it
+											if not validateUI(tableData) then
+												warn("[PokerGame] UI invalid after game end, recreating for winner")
+												tableData.gameUI = nil
+												setupGameUI(tableData)
+											end
+											
+											if tableData.gameUI then
+												local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+												if turnFrame then
+													turnFrame.Visible = true
+													stopWaitingAnimation(tableData)
+													startWaitingAnimation(tableData, tableData.turnLabel)
+												end
+											end
 										end
 										break
 									end
