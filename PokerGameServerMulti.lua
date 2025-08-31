@@ -20,6 +20,17 @@ if not _G.WinsManager then
 	warn("[PokerGame] WinsManager not found, wins will not be tracked")
 end
 
+-- Wait for StreakManager to be available
+attempts = 0
+while not _G.StreakManager and attempts < 10 do
+	wait(0.5)
+	attempts = attempts + 1
+end
+
+if not _G.StreakManager then
+	warn("[PokerGame] StreakManager not found, streaks will not be tracked")
+end
+
 -- Random seed
 math.randomseed(tick())
 
@@ -155,14 +166,27 @@ local function endGame(tableInstance, winner, loser, reason)
 	tableInstance:updateTableState(TableManager.TableState.ENDING)
 	print("[PokerGame] Game ended at table", tableInstance.tableId, "! Winner:", winner and winner.Name or "None", "Reason:", reason)
 	
-	-- Award win to the winner
-	if winner and _G.WinsManager then
-		local success = _G.WinsManager.IncrementWins(winner)
-		if success then
-			print("[PokerGame] Awarded win to", winner.Name)
-		else
-			warn("[PokerGame] Failed to award win to", winner.Name)
+	-- Award win to the winner and update streak
+	if winner then
+		-- Update wins
+		if _G.WinsManager then
+			local success = _G.WinsManager.IncrementWins(winner)
+			if success then
+				print("[PokerGame] Awarded win to", winner.Name)
+			else
+				warn("[PokerGame] Failed to award win to", winner.Name)
+			end
 		end
+		
+		-- Update streak
+		if _G.StreakManager then
+			_G.StreakManager.IncrementStreak(winner)
+		end
+	end
+	
+	-- Reset loser's streak
+	if loser and _G.StreakManager then
+		_G.StreakManager.ResetStreak(loser)
 	end
 	
 	-- Immediately notify clients that game has ended
