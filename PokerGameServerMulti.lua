@@ -2,12 +2,16 @@
 -- Server-side poker game logic for multiple tables
 -- Place this in ServerScriptService
 
+print("[PokerGame] Multi-table server script starting...")
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Wait for modules
+print("[PokerGame] Waiting for TableManager module...")
 local TableManager = require(ServerScriptService:WaitForChild("TableManager"))
+print("[PokerGame] TableManager loaded successfully")
 
 -- Wait for WinsManager to be available
 local attempts = 0
