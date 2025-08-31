@@ -107,8 +107,11 @@ local TURN_TIME = 10 -- seconds per turn
 
 -- Start turn timer
 local function startTurnTimer(tableInstance)
+	print("[PokerGame] StartTurnTimer called for", tableInstance.gameState.currentTurn.Name)
+	
 	-- Cancel any existing timer
 	if tableInstance.gameState.turnTimer then
+		print("[PokerGame] Cancelling existing timer before starting new one")
 		task.cancel(tableInstance.gameState.turnTimer)
 		tableInstance.gameState.turnTimer = nil
 	end
@@ -116,9 +119,13 @@ local function startTurnTimer(tableInstance)
 	-- Start new timer
 	tableInstance.gameState.turnStartTime = tick()
 	
+	print("[PokerGame] Creating new timer thread for", tableInstance.gameState.currentTurn.Name)
+	
 	-- Create timer coroutine
 	tableInstance.gameState.turnTimer = task.spawn(function()
 		local startTime = tick()
+		
+		print("[PokerGame] Timer thread started for", tableInstance.gameState.currentTurn.Name)
 		
 		-- Send initial timer update
 		tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name, TURN_TIME)
@@ -160,7 +167,12 @@ local function startTurnTimer(tableInstance)
 				-- Make sure turn hasn't changed while we were finding cards
 				if tableInstance.gameState.currentTurn == currentPlayer and 
 				   tableInstance.gameState.turnNumber == currentTurnNumber then
+					print("[PokerGame] AUTO-SELECT: Calling selectCard for", currentPlayer.Name, "with card", randomCard.Name)
+					print("[PokerGame] AUTO-SELECT: Before - Current turn:", tableInstance.gameState.currentTurn.Name, "Turn #:", tableInstance.gameState.turnNumber)
+					
 					selectCard(tableInstance, currentPlayer, randomCard)
+					
+					print("[PokerGame] AUTO-SELECT: After - Current turn:", tableInstance.gameState.currentTurn.Name, "Turn #:", tableInstance.gameState.turnNumber)
 				else
 					print("[PokerGame] Turn changed during auto-select, cancelling")
 				end
@@ -172,8 +184,12 @@ end
 -- Cancel turn timer
 local function cancelTurnTimer(tableInstance)
 	if tableInstance.gameState.turnTimer then
+		print("[PokerGame] Cancelling timer thread...")
 		task.cancel(tableInstance.gameState.turnTimer)
 		tableInstance.gameState.turnTimer = nil
+		print("[PokerGame] Timer cancelled successfully")
+	else
+		print("[PokerGame] No timer to cancel")
 	end
 end
 
@@ -340,31 +356,37 @@ end
 
 -- Handle card selection
 selectCard = function(tableInstance, player, card)
+	print("[PokerGame] SelectCard called - Player:", player.Name, "Card:", card.Name)
 	local gameState = tableInstance.gameState
 	
 	if not gameState.isActive then 
-		print("[PokerGame] SelectCard: Game not active")
+		print("[PokerGame] SelectCard: Game not active - RETURNING EARLY")
 		return 
 	end
 	if gameState.currentTurn ~= player then 
-		print("[PokerGame] SelectCard: Not player's turn -", player.Name, "tried but current turn is", gameState.currentTurn.Name)
+		print("[PokerGame] SelectCard: Not player's turn -", player.Name, "tried but current turn is", gameState.currentTurn.Name, "- RETURNING EARLY")
 		return 
 	end
 	if gameState.selectedCards[card] then 
-		print("[PokerGame] SelectCard: Card already selected")
+		print("[PokerGame] SelectCard: Card already selected - RETURNING EARLY")
 		return 
 	end
 	
+	print("[PokerGame] SelectCard: All checks passed, proceeding...")
 	gameState.selectedCards[card] = true
 	print("[PokerGame] Table", tableInstance.tableId, "-", player.Name, "selected card:", card.Name)
 	
 	tableInstance.remoteEvents.CardFlip:FireAllClients(card)
 	
 	if card == gameState.pokerCard then
+		print("[PokerGame] POKER CARD SELECTED! Ending game...")
 		local winner = (player == gameState.player1) and gameState.player2 or gameState.player1
 		endGame(tableInstance, winner, player, "poker_picked")
 	else
+		print("[PokerGame] Normal card selected, switching turns...")
+		
 		-- Cancel current timer
+		print("[PokerGame] Cancelling current timer...")
 		cancelTurnTimer(tableInstance)
 		
 		-- Switch turns
@@ -373,9 +395,13 @@ selectCard = function(tableInstance, player, card)
 		gameState.currentTurn = (gameState.currentTurn == gameState.player1) and gameState.player2 or gameState.player1
 		
 		print("[PokerGame] Turn switched from", previousPlayer.Name, "to", gameState.currentTurn.Name)
+		print("[PokerGame] New turn number:", gameState.turnNumber)
+		print("[PokerGame] Player1:", gameState.player1.Name, "Player2:", gameState.player2.Name)
 		
 		-- Start new timer for next turn
+		print("[PokerGame] Starting new timer for", gameState.currentTurn.Name)
 		startTurnTimer(tableInstance)
+		print("[PokerGame] Turn switch complete")
 	end
 end
 
