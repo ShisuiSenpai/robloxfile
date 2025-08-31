@@ -723,19 +723,44 @@ for tableId, tableData in pairs(tables) do
 	end)
 	
 	-- Turn updates
-	tableData.remoteEvents.TurnUpdate.OnClientEvent:Connect(function(currentTurnPlayer)
+	tableData.remoteEvents.TurnUpdate.OnClientEvent:Connect(function(currentTurnPlayer, timeLeft)
 		if not tableData.gameActive then return end
 		
 		tableData.isMyTurn = currentTurnPlayer == player.Name
 		
 		if tableData.gameUI and getCurrentTable() == tableData then
 			local turnLabel = tableData.gameUI.TurnFrame.TurnLabel
+			
+			-- Update turn text with timer
+			local turnText = tableData.isMyTurn and "Your Turn" or "Opponent's Turn"
+			if timeLeft then
+				turnText = turnText .. string.format(" (%d)", math.ceil(timeLeft))
+			end
+			
+			turnLabel.Text = turnText
+			
+			-- Color based on turn and urgency
 			if tableData.isMyTurn then
-				turnLabel.Text = "Your Turn"
-				turnLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+				if timeLeft and timeLeft <= 3 then
+					-- Urgent red when time is running out
+					turnLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+				else
+					turnLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+				end
 			else
-				turnLabel.Text = "Opponent's Turn"
 				turnLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+			end
+			
+			-- Add pulse effect when time is low
+			if tableData.isMyTurn and timeLeft and timeLeft <= 3 and timeLeft > 0 then
+				local pulse = TweenService:Create(turnLabel,
+					TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+					{TextTransparency = 0.3}
+				)
+				pulse:Play()
+				pulse.Completed:Connect(function()
+					turnLabel.TextTransparency = 0
+				end)
 			end
 		end
 		

@@ -95,6 +95,62 @@ local function shuffleCards(tableInstance)
 	print("[PokerGame] All cards shuffled for table:", tableInstance.tableId)
 end
 
+-- Timer configuration
+local TURN_TIME = 10 -- seconds per turn
+
+-- Start turn timer
+local function startTurnTimer(tableInstance)
+	-- Cancel any existing timer
+	if tableInstance.gameState.turnTimer then
+		task.cancel(tableInstance.gameState.turnTimer)
+		tableInstance.gameState.turnTimer = nil
+	end
+	
+	-- Start new timer
+	tableInstance.gameState.turnStartTime = tick()
+	tableInstance.gameState.turnTimer = task.spawn(function()
+		local startTime = tick()
+		
+		-- Send initial timer update
+		tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name, TURN_TIME)
+		
+		-- Update timer every 0.1 seconds
+		while tableInstance.gameState.isActive and (tick() - startTime) < TURN_TIME do
+			wait(0.1)
+			local timeLeft = math.max(0, TURN_TIME - (tick() - startTime))
+			tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name, timeLeft)
+		end
+		
+		-- Time's up - select random card
+		if tableInstance.gameState.isActive and tableInstance.gameState.currentTurn then
+			print("[PokerGame] Timer expired for", tableInstance.gameState.currentTurn.Name, "at table", tableInstance.tableId)
+			
+			-- Find available cards
+			local availableCards = {}
+			for _, card in ipairs(tableInstance.cards) do
+				if not tableInstance.gameState.selectedCards[card] then
+					table.insert(availableCards, card)
+				end
+			end
+			
+			-- Select random card
+			if #availableCards > 0 then
+				local randomCard = availableCards[math.random(1, #availableCards)]
+				print("[PokerGame] Auto-selecting random card:", randomCard.Name)
+				selectCard(tableInstance, tableInstance.gameState.currentTurn, randomCard)
+			end
+		end
+	end)
+end
+
+-- Cancel turn timer
+local function cancelTurnTimer(tableInstance)
+	if tableInstance.gameState.turnTimer then
+		task.cancel(tableInstance.gameState.turnTimer)
+		tableInstance.gameState.turnTimer = nil
+	end
+end
+
 -- Start the game
 local function startGame(tableInstance)
 	if tableInstance.gameState.isActive then return end
@@ -155,12 +211,16 @@ local function startGame(tableInstance)
 		currentTurn = tableInstance.gameState.currentTurn.Name
 	})
 	
-	tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name)
+	-- Start turn timer
+	startTurnTimer(tableInstance)
 end
 
 -- End the game
 local function endGame(tableInstance, winner, loser, reason)
 	if not tableInstance.gameState.isActive then return end
+	
+	-- Cancel turn timer
+	cancelTurnTimer(tableInstance)
 	
 	tableInstance.gameState.isActive = false
 	tableInstance:updateTableState(TableManager.TableState.ENDING)
@@ -269,9 +329,14 @@ local function selectCard(tableInstance, player, card)
 		local winner = (player == gameState.player1) and gameState.player2 or gameState.player1
 		endGame(tableInstance, winner, player, "poker_picked")
 	else
+		-- Cancel current timer
+		cancelTurnTimer(tableInstance)
+		
 		gameState.turnNumber = gameState.turnNumber + 1
 		gameState.currentTurn = (gameState.currentTurn == gameState.player1) and gameState.player2 or gameState.player1
-		tableInstance.remoteEvents.TurnUpdate:FireAllClients(gameState.currentTurn.Name)
+		
+		-- Start new timer for next turn
+		startTurnTimer(tableInstance)
 	end
 end
 
