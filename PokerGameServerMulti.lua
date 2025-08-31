@@ -127,14 +127,27 @@ local function startTurnTimer(tableInstance)
 		
 		print("[PokerGame] Timer thread started for", tableInstance.gameState.currentTurn.Name)
 		
-		-- Send initial timer update
+			-- Send initial timer update with error handling
+	local success, err = pcall(function()
 		tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name, TURN_TIME)
+	end)
+	
+	if not success then
+		warn("[PokerGame] Failed to send turn update:", err)
+	end
 		
 		-- Update timer every 0.1 seconds
 		while tableInstance.gameState.isActive and (tick() - startTime) < TURN_TIME do
 			wait(0.1)
 			local timeLeft = math.max(0, TURN_TIME - (tick() - startTime))
-			tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name, timeLeft)
+			local success, err = pcall(function()
+				tableInstance.remoteEvents.TurnUpdate:FireAllClients(tableInstance.gameState.currentTurn.Name, timeLeft)
+			end)
+			
+			if not success then
+				warn("[PokerGame] Failed to send timer update:", err)
+				break
+			end
 		end
 		
 		-- Time's up - select random card
@@ -280,6 +293,9 @@ local function endGame(tableInstance, winner, loser, reason)
 	tableInstance:updateTableState(TableManager.TableState.ENDING)
 	print("[PokerGame] Game ended at table", tableInstance.tableId, "! Winner:", winner and winner.Name or "None", "Reason:", reason)
 	
+	-- Send immediate turn update to clear timer
+	tableInstance.remoteEvents.TurnUpdate:FireAllClients("", 0)
+	
 	-- Award win to the winner and update streak
 	if winner then
 		-- Update wins
@@ -409,6 +425,13 @@ selectCard = function(tableInstance, player, card)
 		print("[PokerGame] Turn switched from", previousPlayer.Name, "to", gameState.currentTurn.Name)
 		print("[PokerGame] New turn number:", gameState.turnNumber)
 		print("[PokerGame] Player1:", gameState.player1.Name, "Player2:", gameState.player2.Name)
+		
+		-- Ensure both players are still connected
+		if not gameState.player1.Parent or not gameState.player2.Parent then
+			warn("[PokerGame] A player disconnected during turn switch")
+			endGame(tableInstance, nil, nil, "player_disconnected")
+			return
+		end
 		
 		-- Start new timer for next turn
 		print("[PokerGame] Starting new timer for", gameState.currentTurn.Name)

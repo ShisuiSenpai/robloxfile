@@ -247,17 +247,49 @@ end
 
 -- Get and setup game UI for a table
 local function setupGameUI(tableData)
-	-- Get the pre-made UI from PlayerGui folder
-	local playerGui = player:WaitForChild("PlayerGui")
-	local uiFolder = playerGui:WaitForChild("PokerGameUI_Table")
-	local uiName = "PokerGameUI_" .. tableData.id
-	local screenGui = uiFolder:WaitForChild(uiName)
+	-- Check if UI already exists and is valid
+	if tableData.gameUI and tableData.gameUI.Parent then
+		-- Just re-enable it
+		tableData.gameUI.Enabled = true
+		return tableData.gameUI, tableData.turnLabel, tableData.statusLabel
+	end
 	
-	-- Get UI elements
-	local turnFrame = screenGui:WaitForChild("TurnFrame")
-	local turnLabel = turnFrame:WaitForChild("TurnLabel")
-	local statusFrame = screenGui:WaitForChild("StatusFrame")
-	local statusLabel = statusFrame:WaitForChild("StatusLabel")
+	-- Get the pre-made UI from PlayerGui folder with error handling
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then
+		warn("[PokerGame] PlayerGui not found")
+		return nil
+	end
+	
+	local uiFolder = playerGui:FindFirstChild("PokerGameUI_Table")
+	if not uiFolder then
+		warn("[PokerGame] PokerGameUI_Table folder not found")
+		return nil
+	end
+	
+	local uiName = "PokerGameUI_" .. tableData.id
+	local screenGui = uiFolder:FindFirstChild(uiName)
+	if not screenGui then
+		warn("[PokerGame] UI not found:", uiName)
+		return nil
+	end
+	
+	-- Get UI elements with error handling
+	local turnFrame = screenGui:FindFirstChild("TurnFrame")
+	local statusFrame = screenGui:FindFirstChild("StatusFrame")
+	
+	if not turnFrame or not statusFrame then
+		warn("[PokerGame] Missing UI frames")
+		return nil
+	end
+	
+	local turnLabel = turnFrame:FindFirstChild("TurnLabel")
+	local statusLabel = statusFrame:FindFirstChild("StatusLabel")
+	
+	if not turnLabel or not statusLabel then
+		warn("[PokerGame] Missing UI labels")
+		return nil
+	end
 	
 	-- Reset to default state
 	turnLabel.Text = "Waiting for players"
@@ -271,6 +303,8 @@ local function setupGameUI(tableData)
 	tableData.gameUI = screenGui
 	tableData.turnLabel = turnLabel
 	tableData.statusLabel = statusLabel
+	
+	print("[PokerGame] UI setup complete for table:", tableData.id)
 	
 	return screenGui, turnLabel, statusLabel
 end
@@ -722,14 +756,36 @@ for tableId, tableData in pairs(tables) do
 		end
 	end)
 	
-	-- Turn updates
+	-- Turn updates with error handling
 	tableData.remoteEvents.TurnUpdate.OnClientEvent:Connect(function(currentTurnPlayer, timeLeft)
-		if not tableData.gameActive then return end
+		-- Validate inputs
+		if not currentTurnPlayer then
+			warn("[PokerGame] TurnUpdate: No player specified")
+			return
+		end
+		
+		if not tableData.gameActive then 
+			-- If we receive turn updates but game isn't active, might be desync
+			print("[PokerGame] TurnUpdate received but game not active")
+			return 
+		end
 		
 		tableData.isMyTurn = currentTurnPlayer == player.Name
 		
 		if tableData.gameUI and getCurrentTable() == tableData then
-			local turnLabel = tableData.gameUI.TurnFrame.TurnLabel
+			-- Ensure UI components exist
+			local turnFrame = tableData.gameUI:FindFirstChild("TurnFrame")
+			if not turnFrame then
+				warn("[PokerGame] TurnFrame missing, recreating UI")
+				setupGameUI(tableData)
+				return
+			end
+			
+			local turnLabel = turnFrame:FindFirstChild("TurnLabel")
+			if not turnLabel then
+				warn("[PokerGame] TurnLabel missing")
+				return
+			end
 			
 			-- Update turn text with timer
 			local turnText = tableData.isMyTurn and "Your Turn" or "Opponent's Turn"
@@ -759,7 +815,9 @@ for tableId, tableData in pairs(tables) do
 				)
 				pulse:Play()
 				pulse.Completed:Connect(function()
-					turnLabel.TextTransparency = 0
+					if turnLabel and turnLabel.Parent then
+						turnLabel.TextTransparency = 0
+					end
 				end)
 			end
 		end
