@@ -393,14 +393,23 @@ local function updateCardHighlighting(tableData)
 	local highlightCount = 0
 	for card, highlight in pairs(tableData.cardHighlights) do
 		highlightCount = highlightCount + 1
-		if tableData.selectedCards[card] or tableData.flippedCards[card] then
+		-- Check if this is the poker card and it's been flipped
+		if tableData.flippedCards[card] and card.Name == "Poker" then
+			-- Red highlight for revealed poker card
+			highlight.FillColor = Color3.fromRGB(255, 0, 0)
+			highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
+			highlight.FillTransparency = 0.5
+			highlight.Enabled = true
+		elseif tableData.selectedCards[card] or tableData.flippedCards[card] then
 			highlight.FillColor = SELECTED_CARD_COLOR
 			highlight.OutlineColor = SELECTED_CARD_COLOR
+			highlight.FillTransparency = 0.7
 			highlight.Enabled = true
 			-- print("[DEBUG] Card", card.Name, "highlighted as SELECTED/FLIPPED")
 		elseif tableData.currentHoveredCard == card and tableData.gameActive and tableData.isMyTurn then
 			highlight.FillColor = HIGHLIGHT_COLOR
 			highlight.OutlineColor = HIGHLIGHT_COLOR
+			highlight.FillTransparency = 0.7
 			highlight.Enabled = true
 			-- print("[DEBUG] Card", card.Name, "highlighted as HOVERED - isMyTurn:", tableData.isMyTurn)
 		else
