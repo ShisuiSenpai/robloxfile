@@ -1,5 +1,5 @@
 -- ShopController.lua
--- Complete shop functionality with smooth slide animations (SIMPLIFIED VERSION)
+-- Complete shop functionality with smooth slide animations (TOGGLE VERSION)
 -- Place this in StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -246,6 +246,22 @@ local function closeShop()
 	end)
 end
 
+-- Toggle shop (open if closed, close if open)
+local function toggleShop()
+	if isAnimating then
+		debugPrint("Shop is animating, cannot toggle")
+		return
+	end
+	
+	if isOpen then
+		debugPrint("Toggling shop: closing")
+		closeShop()
+	else
+		debugPrint("Toggling shop: opening")
+		openShop()
+	end
+end
+
 -- Setup gamepass functionality
 local function setupGamepassItem(itemFrame, categoryType)
 	local buyButton = itemFrame:FindFirstChild("BuyButton")
@@ -366,14 +382,14 @@ end
 -- Connect main buttons
 debugPrint("Setting up main buttons...")
 
--- Setup open button
+-- Setup open button (NOW TOGGLES)
 setupButtonHoverEffect(openButton)
 openButton.MouseButton1Click:Connect(function()
-	debugPrint("Open button clicked")
-	openShop()
+	debugPrint("Open/Toggle button clicked - Current state:", isOpen and "open" or "closed")
+	toggleShop()
 end)
 
--- Setup close button
+-- Setup close button (still just closes)
 setupButtonHoverEffect(closeButton)
 closeButton.MouseButton1Click:Connect(function()
 	debugPrint("Close button clicked")
@@ -383,21 +399,18 @@ end)
 -- Setup all items
 setupAllItems()
 
--- Optional: Keyboard shortcut (P for shop)
+-- Optional: Keyboard shortcut (P for shop - also toggles)
 local UserInputService = game:GetService("UserInputService")
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	
 	if input.KeyCode == Enum.KeyCode.P then
-		debugPrint("P key pressed")
-		if isOpen then
-			closeShop()
-		else
-			openShop()
-		end
+		debugPrint("P key pressed - toggling shop")
+		toggleShop()
 	end
 end)
 
-print("[Shop] Shop controller initialized! Press 'P' to toggle shop.")
+print("[Shop] Shop controller initialized! Press 'P' or click shop button to toggle.")
 print("[Shop] Animation style:", ANIMATION_STYLE)
 print("[Shop] Debug mode is", DEBUG_MODE and "ON" or "OFF")
+print("[Shop] Shop button now TOGGLES the shop (opens/closes)")
