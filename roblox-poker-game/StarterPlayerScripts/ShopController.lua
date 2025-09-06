@@ -1,5 +1,5 @@
 -- ShopController.lua
--- Complete shop functionality with tweening animations (FULLY FIXED VERSION)
+-- Complete shop functionality with smooth slide animations (SIMPLIFIED VERSION)
 -- Place this in StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -41,28 +41,19 @@ local isOpen = false
 local isAnimating = false
 local currentPlayingAudio = nil
 
--- Animation settings
-local TWEEN_TIME = 0.5
-local BOUNCE_TWEEN = TweenInfo.new(
-	TWEEN_TIME,
-	Enum.EasingStyle.Back,
+-- Animation settings (SIMPLIFIED)
+local SLIDE_TIME = 0.4
+local SLIDE_TWEEN = TweenInfo.new(
+	SLIDE_TIME,
+	Enum.EasingStyle.Quint,  -- Smooth acceleration/deceleration
 	Enum.EasingDirection.Out,
-	0,
-	false,
-	0
-)
-
-local SMOOTH_TWEEN = TweenInfo.new(
-	TWEEN_TIME,
-	Enum.EasingStyle.Quad,
-	Enum.EasingDirection.InOut,
 	0,
 	false,
 	0
 )
 
 local FAST_TWEEN = TweenInfo.new(
-	0.2,
+	0.15,
 	Enum.EasingStyle.Quad,
 	Enum.EasingDirection.Out,
 	0,
@@ -70,102 +61,47 @@ local FAST_TWEEN = TweenInfo.new(
 	0
 )
 
--- Store original properties for ALL elements (FIXED - no GetDebugId)
-local originalTransparencies = {}
-local originalProperties = {}
-local elementCounter = 0
+-- Store original position
+local originalPosition = mainFrame.Position
+local originalSize = mainFrame.Size
 
--- Function to store original transparencies
-local function storeOriginalTransparencies()
-	debugPrint("Storing original transparencies...")
-	
-	for _, descendant in ipairs(mainFrame:GetDescendants()) do
-		if descendant:IsA("GuiObject") then
-			-- Use a unique key based on hierarchy instead of GetDebugId
-			elementCounter = elementCounter + 1
-			local key = tostring(elementCounter) .. "_" .. descendant.Name .. "_" .. descendant.ClassName
-			
-			originalTransparencies[descendant] = {
-				BackgroundTransparency = descendant.BackgroundTransparency,
-				TextTransparency = nil,
-				ImageTransparency = nil,
-				TextStrokeTransparency = nil,
-				ScrollBarImageTransparency = nil
-			}
-			
-			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
-				originalTransparencies[descendant].TextTransparency = descendant.TextTransparency
-				originalTransparencies[descendant].TextStrokeTransparency = descendant.TextStrokeTransparency
-			end
-			
-			if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
-				originalTransparencies[descendant].ImageTransparency = descendant.ImageTransparency
-			end
-			
-			if descendant:IsA("ScrollingFrame") then
-				originalTransparencies[descendant].ScrollBarImageTransparency = descendant.ScrollBarImageTransparency
-			end
-			
-			-- Debug specific important elements
-			if descendant.Name == "Container" or descendant.Name == "BGFrame" or descendant.Name == "CloseButton" then
-				debugPrint("Stored transparency for", descendant.Name, "- BG:", descendant.BackgroundTransparency)
-			end
-		end
-	end
-	
-	-- Store mainFrame properties
-	originalProperties.mainFrame = {
-		size = mainFrame.Size,
-		position = mainFrame.Position,
-		visible = mainFrame.Visible
-	}
-	
-	-- Count stored elements
-	local count = 0
-	for _ in pairs(originalTransparencies) do
-		count = count + 1
-	end
-	
-	debugPrint("Stored", count, "element transparencies")
-end
-
--- Initialize by storing transparencies
-storeOriginalTransparencies()
+-- Animation style choice (change this to switch animation type)
+local ANIMATION_STYLE = "SLIDE_RIGHT" -- Options: "SLIDE_RIGHT", "SLIDE_LEFT", "SLIDE_TOP", "SLIDE_BOTTOM", "SCALE_CENTER"
 
 -- Hide shop initially
 mainFrame.Visible = false
 debugPrint("Shop hidden initially")
 
--- Button hover effects (simplified to avoid issues)
+-- Button hover effects
 local function setupButtonHoverEffect(button)
 	if not button then 
 		debugPrint("Warning: Tried to setup hover for nil button")
 		return 
 	end
 	
-	local originalSize = button.Size
+	local originalButtonSize = button.Size
 	local isHovering = false
 	
-	local hoverConnection = button.MouseEnter:Connect(function()
+	button.MouseEnter:Connect(function()
 		if not isAnimating and not isHovering then
 			isHovering = true
-			local hoverTween = TweenService:Create(button, TweenInfo.new(0.1), {
+			local hoverTween = TweenService:Create(button, FAST_TWEEN, {
 				Size = UDim2.new(
-					originalSize.X.Scale * 1.05,
-					originalSize.X.Offset,
-					originalSize.Y.Scale * 1.05,
-					originalSize.Y.Offset
+					originalButtonSize.X.Scale * 1.05,
+					originalButtonSize.X.Offset,
+					originalButtonSize.Y.Scale * 1.05,
+					originalButtonSize.Y.Offset
 				)
 			})
 			hoverTween:Play()
 		end
 	end)
 	
-	local leaveConnection = button.MouseLeave:Connect(function()
+	button.MouseLeave:Connect(function()
 		if isHovering then
 			isHovering = false
-			local leaveTween = TweenService:Create(button, TweenInfo.new(0.1), {
-				Size = originalSize
+			local leaveTween = TweenService:Create(button, FAST_TWEEN, {
+				Size = originalButtonSize
 			})
 			leaveTween:Play()
 		end
@@ -174,7 +110,7 @@ local function setupButtonHoverEffect(button)
 	debugPrint("Setup hover effect for button:", button.Name)
 end
 
--- Open shop animation (FIXED)
+-- Open shop animation (SIMPLIFIED - NO FADE)
 local function openShop()
 	if isOpen or isAnimating then 
 		debugPrint("Shop already open or animating, returning")
@@ -182,98 +118,62 @@ local function openShop()
 	end
 	
 	isAnimating = true
-	debugPrint("Opening shop...")
+	debugPrint("Opening shop with style:", ANIMATION_STYLE)
 	
-	-- Setup for animation
-	mainFrame.Visible = true
-	mainFrame.Size = UDim2.new(0, 0, 0, 0)
-	mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	-- Set anchor point for proper animation
 	mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	
-	-- Make contents initially transparent (but keep UI structure)
-	for descendant, transparencies in pairs(originalTransparencies) do
-		if descendant and descendant.Parent then
-			-- Set to fully transparent
-			descendant.BackgroundTransparency = 1
-			
-			if transparencies.TextTransparency ~= nil then
-				descendant.TextTransparency = 1
-			end
-			
-			if transparencies.ImageTransparency ~= nil then
-				descendant.ImageTransparency = 1
-			end
-			
-			if transparencies.ScrollBarImageTransparency ~= nil then
-				descendant.ScrollBarImageTransparency = 1
-			end
-		end
+	-- Set starting position based on animation style
+	if ANIMATION_STYLE == "SLIDE_RIGHT" then
+		-- Start from left side of screen
+		mainFrame.Position = UDim2.new(-0.5, 0, 0.5, 0)
+		mainFrame.Size = originalSize
+		
+	elseif ANIMATION_STYLE == "SLIDE_LEFT" then
+		-- Start from right side of screen
+		mainFrame.Position = UDim2.new(1.5, 0, 0.5, 0)
+		mainFrame.Size = originalSize
+		
+	elseif ANIMATION_STYLE == "SLIDE_TOP" then
+		-- Start from bottom of screen
+		mainFrame.Position = UDim2.new(0.5, 0, 1.5, 0)
+		mainFrame.Size = originalSize
+		
+	elseif ANIMATION_STYLE == "SLIDE_BOTTOM" then
+		-- Start from top of screen
+		mainFrame.Position = UDim2.new(0.5, 0, -0.5, 0)
+		mainFrame.Size = originalSize
+		
+	elseif ANIMATION_STYLE == "SCALE_CENTER" then
+		-- Start scaled down in center
+		mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		mainFrame.Size = UDim2.new(0, 0, 0, 0)
 	end
 	
-	debugPrint("Set all elements to transparent")
+	-- Make visible
+	mainFrame.Visible = true
 	
-	-- Animate main frame scaling up
-	local openTween = TweenService:Create(mainFrame, BOUNCE_TWEEN, {
-		Size = originalProperties.mainFrame.size
-	})
+	-- Animate to final position
+	local openTween
+	if ANIMATION_STYLE == "SCALE_CENTER" then
+		openTween = TweenService:Create(mainFrame, SLIDE_TWEEN, {
+			Size = originalSize
+		})
+	else
+		openTween = TweenService:Create(mainFrame, SLIDE_TWEEN, {
+			Position = UDim2.new(0.5, 0, 0.5, 0)
+		})
+	end
 	
 	openTween:Play()
-	debugPrint("Started main frame scale animation")
+	debugPrint("Started open animation")
 	
-	-- Fade in contents after frame opens
 	openTween.Completed:Connect(function()
-		debugPrint("Main frame animation complete, fading in contents...")
-		
-		-- Restore all original transparencies
-		for descendant, transparencies in pairs(originalTransparencies) do
-			if descendant and descendant.Parent then
-				-- Create tweens to restore original transparency
-				local props = {}
-				
-				-- Only add properties that need to be changed
-				if transparencies.BackgroundTransparency ~= nil then
-					props.BackgroundTransparency = transparencies.BackgroundTransparency
-				end
-				
-				-- Create and play the tween if there are properties to animate
-				if next(props) ~= nil then
-					local fadeTween = TweenService:Create(descendant, FAST_TWEEN, props)
-					fadeTween:Play()
-				end
-				
-				-- Handle text transparency separately
-				if transparencies.TextTransparency ~= nil then
-					local textTween = TweenService:Create(descendant, FAST_TWEEN, {
-						TextTransparency = transparencies.TextTransparency
-					})
-					textTween:Play()
-				end
-				
-				-- Handle image transparency
-				if transparencies.ImageTransparency ~= nil then
-					local imageTween = TweenService:Create(descendant, FAST_TWEEN, {
-						ImageTransparency = transparencies.ImageTransparency
-					})
-					imageTween:Play()
-				end
-				
-				-- Handle scrollbar
-				if transparencies.ScrollBarImageTransparency ~= nil then
-					local scrollTween = TweenService:Create(descendant, FAST_TWEEN, {
-						ScrollBarImageTransparency = transparencies.ScrollBarImageTransparency
-					})
-					scrollTween:Play()
-				end
-			end
-		end
-		
-		task.wait(FAST_TWEEN.Time)
-		
 		isOpen = true
 		isAnimating = false
 		debugPrint("Shop fully opened")
 		
-		-- Test scrolling
+		-- Debug scrolling info
 		debugPrint("Container CanvasSize:", container.CanvasSize)
 		debugPrint("Container AbsoluteSize:", container.AbsoluteSize)
 		debugPrint("Container ScrollingEnabled:", container.ScrollingEnabled)
@@ -281,7 +181,7 @@ local function openShop()
 	end)
 end
 
--- Close shop animation (FIXED)
+-- Close shop animation (SIMPLIFIED - NO FADE)
 local function closeShop()
 	if not isOpen or isAnimating then 
 		debugPrint("Shop not open or animating, returning")
@@ -289,7 +189,7 @@ local function closeShop()
 	end
 	
 	isAnimating = true
-	debugPrint("Closing shop...")
+	debugPrint("Closing shop with style:", ANIMATION_STYLE)
 	
 	-- Stop any playing audio
 	if currentPlayingAudio then
@@ -297,44 +197,43 @@ local function closeShop()
 		currentPlayingAudio = nil
 	end
 	
-	-- Fade out contents first
-	for descendant, _ in pairs(originalTransparencies) do
-		if descendant and descendant.Parent then
-			local fadeOut = TweenService:Create(descendant, FAST_TWEEN, {
-				BackgroundTransparency = 1
-			})
-			fadeOut:Play()
-			
-			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
-				local textFade = TweenService:Create(descendant, FAST_TWEEN, {
-					TextTransparency = 1
-				})
-				textFade:Play()
-			end
-			
-			if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
-				local imageFade = TweenService:Create(descendant, FAST_TWEEN, {
-					ImageTransparency = 1
-				})
-				imageFade:Play()
-			end
-			
-			if descendant:IsA("ScrollingFrame") then
-				local scrollFade = TweenService:Create(descendant, FAST_TWEEN, {
-					ScrollBarImageTransparency = 1
-				})
-				scrollFade:Play()
-			end
-		end
+	-- Determine end position based on animation style
+	local endPosition
+	local endSize = originalSize
+	
+	if ANIMATION_STYLE == "SLIDE_RIGHT" then
+		-- Exit to right side
+		endPosition = UDim2.new(1.5, 0, 0.5, 0)
+		
+	elseif ANIMATION_STYLE == "SLIDE_LEFT" then
+		-- Exit to left side
+		endPosition = UDim2.new(-0.5, 0, 0.5, 0)
+		
+	elseif ANIMATION_STYLE == "SLIDE_TOP" then
+		-- Exit to top
+		endPosition = UDim2.new(0.5, 0, -0.5, 0)
+		
+	elseif ANIMATION_STYLE == "SLIDE_BOTTOM" then
+		-- Exit to bottom
+		endPosition = UDim2.new(0.5, 0, 1.5, 0)
+		
+	elseif ANIMATION_STYLE == "SCALE_CENTER" then
+		-- Scale down in center
+		endPosition = UDim2.new(0.5, 0, 0.5, 0)
+		endSize = UDim2.new(0, 0, 0, 0)
 	end
 	
-	-- Wait for fade out then scale down
-	task.wait(FAST_TWEEN.Time)
-	
-	-- Animate main frame scaling down
-	local closeTween = TweenService:Create(mainFrame, SMOOTH_TWEEN, {
-		Size = UDim2.new(0, 0, 0, 0)
-	})
+	-- Animate close
+	local closeTween
+	if ANIMATION_STYLE == "SCALE_CENTER" then
+		closeTween = TweenService:Create(mainFrame, SLIDE_TWEEN, {
+			Size = endSize
+		})
+	else
+		closeTween = TweenService:Create(mainFrame, SLIDE_TWEEN, {
+			Position = endPosition
+		})
+	end
 	
 	closeTween:Play()
 	debugPrint("Started close animation")
@@ -371,8 +270,6 @@ local function setupGamepassItem(itemFrame, categoryType)
 			-- Add your purchase logic here
 			-- Example: MarketplaceService:PromptGamePassPurchase(player, gamepassId)
 		end)
-	else
-		debugPrint("No buy button found for", itemFrame.Name)
 	end
 	
 	-- Setup gift button
@@ -389,8 +286,6 @@ local function setupGamepassItem(itemFrame, categoryType)
 			
 			-- Add your gift logic here
 		end)
-	else
-		debugPrint("No gift button found for", itemFrame.Name)
 	end
 	
 	-- Setup audio controls
@@ -425,25 +320,7 @@ local function setupGamepassItem(itemFrame, categoryType)
 			playButton.Visible = false
 			pauseButton.Visible = true
 			
-			-- Create and play audio (replace with actual sound ID)
-			--[[
-			local sound = Instance.new("Sound")
-			sound.SoundId = "rbxassetid://1234567890" -- Replace with actual sound ID
-			sound.Volume = 0.5
-			sound.Parent = SoundService
-			sound:Play()
-			
-			currentPlayingAudio = sound
-			
-			sound.Ended:Connect(function()
-				playButton.Visible = true
-				pauseButton.Visible = false
-				sound:Destroy()
-				if currentPlayingAudio == sound then
-					currentPlayingAudio = nil
-				end
-			end)
-			--]]
+			-- Audio playback code here
 		end)
 		
 		pauseButton.MouseButton1Click:Connect(function()
@@ -466,29 +343,23 @@ local function setupAllItems()
 	-- Setup audio items
 	local audioContainer = container:FindFirstChild("GamepassesContainer_Audio")
 	if audioContainer then
-		debugPrint("Found audio container with", #audioContainer:GetChildren(), "children")
+		debugPrint("Found audio container")
 		for _, item in ipairs(audioContainer:GetChildren()) do
 			if item:IsA("ImageLabel") and item.Name:match("Gamepass") then
 				setupGamepassItem(item, "Audio")
-				debugPrint("Setup audio item:", item.Name)
 			end
 		end
-	else
-		debugPrint("Audio container not found")
 	end
 	
 	-- Setup card items
 	local cardsContainer = container:FindFirstChild("GamepassesContainer_Cards")
 	if cardsContainer then
-		debugPrint("Found cards container with", #cardsContainer:GetChildren(), "children")
+		debugPrint("Found cards container")
 		for _, item in ipairs(cardsContainer:GetChildren()) do
 			if item:IsA("ImageLabel") and item.Name:match("Gamepass") then
 				setupGamepassItem(item, "Cards")
-				debugPrint("Setup card item:", item.Name)
 			end
 		end
-	else
-		debugPrint("Cards container not found")
 	end
 end
 
@@ -528,6 +399,5 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 print("[Shop] Shop controller initialized! Press 'P' to toggle shop.")
+print("[Shop] Animation style:", ANIMATION_STYLE)
 print("[Shop] Debug mode is", DEBUG_MODE and "ON" or "OFF")
-print("[Shop] Open button found:", openButton and "YES" or "NO")
-print("[Shop] Close button found:", closeButton and "YES" or "NO")
