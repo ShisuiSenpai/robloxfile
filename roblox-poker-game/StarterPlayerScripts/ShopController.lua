@@ -1,5 +1,5 @@
 -- ShopController.lua
--- Complete shop functionality with tweening animations
+-- Complete shop functionality with tweening animations (FIXED VERSION)
 -- Place this in StarterPlayer > StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -11,16 +11,30 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Debug mode
+local DEBUG_MODE = true -- Set to false to disable debug prints
+
+local function debugPrint(...)
+	if DEBUG_MODE then
+		print("[Shop Debug]", ...)
+	end
+end
+
 -- Wait for shop GUI
+debugPrint("Waiting for LimitedStoreGUI...")
 local shopGui = playerGui:WaitForChild("LimitedStoreGUI")
 local mainFrame = shopGui:WaitForChild("MainFrame")
 local openButton = shopGui:WaitForChild("OpenShopbtn")
+
+debugPrint("Found main elements")
 
 -- Get UI elements
 local uiLabel = mainFrame:WaitForChild("UiLabel")
 local closeButton = uiLabel:WaitForChild("CloseButton")
 local bgFrame = uiLabel:WaitForChild("BGFrame")
 local container = bgFrame:WaitForChild("Container")
+
+debugPrint("All UI elements loaded")
 
 -- Shop state
 local isOpen = false
@@ -56,84 +70,97 @@ local FAST_TWEEN = TweenInfo.new(
 	0
 )
 
--- Store original properties for animation
-local originalProperties = {
-	mainFrame = {
+-- Store original properties for ALL elements (CRITICAL FIX)
+local originalTransparencies = {}
+local originalProperties = {}
+
+-- Function to store original transparencies
+local function storeOriginalTransparencies()
+	debugPrint("Storing original transparencies...")
+	
+	for _, descendant in ipairs(mainFrame:GetDescendants()) do
+		if descendant:IsA("GuiObject") then
+			local id = descendant:GetDebugId()
+			originalTransparencies[descendant] = {
+				BackgroundTransparency = descendant.BackgroundTransparency,
+				TextTransparency = nil,
+				ImageTransparency = nil,
+				TextStrokeTransparency = nil
+			}
+			
+			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+				originalTransparencies[descendant].TextTransparency = descendant.TextTransparency
+				originalTransparencies[descendant].TextStrokeTransparency = descendant.TextStrokeTransparency
+			end
+			
+			if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+				originalTransparencies[descendant].ImageTransparency = descendant.ImageTransparency
+			end
+			
+			if descendant:IsA("ScrollingFrame") then
+				originalTransparencies[descendant].ScrollBarImageTransparency = descendant.ScrollBarImageTransparency
+			end
+			
+			-- Debug specific important elements
+			if descendant.Name == "Container" or descendant.Name == "BGFrame" then
+				debugPrint("Stored transparency for", descendant.Name, "- BG:", descendant.BackgroundTransparency)
+			end
+		end
+	end
+	
+	-- Store mainFrame properties
+	originalProperties.mainFrame = {
 		size = mainFrame.Size,
 		position = mainFrame.Position,
 		visible = mainFrame.Visible
 	}
-}
+	
+	debugPrint("Stored", #originalTransparencies, "element transparencies")
+end
+
+-- Initialize by storing transparencies
+storeOriginalTransparencies()
 
 -- Hide shop initially
 mainFrame.Visible = false
+debugPrint("Shop hidden initially")
 
--- Sound effects (optional - create these if you want)
-local function playSound(soundId)
-	-- You can add sound effects here
-	-- Example:
-	-- local sound = Instance.new("Sound")
-	-- sound.SoundId = soundId
-	-- sound.Volume = 0.5
-	-- sound.Parent = SoundService
-	-- sound:Play()
-	-- sound.Ended:Connect(function() sound:Destroy() end)
-end
-
--- Button hover effects
+-- Button hover effects (simplified to avoid issues)
 local function setupButtonHoverEffect(button)
+	if not button then 
+		debugPrint("Warning: Tried to setup hover for nil button")
+		return 
+	end
+	
 	local originalSize = button.Size
-	local hoverSize = UDim2.new(
-		originalSize.X.Scale * 1.05,
-		originalSize.X.Offset,
-		originalSize.Y.Scale * 1.05,
-		originalSize.Y.Offset
-	)
 	
 	button.MouseEnter:Connect(function()
 		if not isAnimating then
-			local tween = TweenService:Create(button, FAST_TWEEN, {
-				Size = hoverSize
-			})
-			tween:Play()
+			button.Size = UDim2.new(
+				originalSize.X.Scale * 1.05,
+				originalSize.X.Offset,
+				originalSize.Y.Scale * 1.05,
+				originalSize.Y.Offset
+			)
 		end
 	end)
 	
 	button.MouseLeave:Connect(function()
-		local tween = TweenService:Create(button, FAST_TWEEN, {
-			Size = originalSize
-		})
-		tween:Play()
+		button.Size = originalSize
 	end)
 	
-	-- Click effect
-	button.MouseButton1Down:Connect(function()
-		local clickSize = UDim2.new(
-			originalSize.X.Scale * 0.95,
-			originalSize.X.Offset,
-			originalSize.Y.Scale * 0.95,
-			originalSize.Y.Offset
-		)
-		local tween = TweenService:Create(button, TweenInfo.new(0.1), {
-			Size = clickSize
-		})
-		tween:Play()
-	end)
-	
-	button.MouseButton1Up:Connect(function()
-		local tween = TweenService:Create(button, TweenInfo.new(0.1), {
-			Size = originalSize
-		})
-		tween:Play()
-	end)
+	debugPrint("Setup hover effect for button:", button.Name)
 end
 
--- Open shop animation
+-- Open shop animation (FIXED)
 local function openShop()
-	if isOpen or isAnimating then return end
-	isAnimating = true
+	if isOpen or isAnimating then 
+		debugPrint("Shop already open or animating, returning")
+		return 
+	end
 	
-	print("[Shop] Opening shop...")
+	isAnimating = true
+	debugPrint("Opening shop...")
 	
 	-- Setup for animation
 	mainFrame.Visible = true
@@ -141,17 +168,27 @@ local function openShop()
 	mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	
-	-- Make contents initially transparent
-	for _, descendant in ipairs(mainFrame:GetDescendants()) do
-		if descendant:IsA("GuiObject") then
+	-- Make contents initially transparent (but keep UI structure)
+	for descendant, transparencies in pairs(originalTransparencies) do
+		if descendant and descendant.Parent then
+			-- Set to fully transparent
 			descendant.BackgroundTransparency = 1
-			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+			
+			if transparencies.TextTransparency ~= nil then
 				descendant.TextTransparency = 1
-			elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+			end
+			
+			if transparencies.ImageTransparency ~= nil then
 				descendant.ImageTransparency = 1
+			end
+			
+			if transparencies.ScrollBarImageTransparency ~= nil then
+				descendant.ScrollBarImageTransparency = 1
 			end
 		end
 	end
+	
+	debugPrint("Set all elements to transparent")
 	
 	-- Animate main frame scaling up
 	local openTween = TweenService:Create(mainFrame, BOUNCE_TWEEN, {
@@ -159,58 +196,77 @@ local function openShop()
 	})
 	
 	openTween:Play()
+	debugPrint("Started main frame scale animation")
 	
 	-- Fade in contents after frame opens
 	openTween.Completed:Connect(function()
-		-- Fade in all elements
-		for _, descendant in ipairs(mainFrame:GetDescendants()) do
-			if descendant:IsA("GuiObject") then
-				-- Store original transparency
-				local originalBgTransparency = descendant.BackgroundTransparency
-				local originalTextTransparency = nil
-				local originalImageTransparency = nil
+		debugPrint("Main frame animation complete, fading in contents...")
+		
+		-- Restore all original transparencies
+		for descendant, transparencies in pairs(originalTransparencies) do
+			if descendant and descendant.Parent then
+				-- Create tweens to restore original transparency
+				local props = {}
 				
-				if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-					originalTextTransparency = descendant.TextTransparency
-				elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
-					originalImageTransparency = descendant.ImageTransparency
+				-- Only add properties that need to be changed
+				if transparencies.BackgroundTransparency ~= nil then
+					props.BackgroundTransparency = transparencies.BackgroundTransparency
 				end
 				
-				-- Animate fade in
-				local fadeIn = TweenService:Create(descendant, FAST_TWEEN, {
-					BackgroundTransparency = descendant.Name == "Fade" and 0.5 or 
-						(descendant.Name == "GrayFade" and 0.7 or 0)
-				})
-				fadeIn:Play()
-				
-				if originalTextTransparency then
-					local textFade = TweenService:Create(descendant, FAST_TWEEN, {
-						TextTransparency = 0
-					})
-					textFade:Play()
+				-- Create and play the tween if there are properties to animate
+				if next(props) ~= nil then
+					local fadeTween = TweenService:Create(descendant, FAST_TWEEN, props)
+					fadeTween:Play()
 				end
 				
-				if originalImageTransparency then
-					local imageFade = TweenService:Create(descendant, FAST_TWEEN, {
-						ImageTransparency = 0
+				-- Handle text transparency separately
+				if transparencies.TextTransparency ~= nil then
+					local textTween = TweenService:Create(descendant, FAST_TWEEN, {
+						TextTransparency = transparencies.TextTransparency
 					})
-					imageFade:Play()
+					textTween:Play()
+				end
+				
+				-- Handle image transparency
+				if transparencies.ImageTransparency ~= nil then
+					local imageTween = TweenService:Create(descendant, FAST_TWEEN, {
+						ImageTransparency = transparencies.ImageTransparency
+					})
+					imageTween:Play()
+				end
+				
+				-- Handle scrollbar
+				if transparencies.ScrollBarImageTransparency ~= nil then
+					local scrollTween = TweenService:Create(descendant, FAST_TWEEN, {
+						ScrollBarImageTransparency = transparencies.ScrollBarImageTransparency
+					})
+					scrollTween:Play()
 				end
 			end
 		end
 		
+		wait(FAST_TWEEN.Time)
+		
 		isOpen = true
 		isAnimating = false
-		playSound("rbxasset://sounds/uuhhh.mp3") -- Open sound
+		debugPrint("Shop fully opened")
+		
+		-- Test scrolling
+		debugPrint("Container CanvasSize:", container.CanvasSize)
+		debugPrint("Container AbsoluteSize:", container.AbsoluteSize)
+		debugPrint("Container ScrollingEnabled:", container.ScrollingEnabled)
 	end)
 end
 
--- Close shop animation
+-- Close shop animation (FIXED)
 local function closeShop()
-	if not isOpen or isAnimating then return end
-	isAnimating = true
+	if not isOpen or isAnimating then 
+		debugPrint("Shop not open or animating, returning")
+		return 
+	end
 	
-	print("[Shop] Closing shop...")
+	isAnimating = true
+	debugPrint("Closing shop...")
 	
 	-- Stop any playing audio
 	if currentPlayingAudio then
@@ -219,23 +275,32 @@ local function closeShop()
 	end
 	
 	-- Fade out contents first
-	for _, descendant in ipairs(mainFrame:GetDescendants()) do
-		if descendant:IsA("GuiObject") then
+	for descendant, _ in pairs(originalTransparencies) do
+		if descendant and descendant.Parent then
 			local fadeOut = TweenService:Create(descendant, FAST_TWEEN, {
 				BackgroundTransparency = 1
 			})
 			fadeOut:Play()
 			
-			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+			if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
 				local textFade = TweenService:Create(descendant, FAST_TWEEN, {
 					TextTransparency = 1
 				})
 				textFade:Play()
-			elseif descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+			end
+			
+			if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
 				local imageFade = TweenService:Create(descendant, FAST_TWEEN, {
 					ImageTransparency = 1
 				})
 				imageFade:Play()
+			end
+			
+			if descendant:IsA("ScrollingFrame") then
+				local scrollFade = TweenService:Create(descendant, FAST_TWEEN, {
+					ScrollBarImageTransparency = 1
+				})
+				scrollFade:Play()
 			end
 		end
 	end
@@ -249,12 +314,13 @@ local function closeShop()
 	})
 	
 	closeTween:Play()
+	debugPrint("Started close animation")
 	
 	closeTween.Completed:Connect(function()
 		mainFrame.Visible = false
 		isOpen = false
 		isAnimating = false
-		playSound("rbxasset://sounds/swoosh.mp3") -- Close sound
+		debugPrint("Shop fully closed")
 	end)
 end
 
@@ -264,22 +330,14 @@ local function setupGamepassItem(itemFrame, categoryType)
 	local giftButton = itemFrame:FindFirstChild("GiftButton")
 	local playButton = itemFrame:FindFirstChild("PlayButton")
 	local pauseButton = itemFrame:FindFirstChild("PauseButton")
-	local priceLabel = itemFrame:FindFirstChild("Price1")
 	
 	-- Setup buy button
 	if buyButton then
 		setupButtonHoverEffect(buyButton)
 		
 		buyButton.MouseButton1Click:Connect(function()
-			print("[Shop] Buy button clicked for", itemFrame.Name)
+			debugPrint("Buy button clicked for", itemFrame.Name)
 			-- Add your purchase logic here
-			-- Example: MarketplaceService:PromptGamePassPurchase(player, gamepassId)
-			
-			-- Visual feedback
-			local originalColor = buyButton.BackgroundColor3
-			buyButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-			wait(0.2)
-			buyButton.BackgroundColor3 = originalColor
 		end)
 	end
 	
@@ -288,18 +346,12 @@ local function setupGamepassItem(itemFrame, categoryType)
 		setupButtonHoverEffect(giftButton)
 		
 		giftButton.MouseButton1Click:Connect(function()
-			print("[Shop] Gift button clicked for", itemFrame.Name)
+			debugPrint("Gift button clicked for", itemFrame.Name)
 			-- Add your gift logic here
-			
-			-- Visual feedback
-			local originalColor = giftButton.BackgroundColor3
-			giftButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-			wait(0.2)
-			giftButton.BackgroundColor3 = originalColor
 		end)
 	end
 	
-	-- Setup audio controls (for audio items)
+	-- Setup audio controls
 	if playButton and pauseButton then
 		setupButtonHoverEffect(playButton)
 		setupButtonHoverEffect(pauseButton)
@@ -308,116 +360,68 @@ local function setupGamepassItem(itemFrame, categoryType)
 		pauseButton.Visible = false
 		
 		playButton.MouseButton1Click:Connect(function()
-			print("[Shop] Play button clicked for", itemFrame.Name)
-			
-			-- Stop any other playing audio
-			if currentPlayingAudio then
-				currentPlayingAudio:Stop()
-				-- Reset all pause/play buttons
-				for _, audioContainer in ipairs(container:GetChildren()) do
-					if audioContainer.Name == "GamepassesContainer_Audio" then
-						for _, gamepass in ipairs(audioContainer:GetChildren()) do
-							if gamepass:IsA("ImageLabel") then
-								local play = gamepass:FindFirstChild("PlayButton")
-								local pause = gamepass:FindFirstChild("PauseButton")
-								if play then play.Visible = true end
-								if pause then pause.Visible = false end
-							end
-						end
-					end
-				end
-			end
-			
-			-- Create and play audio
-			local sound = Instance.new("Sound")
-			sound.SoundId = "rbxassetid://1234567890" -- Replace with actual sound ID
-			sound.Volume = 0.5
-			sound.Parent = SoundService
-			sound:Play()
-			
-			currentPlayingAudio = sound
+			debugPrint("Play button clicked for", itemFrame.Name)
 			playButton.Visible = false
 			pauseButton.Visible = true
-			
-			sound.Ended:Connect(function()
-				playButton.Visible = true
-				pauseButton.Visible = false
-				sound:Destroy()
-				if currentPlayingAudio == sound then
-					currentPlayingAudio = nil
-				end
-			end)
 		end)
 		
 		pauseButton.MouseButton1Click:Connect(function()
-			print("[Shop] Pause button clicked for", itemFrame.Name)
-			
-			if currentPlayingAudio then
-				currentPlayingAudio:Pause()
-				playButton.Visible = true
-				pauseButton.Visible = false
-			end
+			debugPrint("Pause button clicked for", itemFrame.Name)
+			playButton.Visible = true
+			pauseButton.Visible = false
 		end)
 	end
 end
 
 -- Setup all gamepass items
 local function setupAllItems()
+	debugPrint("Setting up all shop items...")
+	
 	-- Setup audio items
 	local audioContainer = container:FindFirstChild("GamepassesContainer_Audio")
 	if audioContainer then
+		debugPrint("Found audio container")
 		for _, item in ipairs(audioContainer:GetChildren()) do
 			if item:IsA("ImageLabel") and item.Name:match("Gamepass") then
 				setupGamepassItem(item, "Audio")
+				debugPrint("Setup audio item:", item.Name)
 			end
 		end
+	else
+		debugPrint("Audio container not found")
 	end
 	
 	-- Setup card items
 	local cardsContainer = container:FindFirstChild("GamepassesContainer_Cards")
 	if cardsContainer then
+		debugPrint("Found cards container")
 		for _, item in ipairs(cardsContainer:GetChildren()) do
 			if item:IsA("ImageLabel") and item.Name:match("Gamepass") then
 				setupGamepassItem(item, "Cards")
+				debugPrint("Setup card item:", item.Name)
 			end
 		end
+	else
+		debugPrint("Cards container not found")
 	end
-end
-
--- Smooth scroll animation for container
-local function setupSmoothScroll()
-	local scrolling = false
-	local targetPosition = container.CanvasPosition
-	
-	container:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-		if not scrolling then
-			targetPosition = container.CanvasPosition
-		end
-	end)
-	
-	RunService.RenderStepped:Connect(function()
-		if container.CanvasPosition ~= targetPosition then
-			scrolling = true
-			container.CanvasPosition = container.CanvasPosition:Lerp(targetPosition, 0.2)
-			
-			if (container.CanvasPosition - targetPosition).Magnitude < 1 then
-				container.CanvasPosition = targetPosition
-				scrolling = false
-			end
-		end
-	end)
 end
 
 -- Connect buttons
 setupButtonHoverEffect(openButton)
 setupButtonHoverEffect(closeButton)
 
-openButton.MouseButton1Click:Connect(openShop)
-closeButton.MouseButton1Click:Connect(closeShop)
+openButton.MouseButton1Click:Connect(function()
+	debugPrint("Open button clicked")
+	openShop()
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+	debugPrint("Close button clicked")
+	closeShop()
+end)
 
 -- Setup all items
 setupAllItems()
-setupSmoothScroll()
 
 -- Optional: Keyboard shortcut (P for shop)
 local UserInputService = game:GetService("UserInputService")
@@ -425,6 +429,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	
 	if input.KeyCode == Enum.KeyCode.P then
+		debugPrint("P key pressed")
 		if isOpen then
 			closeShop()
 		else
@@ -434,3 +439,4 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 print("[Shop] Shop controller initialized! Press 'P' to toggle shop.")
+print("[Shop] Debug mode is", DEBUG_MODE and "ON" or "OFF")
