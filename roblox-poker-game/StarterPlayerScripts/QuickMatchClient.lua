@@ -333,7 +333,7 @@ player.CharacterRemoving:Connect(function()
 end)
 
 -- Listen for game state changes from all tables
-for i = 1, 10 do
+for i = 1, 5 do
 	local tableFolder = ReplicatedStorage:WaitForChild("RemoteEvents"):FindFirstChild("Table" .. i)
 	if tableFolder then
 		local gameStateEvent = tableFolder:FindFirstChild("GameStateUpdate")

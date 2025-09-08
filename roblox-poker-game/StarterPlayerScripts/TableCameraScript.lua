@@ -30,26 +30,6 @@ local TABLE_CONFIGS = {
 	Table5Folder = {
 		cameraPart = "CameraPartTable5",
 		seats = {"Player1Chair", "Player2Chair"}
-	},
-	Table6Folder = {
-		cameraPart = "CameraPartTable6",
-		seats = {"Player1Chair", "Player2Chair"}
-	},
-	Table7Folder = {
-		cameraPart = "CameraPartTable7",
-		seats = {"Player1Chair", "Player2Chair"}
-	},
-	Table8Folder = {
-		cameraPart = "CameraPartTable8",
-		seats = {"Player1Chair", "Player2Chair"}
-	},
-	Table9Folder = {
-		cameraPart = "CameraPartTable9",
-		seats = {"Player1Chair", "Player2Chair"}
-	},
-	Table10Folder = {
-		cameraPart = "CameraPartTable10",
-		seats = {"Player1Chair", "Player2Chair"}
 	}
 }
 

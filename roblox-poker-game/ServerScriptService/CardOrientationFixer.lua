@@ -30,31 +30,6 @@ local TABLE_CONFIGS = {
 		folderName = "Table5Folder",
 		tableName = "Table5",
 		cameraPart = "CameraPartTable5"
-	},
-	{
-		folderName = "Table6Folder",
-		tableName = "Table6",
-		cameraPart = "CameraPartTable6"
-	},
-	{
-		folderName = "Table7Folder",
-		tableName = "Table7",
-		cameraPart = "CameraPartTable7"
-	},
-	{
-		folderName = "Table8Folder",
-		tableName = "Table8",
-		cameraPart = "CameraPartTable8"
-	},
-	{
-		folderName = "Table9Folder",
-		tableName = "Table9",
-		cameraPart = "CameraPartTable9"
-	},
-	{
-		folderName = "Table10Folder",
-		tableName = "Table10",
-		cameraPart = "CameraPartTable10"
 	}
 }
 
