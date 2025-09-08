@@ -1,5 +1,5 @@
 -- ShopControllerWithProximity.lua
--- Enhanced shop controller that supports both button and proximity opening
+-- Enhanced shop controller that supports both button and proximity opening (FIXED BOUNDS)
 -- REPLACE your existing ShopController with this version
 -- Place this in StarterPlayer > StarterPlayerScripts (rename to ShopController.lua)
 
@@ -69,7 +69,7 @@ mainFrame.Visible = false
 openShopPart.Transparency = 1
 openShopPart.CanCollide = false
 
--- Check if player is within bounds
+-- FIXED: Check if player is within the part's 3D volume
 local function isPlayerInBounds()
 	local character = player.Character
 	if not character then return false end
@@ -77,16 +77,62 @@ local function isPlayerInBounds()
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return false end
 	
+	-- Get the part's world-space bounding box
 	local partCFrame = openShopPart.CFrame
 	local partSize = openShopPart.Size
+	
+	-- Convert player position to part's local space
 	local relativePosition = partCFrame:PointToObjectSpace(humanoidRootPart.Position)
+	
+	-- Get half extents of the part
 	local halfSize = partSize / 2
 	
+	-- Check if player is within ALL bounds of the part
+	-- This creates a 3D box check
 	local withinX = math.abs(relativePosition.X) <= halfSize.X
+	local withinY = math.abs(relativePosition.Y) <= halfSize.Y
 	local withinZ = math.abs(relativePosition.Z) <= halfSize.Z
-	local onSurface = relativePosition.Y >= -1 and relativePosition.Y <= halfSize.Y + 10
 	
-	return withinX and withinZ and onSurface
+	-- Player must be within all three dimensions
+	local isInside = withinX and withinY and withinZ
+	
+	-- Debug output
+	if DEBUG_MODE and character.Name == player.Name then
+		-- Only log occasionally to avoid spam
+		if math.random() > 0.95 then
+			debugPrint(string.format(
+				"Bounds Check - X: %.1f/%.1f %s, Y: %.1f/%.1f %s, Z: %.1f/%.1f %s = %s",
+				math.abs(relativePosition.X), halfSize.X, withinX and "✓" or "✗",
+				math.abs(relativePosition.Y), halfSize.Y, withinY and "✓" or "✗",
+				math.abs(relativePosition.Z), halfSize.Z, withinZ and "✓" or "✗",
+				isInside and "INSIDE" or "OUTSIDE"
+			))
+		end
+	end
+	
+	return isInside
+end
+
+-- Alternative method: Check if player's position is within the part's Region3
+local function isPlayerInBoundsRegion3()
+	local character = player.Character
+	if not character then return false end
+	
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return false end
+	
+	-- Create Region3 from part
+	local pos = openShopPart.Position
+	local size = openShopPart.Size
+	local region = Region3.new(pos - size/2, pos + size/2)
+	
+	-- Expand region to workspace grid
+	region = region:ExpandToGrid(4)
+	
+	-- Check if player's position is in region
+	local parts = workspace:FindPartsInRegion3WithWhiteList(region, {humanoidRootPart}, 1)
+	
+	return #parts > 0
 end
 
 -- Button hover effect
@@ -241,27 +287,86 @@ local function toggleShop()
 	end
 end
 
--- Proximity checking
+-- Create debug visualization
+local debugPart = nil
+local function createDebugVisualization()
+	if not DEBUG_MODE then return end
+	
+	-- Remove old debug part if it exists
+	if debugPart and debugPart.Parent then
+		debugPart:Destroy()
+	end
+	
+	-- Create new debug part
+	debugPart = Instance.new("Part")
+	debugPart.Name = "ShopZoneDebug"
+	debugPart.Size = openShopPart.Size
+	debugPart.CFrame = openShopPart.CFrame
+	debugPart.Anchored = true
+	debugPart.CanCollide = false
+	debugPart.Transparency = 0.8
+	debugPart.BrickColor = BrickColor.new("Lime green")
+	debugPart.Material = Enum.Material.ForceField
+	debugPart.Parent = workspace
+	
+	-- Add selection box for clearer bounds
+	local selectionBox = Instance.new("SelectionBox")
+	selectionBox.Adornee = debugPart
+	selectionBox.Color3 = Color3.new(0, 1, 0)
+	selectionBox.LineThickness = 0.1
+	selectionBox.Transparency = 0.5
+	selectionBox.Parent = debugPart
+	
+	debugPrint("Debug visualization created - Green box shows detection zone")
+end
+
+-- Proximity checking with debounce
+local lastZoneState = false
 local function startProximityCheck()
+	if proximityConnection then
+		proximityConnection:Disconnect()
+	end
+	
 	proximityConnection = RunService.Heartbeat:Connect(function()
 		local inBounds = isPlayerInBounds()
 		
-		if inBounds and not isInZone then
-			-- Entered zone
-			isInZone = true
-			openButton.Visible = false
-			if not isOpen then
-				openShop(true)
+		-- Only act on state changes
+		if inBounds ~= lastZoneState then
+			lastZoneState = inBounds
+			
+			if inBounds then
+				-- Entered zone
+				isInZone = true
+				openButton.Visible = false
+				if not isOpen then
+					openShop(true)
+				end
+				debugPrint("Entered shop zone")
+			else
+				-- Left zone
+				isInZone = false
+				if openedViaProximity then
+					closeShop(true)
+				end
+				openButton.Visible = true
+				debugPrint("Left shop zone")
 			end
-		elseif not inBounds and isInZone then
-			-- Left zone
-			isInZone = false
-			if openedViaProximity then
-				closeShop(true)
+		end
+		
+		-- Update debug part position if it exists
+		if DEBUG_MODE and debugPart and debugPart.Parent then
+			debugPart.CFrame = openShopPart.CFrame
+			
+			-- Change color based on state
+			if inBounds then
+				debugPart.BrickColor = BrickColor.new("Lime green")
+			else
+				debugPart.BrickColor = BrickColor.new("Really red")
 			end
-			openButton.Visible = true
 		end
 	end)
+	
+	debugPrint("Proximity checking started")
 end
 
 -- Setup gamepass items
@@ -340,18 +445,38 @@ end)
 -- Setup items
 setupAllItems()
 
+-- Create debug visualization
+createDebugVisualization()
+
 -- Start proximity detection
 startProximityCheck()
 
 -- Handle character respawn
 player.CharacterAdded:Connect(function()
 	wait(1)
+	-- Reset states
+	isInZone = false
+	lastZoneState = false
+	if openedViaProximity then
+		mainFrame.Visible = false
+		isOpen = false
+		openedViaProximity = false
+	end
+	openButton.Visible = true
+	
+	-- Restart proximity check
 	startProximityCheck()
+	
+	-- Recreate debug visualization
+	if DEBUG_MODE then
+		createDebugVisualization()
+	end
 end)
 
 player.CharacterRemoving:Connect(function()
 	if proximityConnection then
 		proximityConnection:Disconnect()
+		proximityConnection = nil
 	end
 	if openedViaProximity then
 		closeShop(true)
@@ -369,3 +494,4 @@ end)
 
 print("[Shop] Shop controller with proximity support initialized!")
 print("[Shop] Walk into the shop area to auto-open!")
+print("[Shop] Debug mode:", DEBUG_MODE and "ON (green/red box shows zone)" or "OFF")
