@@ -1,6 +1,5 @@
 -- ShopControllerWithProximity.lua
--- Enhanced shop controller that supports both button and proximity opening (FIXED BOUNDS)
--- REPLACE your existing ShopController with this version
+-- Enhanced shop controller with flexible proximity detection
 -- Place this in StarterPlayer > StarterPlayerScripts (rename to ShopController.lua)
 
 local Players = game:GetService("Players")
@@ -32,6 +31,11 @@ local container = bgFrame:WaitForChild("Container")
 local map = workspace:WaitForChild("Map")
 local shop = map:WaitForChild("Shop")
 local openShopPart = shop:WaitForChild("OpenShopPart")
+
+-- CONFIGURATION: Adjust detection zone
+local DETECTION_HEIGHT_ABOVE = 15  -- How many studs above the part to detect
+local DETECTION_HEIGHT_BELOW = 2   -- How many studs below the part to detect
+local USE_XZ_ONLY = false          -- Set to true to ignore Y axis completely (infinite height)
 
 -- Shop state
 local isOpen = false
@@ -69,7 +73,7 @@ mainFrame.Visible = false
 openShopPart.Transparency = 1
 openShopPart.CanCollide = false
 
--- FIXED: Check if player is within the part's 3D volume
+-- IMPROVED: Flexible bounds detection
 local function isPlayerInBounds()
 	local character = player.Character
 	if not character then return false end
@@ -77,62 +81,86 @@ local function isPlayerInBounds()
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return false end
 	
-	-- Get the part's world-space bounding box
+	-- Get the part's world-space properties
 	local partCFrame = openShopPart.CFrame
 	local partSize = openShopPart.Size
+	local partPosition = openShopPart.Position
 	
-	-- Convert player position to part's local space
-	local relativePosition = partCFrame:PointToObjectSpace(humanoidRootPart.Position)
+	-- Get player position
+	local playerPosition = humanoidRootPart.Position
 	
-	-- Get half extents of the part
-	local halfSize = partSize / 2
+	-- Convert to part's local space for X and Z checking
+	local relativePosition = partCFrame:PointToObjectSpace(playerPosition)
 	
-	-- Check if player is within ALL bounds of the part
-	-- This creates a 3D box check
-	local withinX = math.abs(relativePosition.X) <= halfSize.X
-	local withinY = math.abs(relativePosition.Y) <= halfSize.Y
-	local withinZ = math.abs(relativePosition.Z) <= halfSize.Z
+	-- Get half extents
+	local halfSizeX = partSize.X / 2
+	local halfSizeZ = partSize.Z / 2
 	
-	-- Player must be within all three dimensions
-	local isInside = withinX and withinY and withinZ
+	-- Check X and Z bounds (horizontal area)
+	local withinX = math.abs(relativePosition.X) <= halfSizeX
+	local withinZ = math.abs(relativePosition.Z) <= halfSizeZ
 	
-	-- Debug output
-	if DEBUG_MODE and character.Name == player.Name then
-		-- Only log occasionally to avoid spam
-		if math.random() > 0.95 then
+	-- Check Y bounds with extended range
+	local withinY = true -- Default to true
+	
+	if not USE_XZ_ONLY then
+		-- Calculate Y difference from part's center
+		local yDifference = playerPosition.Y - partPosition.Y
+		
+		-- Check if player is within the extended Y range
+		local minY = -(partSize.Y / 2) - DETECTION_HEIGHT_BELOW
+		local maxY = (partSize.Y / 2) + DETECTION_HEIGHT_ABOVE
+		
+		withinY = yDifference >= minY and yDifference <= maxY
+		
+		-- Debug Y specifically
+		if DEBUG_MODE and math.random() > 0.98 then
 			debugPrint(string.format(
-				"Bounds Check - X: %.1f/%.1f %s, Y: %.1f/%.1f %s, Z: %.1f/%.1f %s = %s",
-				math.abs(relativePosition.X), halfSize.X, withinX and "✓" or "✗",
-				math.abs(relativePosition.Y), halfSize.Y, withinY and "✓" or "✗",
-				math.abs(relativePosition.Z), halfSize.Z, withinZ and "✓" or "✗",
-				isInside and "INSIDE" or "OUTSIDE"
+				"Y Check: Player Y=%.1f, Part Y=%.1f, Diff=%.1f, Range=[%.1f to %.1f] %s",
+				playerPosition.Y, partPosition.Y, yDifference, minY, maxY,
+				withinY and "✓" or "✗"
 			))
 		end
+	end
+	
+	-- Player must be within X, Z, and Y (if Y checking is enabled)
+	local isInside = withinX and withinZ and withinY
+	
+	-- Detailed debug output (less frequent to reduce spam)
+	if DEBUG_MODE and math.random() > 0.97 then
+		debugPrint(string.format(
+			"Bounds: X=%s Z=%s Y=%s = %s",
+			withinX and "✓" or "✗",
+			withinZ and "✓" or "✗",
+			withinY and "✓" or "✗",
+			isInside and "INSIDE" or "OUTSIDE"
+		))
 	end
 	
 	return isInside
 end
 
--- Alternative method: Check if player's position is within the part's Region3
-local function isPlayerInBoundsRegion3()
+-- Alternative: Simple distance-based detection
+local function isPlayerInRange()
 	local character = player.Character
 	if not character then return false end
 	
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return false end
 	
-	-- Create Region3 from part
-	local pos = openShopPart.Position
-	local size = openShopPart.Size
-	local region = Region3.new(pos - size/2, pos + size/2)
+	-- Calculate horizontal distance only (ignoring Y)
+	local partPos = openShopPart.Position
+	local playerPos = humanoidRootPart.Position
 	
-	-- Expand region to workspace grid
-	region = region:ExpandToGrid(4)
+	local horizontalDistance = math.sqrt(
+		(partPos.X - playerPos.X)^2 + 
+		(partPos.Z - playerPos.Z)^2
+	)
 	
-	-- Check if player's position is in region
-	local parts = workspace:FindPartsInRegion3WithWhiteList(region, {humanoidRootPart}, 1)
+	-- Use the average of X and Z size as radius
+	local detectionRadius = (openShopPart.Size.X + openShopPart.Size.Z) / 4
 	
-	return #parts > 0
+	return horizontalDistance <= detectionRadius
 end
 
 -- Button hover effect
@@ -292,16 +320,37 @@ local debugPart = nil
 local function createDebugVisualization()
 	if not DEBUG_MODE then return end
 	
-	-- Remove old debug part if it exists
+	-- Remove old debug part
 	if debugPart and debugPart.Parent then
 		debugPart:Destroy()
 	end
 	
-	-- Create new debug part
+	-- Create visualization that shows actual detection zone
 	debugPart = Instance.new("Part")
 	debugPart.Name = "ShopZoneDebug"
-	debugPart.Size = openShopPart.Size
-	debugPart.CFrame = openShopPart.CFrame
+	
+	-- Adjust size to show the extended detection area
+	if USE_XZ_ONLY then
+		-- Show infinite height (make it very tall)
+		debugPart.Size = Vector3.new(
+			openShopPart.Size.X,
+			100, -- Very tall to show infinite height
+			openShopPart.Size.Z
+		)
+		debugPart.CFrame = openShopPart.CFrame
+	else
+		-- Show actual detection zone with extended Y
+		local extendedHeight = openShopPart.Size.Y + DETECTION_HEIGHT_ABOVE + DETECTION_HEIGHT_BELOW
+		debugPart.Size = Vector3.new(
+			openShopPart.Size.X,
+			extendedHeight,
+			openShopPart.Size.Z
+		)
+		-- Position it to account for the extended range
+		local yOffset = (DETECTION_HEIGHT_ABOVE - DETECTION_HEIGHT_BELOW) / 2
+		debugPart.CFrame = openShopPart.CFrame * CFrame.new(0, yOffset, 0)
+	end
+	
 	debugPart.Anchored = true
 	debugPart.CanCollide = false
 	debugPart.Transparency = 0.8
@@ -309,7 +358,7 @@ local function createDebugVisualization()
 	debugPart.Material = Enum.Material.ForceField
 	debugPart.Parent = workspace
 	
-	-- Add selection box for clearer bounds
+	-- Add selection box
 	local selectionBox = Instance.new("SelectionBox")
 	selectionBox.Adornee = debugPart
 	selectionBox.Color3 = Color3.new(0, 1, 0)
@@ -317,7 +366,8 @@ local function createDebugVisualization()
 	selectionBox.Transparency = 0.5
 	selectionBox.Parent = debugPart
 	
-	debugPrint("Debug visualization created - Green box shows detection zone")
+	debugPrint("Debug visualization created - Green box shows actual detection zone")
+	debugPrint("Detection settings: Height Above =", DETECTION_HEIGHT_ABOVE, "Height Below =", DETECTION_HEIGHT_BELOW)
 end
 
 -- Proximity checking with debounce
@@ -353,16 +403,18 @@ local function startProximityCheck()
 			end
 		end
 		
-		-- Update debug part position if it exists
+		-- Update debug visualization
 		if DEBUG_MODE and debugPart and debugPart.Parent then
-			debugPart.CFrame = openShopPart.CFrame
+			-- Update position if part moves
+			if USE_XZ_ONLY then
+				debugPart.CFrame = openShopPart.CFrame
+			else
+				local yOffset = (DETECTION_HEIGHT_ABOVE - DETECTION_HEIGHT_BELOW) / 2
+				debugPart.CFrame = openShopPart.CFrame * CFrame.new(0, yOffset, 0)
+			end
 			
 			-- Change color based on state
-			if inBounds then
-				debugPart.BrickColor = BrickColor.new("Lime green")
-			else
-				debugPart.BrickColor = BrickColor.new("Really red")
-			end
+			debugPart.BrickColor = inBounds and BrickColor.new("Lime green") or BrickColor.new("Really red")
 		end
 	end)
 	
@@ -380,7 +432,6 @@ local function setupGamepassItem(itemFrame, categoryType)
 		setupButtonHoverEffect(buyButton)
 		buyButton.MouseButton1Click:Connect(function()
 			debugPrint("Buy clicked:", itemFrame.Name)
-			-- Add purchase logic
 		end)
 	end
 	
@@ -388,7 +439,6 @@ local function setupGamepassItem(itemFrame, categoryType)
 		setupButtonHoverEffect(giftButton)
 		giftButton.MouseButton1Click:Connect(function()
 			debugPrint("Gift clicked:", itemFrame.Name)
-			-- Add gift logic
 		end)
 	end
 	
@@ -434,13 +484,8 @@ end
 setupButtonHoverEffect(openButton)
 setupButtonHoverEffect(closeButton)
 
-openButton.MouseButton1Click:Connect(function()
-	toggleShop()
-end)
-
-closeButton.MouseButton1Click:Connect(function()
-	closeShop(false)
-end)
+openButton.MouseButton1Click:Connect(toggleShop)
+closeButton.MouseButton1Click:Connect(function() closeShop(false) end)
 
 -- Setup items
 setupAllItems()
@@ -454,7 +499,6 @@ startProximityCheck()
 -- Handle character respawn
 player.CharacterAdded:Connect(function()
 	wait(1)
-	-- Reset states
 	isInZone = false
 	lastZoneState = false
 	if openedViaProximity then
@@ -463,11 +507,7 @@ player.CharacterAdded:Connect(function()
 		openedViaProximity = false
 	end
 	openButton.Visible = true
-	
-	-- Restart proximity check
 	startProximityCheck()
-	
-	-- Recreate debug visualization
 	if DEBUG_MODE then
 		createDebugVisualization()
 	end
@@ -492,6 +532,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
-print("[Shop] Shop controller with proximity support initialized!")
-print("[Shop] Walk into the shop area to auto-open!")
-print("[Shop] Debug mode:", DEBUG_MODE and "ON (green/red box shows zone)" or "OFF")
+-- Info printout
+print("[Shop] Shop controller initialized!")
+print("[Shop] Detection Mode:", USE_XZ_ONLY and "XZ Only (Infinite Height)" or "Full 3D Volume")
+print("[Shop] Detection Height: +" .. DETECTION_HEIGHT_ABOVE .. " / -" .. DETECTION_HEIGHT_BELOW .. " studs")
+print("[Shop] Debug Mode:", DEBUG_MODE and "ON (green/red box shows zone)" or "OFF")
+print("[Shop] Part Size:", openShopPart.Size)
