@@ -11,7 +11,7 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Debug mode
-local DEBUG_MODE = true
+local DEBUG_MODE = false
 local function debugPrint(...)
 	if DEBUG_MODE then
 		print("[Shop]", ...)
