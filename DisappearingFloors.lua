@@ -30,10 +30,11 @@ local function collectParts()
 	for _, child in pairs(mapFolder:GetChildren()) do
 		if child:IsA("BasePart") and child.Name == "Part" then
 			table.insert(parts, child)
-			-- Store original properties
+			-- Store original properties (only once when first found)
 			if not child:GetAttribute("OriginalTransparency") then
 				child:SetAttribute("OriginalTransparency", child.Transparency)
 				child:SetAttribute("OriginalColor", child.BrickColor.Name)
+				child:SetAttribute("OriginalMaterial", child.Material.Name)
 				child:SetAttribute("IsDisappearing", false)
 			end
 		end
@@ -96,19 +97,19 @@ end
 local function disappearPart(part)
 	if not part or not part.Parent then return end
 	
-	-- Store original properties
+	-- Store original properties from attributes
 	local originalTransparency = part:GetAttribute("OriginalTransparency") or 0
 	local originalColor = BrickColor.new(part:GetAttribute("OriginalColor") or "Medium stone grey")
-	local originalMaterial = part.Material
+	local originalMaterialName = part:GetAttribute("OriginalMaterial") or "Plastic"
+	local originalMaterial = Enum.Material[originalMaterialName]
 	local originalCanCollide = part.CanCollide
 	
-	-- Create disappear effect with tween
+	-- Create disappear effect with tween (just transparency, no color change)
 	local disappearTween = TweenService:Create(
 		part,
 		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{
-			Transparency = 1,
-			Color = Color3.new(1, 1, 1) -- Fade to white as it disappears
+			Transparency = 1
 		}
 	)
 	
@@ -128,23 +129,21 @@ local function disappearPart(part)
 		-- Make it collidable again first
 		part.CanCollide = originalCanCollide
 		
-		-- Reset material
+		-- IMPORTANT: Reset ALL properties to original BEFORE tweening
 		part.Material = originalMaterial
+		part.BrickColor = originalColor
+		part.Color = originalColor.Color
 		
-		-- Create reappear effect
+		-- Create reappear effect (only transparency)
 		local reappearTween = TweenService:Create(
 			part,
 			TweenInfo.new(RESPAWN_FADE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 			{
-				Transparency = originalTransparency,
-				Color = originalColor.Color
+				Transparency = originalTransparency
 			}
 		)
 		
 		reappearTween:Play()
-		
-		-- Reset the BrickColor
-		part.BrickColor = originalColor
 		
 		-- Mark as no longer disappearing
 		part:SetAttribute("IsDisappearing", false)
