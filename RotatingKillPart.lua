@@ -28,8 +28,8 @@ selectionBox.Transparency = 0.5
 -- Rotation using RunService for smooth rotation
 local connection
 connection = RunService.Heartbeat:Connect(function(deltaTime)
-	-- Rotate the part on Y axis
-	part.CFrame = part.CFrame * CFrame.Angles(0, math.rad(ROTATION_SPEED * deltaTime), 0)
+	-- Rotate the part on Z axis for horizontal spinning (like a rolling log)
+	part.CFrame = part.CFrame * CFrame.Angles(0, 0, math.rad(ROTATION_SPEED * deltaTime))
 end)
 
 -- Alternative rotation method using TweenService (smoother but less flexible)
@@ -44,7 +44,7 @@ local function rotatePart()
 	)
 	
 	local goal = {
-		CFrame = part.CFrame * CFrame.Angles(0, math.rad(360), 0)
+		CFrame = part.CFrame * CFrame.Angles(0, 0, math.rad(360)) -- Z-axis rotation for horizontal spin
 	}
 	
 	local tween = TweenService:Create(part, tweenInfo, goal)
