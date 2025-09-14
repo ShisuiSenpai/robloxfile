@@ -2,6 +2,15 @@
 -- Place this script inside the cylinder part in ServerScriptService or as a child of the part
 
 local part = script.Parent -- The cylinder part this script is attached to
+
+-- Debug: Check if part exists and is valid
+if not part or not part:IsA("BasePart") then
+	warn("RotatingKillPart: Script parent is not a valid part! Make sure this script is a child of the cylinder part.")
+	return
+end
+
+print("RotatingKillPart: Initializing on part:", part.Name)
+
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
@@ -19,6 +28,8 @@ local originalCFrame = part.CFrame
 local originalPosition = originalCFrame.Position
 local currentAngle = 0 -- Track total rotation angle
 
+print("RotatingKillPart: Original position stored:", originalPosition)
+
 -- Set up the part properties
 part.Material = Enum.Material.Neon -- Makes it look dangerous
 part.BrickColor = BrickColor.new("Lime green") -- Starts green (safe/slow)
@@ -27,14 +38,13 @@ part.BottomSurface = Enum.SurfaceType.Smooth
 part.CanCollide = true
 part.Anchored = true -- Keep it in place while rotating
 
--- IMPORTANT: Set network ownership to server for smooth rotation
-part:SetNetworkOwner(nil) -- nil means server owns it
+-- Network ownership can't be set on anchored parts, so we skip it
+-- part:SetNetworkOwner(nil) -- This causes an error with anchored parts
 
--- Disable all physics-related properties that could cause stuttering
-part.CanQuery = false -- Disable raycasting on this part
+-- Ensure part properties are set correctly
+part.CanCollide = true -- Keep collisions for touch detection
 part.CanTouch = true -- Keep touch events
-part.Massless = true -- Make it massless
-part.RootPriority = 127 -- Highest priority for rendering
+part.CanQuery = true -- Keep this true for touch detection to work properly
 
 -- Create a selection box for visual effect (optional)
 local selectionBox = Instance.new("SelectionBox")
@@ -47,8 +57,18 @@ selectionBox.Transparency = 0.5
 -- METHOD 1: Absolute Position Rotation (SMOOTHEST - Recommended)
 -- This method calculates the exact rotation from the original position
 -- preventing any drift or accumulation of floating point errors
+
+print("RotatingKillPart: Starting rotation loop...")
+
 local connection
 connection = RunService.Heartbeat:Connect(function(deltaTime)
+	-- Safety check
+	if not part or not part.Parent then
+		warn("RotatingKillPart: Part no longer exists, disconnecting...")
+		connection:Disconnect()
+		return
+	end
+	
 	-- Increase speed over time (up to maximum)
 	if currentRotationSpeed < MAX_ROTATION_SPEED then
 		currentRotationSpeed = math.min(currentRotationSpeed + (SPEED_INCREASE_RATE * deltaTime), MAX_ROTATION_SPEED)
@@ -70,6 +90,8 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
 	-- This ensures the part NEVER drifts from its original position
 	part.CFrame = CFrame.new(originalPosition) * CFrame.Angles(0, 0, currentAngle)
 end)
+
+print("RotatingKillPart: Rotation started successfully!")
 
 -- METHOD 2: Alternative using Stepped for physics synchronization (uncomment to use)
 --[[
