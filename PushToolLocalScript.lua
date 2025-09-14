@@ -1,0 +1,131 @@
+-- Push Tool LocalScript
+-- Place this as a LocalScript inside the Push tool in StarterPack
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local tool = script.Parent
+local player = Players.LocalPlayer
+
+-- Configuration
+local PUSH_RANGE = 10 -- How far in front the push reaches (studs)
+local PUSH_FORCE = 75 -- How strong the push is
+
+-- Debug mode
+local DEBUG = true -- Set to false to hide debug messages
+
+-- Wait for character
+local function getCharacter()
+	return player.Character or player.CharacterAdded:Wait()
+end
+
+-- Debug print function
+local function debugPrint(...)
+	if DEBUG then
+		print("[PUSH CLIENT]", ...)
+	end
+end
+
+debugPrint("Push tool LocalScript starting...")
+
+-- Create or wait for RemoteEvent
+local pushRemote = ReplicatedStorage:FindFirstChild("PushRemote")
+if not pushRemote then
+	debugPrint("RemoteEvent not found, waiting for server to create it...")
+	pushRemote = ReplicatedStorage:WaitForChild("PushRemote", 10)
+	if not pushRemote then
+		warn("[PUSH CLIENT] RemoteEvent not created after 10 seconds!")
+		return
+	end
+end
+
+debugPrint("RemoteEvent found/created successfully")
+
+-- Function to find the closest player in front
+local function getTargetInFront()
+	local character = getCharacter()
+	if not character then 
+		debugPrint("No character found")
+		return nil 
+	end
+	
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then 
+		debugPrint("No HumanoidRootPart found")
+		return nil 
+	end
+	
+	local closestPlayer = nil
+	local closestDistance = PUSH_RANGE
+	
+	-- Check all players
+	for _, otherPlayer in pairs(Players:GetPlayers()) do
+		if otherPlayer ~= player and otherPlayer.Character then
+			local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+			local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+			
+			if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+				-- Calculate distance
+				local distance = (otherRoot.Position - humanoidRootPart.Position).Magnitude
+				
+				-- Calculate if in front
+				local toTarget = (otherRoot.Position - humanoidRootPart.Position).Unit
+				local lookDirection = humanoidRootPart.CFrame.LookVector
+				local dotProduct = toTarget:Dot(lookDirection)
+				
+				debugPrint("Checking player:", otherPlayer.Name, "Distance:", distance, "Dot:", dotProduct)
+				
+				-- Check if in range and in front (dot product > 0 means in front)
+				if distance <= PUSH_RANGE and dotProduct > 0.3 and distance < closestDistance then
+					closestPlayer = otherPlayer
+					closestDistance = distance
+					debugPrint("Found valid target:", otherPlayer.Name)
+				end
+			end
+		end
+	end
+	
+	return closestPlayer
+end
+
+-- Tool activation
+local function onActivated()
+	debugPrint("Tool activated!")
+	
+	local character = getCharacter()
+	if not character then
+		debugPrint("No character on activation")
+		return
+	end
+	
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then
+		debugPrint("No HumanoidRootPart on activation")
+		return
+	end
+	
+	-- Find target
+	local targetPlayer = getTargetInFront()
+	
+	if targetPlayer then
+		debugPrint("Pushing player:", targetPlayer.Name)
+		
+		-- Calculate push direction
+		local targetRoot = targetPlayer.Character.HumanoidRootPart
+		local pushDirection = (targetRoot.Position - humanoidRootPart.Position).Unit
+		
+		-- Send to server
+		pushRemote:FireServer(targetPlayer, pushDirection, PUSH_FORCE)
+		
+		-- Visual feedback
+		print("Pushed", targetPlayer.Name, "!")
+	else
+		debugPrint("No valid target found in range")
+		print("No player in range to push! (Range:", PUSH_RANGE, "studs)")
+	end
+end
+
+-- Connect events
+tool.Activated:Connect(onActivated)
+
+debugPrint("Push tool LocalScript loaded successfully!")
