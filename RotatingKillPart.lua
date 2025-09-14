@@ -87,8 +87,9 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
 	end
 	
 	-- Set the CFrame using absolute positioning from original position
+	-- Rotate on X-axis for horizontal spinning (like a rolling log)
 	-- This ensures the part NEVER drifts from its original position
-	part.CFrame = CFrame.new(originalPosition) * CFrame.Angles(0, 0, currentAngle)
+	part.CFrame = CFrame.new(originalPosition) * CFrame.Angles(currentAngle, 0, 0)
 end)
 
 print("RotatingKillPart: Rotation started successfully!")
@@ -108,8 +109,8 @@ connection = RunService.Stepped:Connect(function(time, deltaTime)
 	-- Update angle
 	currentAngle = currentAngle + math.rad(currentRotationSpeed * deltaTime)
 	
-	-- Apply rotation with fixed position
-	part.CFrame = CFrame.new(originalPosition) * CFrame.Angles(0, 0, currentAngle)
+	-- Apply rotation with fixed position (X-axis for horizontal spin)
+	part.CFrame = CFrame.new(originalPosition) * CFrame.Angles(currentAngle, 0, 0)
 end)
 --]]
 
@@ -123,8 +124,8 @@ bodyPosition.Parent = part
 
 -- Create BodyAngularVelocity for rotation
 local bodyAngularVelocity = Instance.new("BodyAngularVelocity")
-bodyAngularVelocity.MaxTorque = Vector3.new(0, 0, math.huge)
-bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, math.rad(currentRotationSpeed))
+bodyAngularVelocity.MaxTorque = Vector3.new(math.huge, 0, 0) -- X-axis torque for horizontal spin
+bodyAngularVelocity.AngularVelocity = Vector3.new(math.rad(currentRotationSpeed), 0, 0) -- X-axis rotation
 bodyAngularVelocity.Parent = part
 
 -- Update only the angular velocity
@@ -136,8 +137,8 @@ connection = RunService.Heartbeat:Connect(function(deltaTime)
 		local speedRatio = (currentRotationSpeed - MIN_ROTATION_SPEED) / (MAX_ROTATION_SPEED - MIN_ROTATION_SPEED)
 		part.Color = Color3.new(speedRatio, 1 - speedRatio, 0)
 		
-		-- Update angular velocity
-		bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, math.rad(currentRotationSpeed))
+		-- Update angular velocity (X-axis)
+		bodyAngularVelocity.AngularVelocity = Vector3.new(math.rad(currentRotationSpeed), 0, 0)
 	end
 end)
 --]]
@@ -154,7 +155,7 @@ local function rotatePart()
 	)
 	
 	local goal = {
-		CFrame = part.CFrame * CFrame.Angles(0, 0, math.rad(360)) -- Z-axis rotation for horizontal spin
+		CFrame = part.CFrame * CFrame.Angles(math.rad(360), 0, 0) -- X-axis rotation for horizontal spin
 	}
 	
 	local tween = TweenService:Create(part, tweenInfo, goal)
