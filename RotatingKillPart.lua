@@ -15,24 +15,15 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 -- Configuration
-local MIN_ORBIT_SPEED = 20 -- Starting orbit speed (degrees per second)
-local MAX_ORBIT_SPEED = 120 -- Maximum orbit speed (degrees per second)
+local MIN_ROTATION_SPEED = 10 -- Starting rotation speed (degrees per second)
+local MAX_ROTATION_SPEED = 200 -- Maximum rotation speed (degrees per second)
 local SPEED_INCREASE_RATE = 5 -- How fast the speed increases per second
-local ORBIT_RADIUS = 15 -- How far from center the part orbits (studs)
-local PART_SPIN_SPEED = 180 -- How fast the part spins on itself (degrees per second)
 local RESPAWN_TIME = 3 -- Time before player respawns (in seconds)
 
--- Current orbit speed (starts at minimum)
-local currentOrbitSpeed = MIN_ORBIT_SPEED
+-- Current rotation speed (starts at minimum)
+local currentRotationSpeed = MIN_ROTATION_SPEED
 
--- Store the original position and orientation
-local originalCFrame = part.CFrame
-local centerPosition = originalCFrame.Position -- The center point to orbit around
-local currentOrbitAngle = 0 -- Track orbit angle around center
-local currentSpinAngle = 0 -- Track the part's own rotation
-
-print("RotatingKillPart: Center position stored:", centerPosition)
-print("RotatingKillPart: Orbit radius:", ORBIT_RADIUS, "studs")
+print("RotatingKillPart: Rotation speed starting at:", currentRotationSpeed, "degrees/second")
 
 -- Set up the part properties
 part.Material = Enum.Material.Neon -- Makes it look dangerous
@@ -58,82 +49,24 @@ selectionBox.Color3 = Color3.new(1, 0, 0) -- Red outline
 selectionBox.LineThickness = 0.1
 selectionBox.Transparency = 0.5
 
--- Optional: Create a visual indicator for the orbit path (a ring on the ground)
-local function createOrbitIndicator()
-	local indicator = Instance.new("Part")
-	indicator.Name = "OrbitPath"
-	indicator.Shape = Enum.PartType.Cylinder
-	indicator.Material = Enum.Material.ForceField
-	indicator.Size = Vector3.new(0.5, ORBIT_RADIUS * 2, ORBIT_RADIUS * 2) -- Thin cylinder with diameter = orbit diameter
-	indicator.Position = centerPosition - Vector3.new(0, part.Size.Y/2, 0) -- Place on ground
-	indicator.Orientation = Vector3.new(0, 0, 90) -- Rotate to be flat on ground
-	indicator.Anchored = true
-	indicator.CanCollide = false
-	indicator.CanTouch = false
-	indicator.CanQuery = false
-	indicator.Transparency = 0.8
-	indicator.BrickColor = BrickColor.new("Cyan")
-	indicator.Parent = workspace
-	
-	-- Add a glow effect
-	local pointLight = Instance.new("PointLight")
-	pointLight.Brightness = 0.5
-	pointLight.Color = Color3.new(0, 1, 1) -- Cyan glow
-	pointLight.Range = ORBIT_RADIUS * 1.5
-	pointLight.Parent = indicator
-	
-	return indicator
-end
 
--- Create the orbit path indicator
-local orbitIndicator = createOrbitIndicator()
-print("RotatingKillPart: Orbit path indicator created")
-
--- METHOD 1: Orbiting Kill Part (Like a sweeping obstacle)
--- The part orbits around a center point while also spinning on itself
-
-print("RotatingKillPart: Starting orbit and rotation loop...")
+-- Rotation using RunService for smooth rotation (EXACTLY like the original script)
+print("RotatingKillPart: Starting rotation loop...")
 
 local connection
 connection = RunService.Heartbeat:Connect(function(deltaTime)
-	-- Safety check
-	if not part or not part.Parent then
-		warn("RotatingKillPart: Part no longer exists, disconnecting...")
-		connection:Disconnect()
-		return
-	end
-	
-	-- Increase orbit speed over time (up to maximum)
-	if currentOrbitSpeed < MAX_ORBIT_SPEED then
-		currentOrbitSpeed = math.min(currentOrbitSpeed + (SPEED_INCREASE_RATE * deltaTime), MAX_ORBIT_SPEED)
+	-- Increase speed over time (up to maximum)
+	if currentRotationSpeed < MAX_ROTATION_SPEED then
+		currentRotationSpeed = math.min(currentRotationSpeed + (SPEED_INCREASE_RATE * deltaTime), MAX_ROTATION_SPEED)
 		
 		-- Change color based on speed (green to red)
-		local speedRatio = (currentOrbitSpeed - MIN_ORBIT_SPEED) / (MAX_ORBIT_SPEED - MIN_ORBIT_SPEED)
+		local speedRatio = (currentRotationSpeed - MIN_ROTATION_SPEED) / (MAX_ROTATION_SPEED - MIN_ROTATION_SPEED)
 		part.Color = Color3.new(speedRatio, 1 - speedRatio, 0) -- Gradual color change from green to red
 	end
 	
-	-- Update the orbit angle (how far around the circle we've gone)
-	currentOrbitAngle = currentOrbitAngle + math.rad(currentOrbitSpeed * deltaTime)
-	
-	-- Update the part's own spin angle
-	currentSpinAngle = currentSpinAngle + math.rad(PART_SPIN_SPEED * deltaTime)
-	
-	-- Keep angles in reasonable range to prevent overflow
-	if currentOrbitAngle > math.pi * 2 then
-		currentOrbitAngle = currentOrbitAngle - math.pi * 2
-	end
-	if currentSpinAngle > math.pi * 2 then
-		currentSpinAngle = currentSpinAngle - math.pi * 2
-	end
-	
-	-- Calculate the new position in the orbit
-	local orbitX = centerPosition.X + math.cos(currentOrbitAngle) * ORBIT_RADIUS
-	local orbitZ = centerPosition.Z + math.sin(currentOrbitAngle) * ORBIT_RADIUS
-	local orbitPosition = Vector3.new(orbitX, centerPosition.Y, orbitZ)
-	
-	-- Apply both orbit position and part rotation
-	-- The part orbits around the center AND spins on its own axis
-	part.CFrame = CFrame.new(orbitPosition) * CFrame.Angles(currentSpinAngle, 0, 0)
+	-- Rotate the part on Z axis for horizontal spinning (like a rolling log)
+	-- THIS IS THE EXACT SAME ROTATION METHOD FROM THE ORIGINAL SCRIPT
+	part.CFrame = part.CFrame * CFrame.Angles(0, 0, math.rad(currentRotationSpeed * deltaTime))
 end)
 
 print("RotatingKillPart: Rotation started successfully!")
@@ -215,8 +148,8 @@ local function killPlayer(character)
 		-- Set health to 0 to kill the player
 		humanoid.Health = 0
 		
-		-- RESET THE ORBIT SPEED BACK TO MINIMUM (smooth reset)
-		currentOrbitSpeed = MIN_ORBIT_SPEED
+		-- RESET THE ROTATION SPEED BACK TO MINIMUM (smooth reset)
+		currentRotationSpeed = MIN_ROTATION_SPEED
 		part.BrickColor = BrickColor.new("Lime green") -- Visual feedback for reset
 		
 		-- Flash effect to show speed reset
@@ -228,8 +161,8 @@ local function killPlayer(character)
 		-- Optional: Add death effect
 		local player = game.Players:GetPlayerFromCharacter(character)
 		if player then
-			print(player.Name .. " was killed by the orbiting cylinder! Orbit speed reset to minimum.")
-			print("Current orbit speed: " .. currentOrbitSpeed .. " degrees/second")
+			print(player.Name .. " was killed by the rotating cylinder! Speed reset to minimum.")
+			print("Current rotation speed: " .. currentRotationSpeed .. " degrees/second")
 		end
 	end
 end
