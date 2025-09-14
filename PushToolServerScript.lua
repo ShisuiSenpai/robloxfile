@@ -8,6 +8,7 @@ local Debris = game:GetService("Debris")
 -- Configuration
 local RAGDOLL_DURATION = 1.5 -- How long they stay ragdolled
 local MAX_PUSH_DISTANCE = 15 -- Maximum allowed push distance
+local PUSH_COOLDOWN_PER_PLAYER = {} -- Track cooldowns per player
 
 -- Debug mode
 local DEBUG = true -- Set to false to hide debug messages
@@ -28,7 +29,7 @@ pushRemote.Parent = ReplicatedStorage
 
 debugPrint("RemoteEvent created")
 
--- Simple ragdoll function
+-- Simple ragdoll function (NO DAMAGE)
 local function ragdollCharacter(character)
 	debugPrint("Starting ragdoll for:", character.Name)
 	
@@ -38,9 +39,15 @@ local function ragdollCharacter(character)
 		return 
 	end
 	
-	-- Change humanoid state
+	-- Store current health to ensure no damage
+	local currentHealth = humanoid.Health
+	
+	-- Change humanoid state (NO DAMAGE, just physics)
 	humanoid.PlatformStand = true
 	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	
+	-- Ensure health stays the same
+	humanoid.Health = currentHealth
 	
 	-- Store original values
 	local joints = {}
@@ -85,6 +92,9 @@ local function ragdollCharacter(character)
 		
 		-- Restore humanoid
 		if humanoid and humanoid.Parent then
+			-- Ensure no damage was done
+			humanoid.Health = humanoid.MaxHealth
+			
 			humanoid.PlatformStand = false
 			humanoid:ChangeState(Enum.HumanoidStateType.Running)
 			
@@ -102,6 +112,14 @@ end
 -- Handle push request
 pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force)
 	debugPrint("Push request from:", pusher.Name, "to:", targetPlayer and targetPlayer.Name or "nil")
+	
+	-- Check server-side cooldown
+	local currentTime = tick()
+	if PUSH_COOLDOWN_PER_PLAYER[pusher] and currentTime - PUSH_COOLDOWN_PER_PLAYER[pusher] < 2 then
+		debugPrint("Player", pusher.Name, "is on cooldown")
+		return
+	end
+	PUSH_COOLDOWN_PER_PLAYER[pusher] = currentTime
 	
 	-- Validate
 	if not pusher.Character then
@@ -133,11 +151,14 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 		return
 	end
 	
-	-- Check if target is alive
+	-- Check if target is alive (but we won't damage them)
 	if targetHumanoid.Health <= 0 then
-		debugPrint("Target is dead")
+		debugPrint("Target is already dead, can't push")
 		return
 	end
+	
+	-- Store health to ensure no damage
+	local originalHealth = targetHumanoid.Health
 	
 	debugPrint("Applying push force...")
 	
@@ -159,7 +180,10 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	
 	debugPrint("Push force applied successfully")
 	
-	-- Apply ragdoll
+	-- Ensure no damage was done
+	targetHumanoid.Health = originalHealth
+	
+	-- Apply ragdoll (no damage, just physics effect)
 	local unragdoll = ragdollCharacter(targetPlayer.Character)
 	
 	-- Schedule unragdoll
@@ -167,8 +191,18 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	
 	if unragdoll then
 		unragdoll()
+		-- Restore health again just to be safe
+		if targetHumanoid and targetHumanoid.Parent then
+			targetHumanoid.Health = originalHealth
+		end
 	end
+end)
+
+-- Clean up cooldowns when players leave
+Players.PlayerRemoving:Connect(function(player)
+	PUSH_COOLDOWN_PER_PLAYER[player] = nil
 end)
 
 debugPrint("Push server script loaded successfully!")
 print("Push System Ready! Debug mode is ON - check output for detailed logs")
+print("Push tool: NO DAMAGE, just physics push with ragdoll")

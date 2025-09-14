@@ -16,9 +16,14 @@ end
 -- Configuration
 local PUSH_RANGE = 10 -- How far in front the push reaches (studs)
 local PUSH_FORCE = 75 -- How strong the push is
+local COOLDOWN_TIME = 2 -- Cooldown between pushes in seconds
 
 -- Debug mode
 local DEBUG = true -- Set to false to hide debug messages
+
+-- Cooldown tracking
+local lastPushTime = 0
+local canPush = true
 
 -- Wait for character
 local function getCharacter()
@@ -145,6 +150,15 @@ end
 local function onActivated()
 	debugPrint("Tool activated!")
 	
+	-- Check cooldown
+	local currentTime = tick()
+	if currentTime - lastPushTime < COOLDOWN_TIME then
+		local timeLeft = COOLDOWN_TIME - (currentTime - lastPushTime)
+		debugPrint("On cooldown! Time left:", string.format("%.1f", timeLeft), "seconds")
+		print("Push on cooldown! Wait", string.format("%.1f", timeLeft), "more seconds")
+		return
+	end
+	
 	local character = getCharacter()
 	if not character then
 		debugPrint("No character on activation")
@@ -173,8 +187,12 @@ local function onActivated()
 		-- Send to server
 		pushRemote:FireServer(targetPlayer, pushDirection, PUSH_FORCE)
 		
+		-- Set cooldown
+		lastPushTime = currentTime
+		
 		-- Visual feedback
 		print("Pushed", targetPlayer.Name, "!")
+		print("Cooldown active for", COOLDOWN_TIME, "seconds")
 	else
 		debugPrint("No valid target found in range")
 		print("No player in range to push! (Range:", PUSH_RANGE, "studs)")
