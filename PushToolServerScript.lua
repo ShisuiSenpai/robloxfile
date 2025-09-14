@@ -6,9 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
 -- Configuration
-local RAGDOLL_DURATION = 1.5 -- How long they stay ragdolled
+local KNOCKBACK_DURATION = 1.5 -- How long the knockback effect lasts
 local MAX_PUSH_DISTANCE = 15 -- Maximum allowed push distance
 local PUSH_COOLDOWN_PER_PLAYER = {} -- Track cooldowns per player
+local USE_SIMPLE_PUSH = true -- Use simple push without any ragdoll/sit
 
 -- Debug mode
 local DEBUG = true -- Set to false to hide debug messages
@@ -29,9 +30,9 @@ pushRemote.Parent = ReplicatedStorage
 
 debugPrint("RemoteEvent created")
 
--- Simple ragdoll function (NO DAMAGE)
-local function ragdollCharacter(character)
-	debugPrint("Starting ragdoll for:", character.Name)
+-- SAFER APPROACH: Simple knockback without breaking joints
+local function applyKnockback(character)
+	debugPrint("Applying knockback to:", character.Name)
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then 
@@ -39,93 +40,45 @@ local function ragdollCharacter(character)
 		return 
 	end
 	
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if not rootPart then
+		debugPrint("No HumanoidRootPart found!")
+		return
+	end
+	
 	-- Store current health to ensure no damage
 	local currentHealth = humanoid.Health
-	local maxHealth = humanoid.MaxHealth
 	
-	-- IMPORTANT: Set BreakJointsOnDeath to false to prevent death from breaking joints
-	humanoid.BreakJointsOnDeath = false
+	-- Simple knockback: Just make them fall over without breaking joints
+	humanoid.Sit = true  -- Makes them sit/fall
 	
-	-- Set RequiresNeck to false if it exists (newer property)
-	if humanoid:FindFirstChild("RequiresNeck") ~= nil then
-		humanoid.RequiresNeck = false
-	end
+	-- Wait a moment then stand them back up
+	task.wait(0.1)
 	
-	-- Change humanoid state (safer approach)
-	humanoid.PlatformStand = true
-	-- Don't use Physics state as it can cause death, use FallingDown instead
-	humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
-	
-	-- Ensure health stays the same
-	humanoid.Health = currentHealth
-	humanoid.MaxHealth = maxHealth
-	
-	-- Store original values
-	local joints = {}
-	local originalCanCollide = {}
-	
-	-- Disable all Motor6Ds
-	for _, descendant in pairs(character:GetDescendants()) do
-		if descendant:IsA("Motor6D") then
-			descendant.Enabled = false
-			table.insert(joints, descendant)
-			debugPrint("Disabled Motor6D:", descendant.Name)
-		elseif descendant:IsA("BasePart") and descendant ~= character.HumanoidRootPart then
-			originalCanCollide[descendant] = descendant.CanCollide
-			descendant.CanCollide = true
-		end
-	end
-	
-	debugPrint("Ragdoll applied, joints disabled:", #joints)
-	
-	-- Return function to unragdoll
+	-- Return function to recover
 	return function()
-		debugPrint("Unragdolling character:", character.Name)
+		debugPrint("Recovering character:", character.Name)
 		
 		if not character.Parent then 
 			debugPrint("Character no longer exists")
 			return 
 		end
 		
-		-- Re-enable all Motor6Ds
-		for _, joint in pairs(joints) do
-			if joint and joint.Parent then
-				joint.Enabled = true
-			end
-		end
-		
-		-- Restore CanCollide
-		for part, canCollide in pairs(originalCanCollide) do
-			if part and part.Parent then
-				part.CanCollide = canCollide
-			end
-		end
-		
-		-- Restore humanoid
+		-- Stand back up
 		if humanoid and humanoid.Parent then
-			-- Restore health to original values
-			humanoid.MaxHealth = maxHealth
+			humanoid.Sit = false
+			humanoid.Jump = true  -- Help them get up
+			
+			-- Restore health
 			humanoid.Health = currentHealth
 			
-			-- Restore BreakJointsOnDeath
-			humanoid.BreakJointsOnDeath = true
-			
-			-- Restore RequiresNeck if it exists
-			if humanoid:FindFirstChild("RequiresNeck") ~= nil then
-				humanoid.RequiresNeck = true
-			end
-			
-			humanoid.PlatformStand = false
-			humanoid:ChangeState(Enum.HumanoidStateType.Running)
-			
 			-- Small upward impulse to help stand
-			local rootPart = character:FindFirstChild("HumanoidRootPart")
-			if rootPart then
-				rootPart.AssemblyLinearVelocity = Vector3.new(0, 10, 0)
+			if rootPart and rootPart.Parent then
+				rootPart.AssemblyLinearVelocity = rootPart.AssemblyLinearVelocity + Vector3.new(0, 20, 0)
 			end
 		end
 		
-		debugPrint("Character unragdolled successfully")
+		debugPrint("Character recovered successfully")
 	end
 end
 
@@ -186,53 +139,79 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	local actualForce = math.clamp(force or 50, 10, 100)
 	local pushVelocity = (direction + Vector3.new(0, 0.3, 0)).Unit * actualForce
 	
-	-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
-	targetRoot.AssemblyLinearVelocity = pushVelocity
-	
-	-- Method 2: Using BodyVelocity (backup method)
-	local bodyVelocity = Instance.new("BodyVelocity")
-	bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-	bodyVelocity.Velocity = pushVelocity
-	bodyVelocity.Parent = targetRoot
-	
-	-- Remove BodyVelocity after short time
-	Debris:AddItem(bodyVelocity, 0.3)
-	
-	debugPrint("Push force applied successfully")
-	
-	-- Ensure no damage was done
-	targetHumanoid.Health = originalHealth
-	
-	-- Apply ragdoll (no damage, just physics effect)
-	local unragdoll = ragdollCharacter(targetPlayer.Character)
-	
-	-- Create a health protection loop during ragdoll
-	local healthProtection = task.spawn(function()
-		local protectionTime = 0
-		while protectionTime < RAGDOLL_DURATION + 0.5 do
+	if USE_SIMPLE_PUSH then
+		-- SIMPLEST APPROACH: Just apply velocity, no ragdoll or sitting
+		debugPrint("Using simple push (no ragdoll)")
+		
+		-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
+		targetRoot.AssemblyLinearVelocity = pushVelocity
+		
+		-- Method 2: Using BodyVelocity for stronger effect
+		local bodyVelocity = Instance.new("BodyVelocity")
+		bodyVelocity.MaxForce = Vector3.new(4000, 2000, 4000)
+		bodyVelocity.Velocity = pushVelocity
+		bodyVelocity.Parent = targetRoot
+		
+		-- Remove BodyVelocity after short time
+		Debris:AddItem(bodyVelocity, 0.5)
+		
+		-- Just ensure health stays the same
+		targetHumanoid.Health = originalHealth
+		
+		debugPrint("Simple push applied successfully")
+	else
+		-- Original approach with knockback
+		-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
+		targetRoot.AssemblyLinearVelocity = pushVelocity
+		
+		-- Method 2: Using BodyVelocity (backup method)
+		local bodyVelocity = Instance.new("BodyVelocity")
+		bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+		bodyVelocity.Velocity = pushVelocity
+		bodyVelocity.Parent = targetRoot
+		
+		-- Remove BodyVelocity after short time
+		Debris:AddItem(bodyVelocity, 0.3)
+		
+		debugPrint("Push force applied successfully")
+		
+		-- Ensure no damage was done
+		targetHumanoid.Health = originalHealth
+		
+		-- Apply knockback effect (safer than ragdoll)
+		local recover = applyKnockback(targetPlayer.Character)
+		
+		-- Create a health protection loop
+		local healthProtection = task.spawn(function()
+			local protectionTime = 0
+			while protectionTime < KNOCKBACK_DURATION + 0.5 do
+				if targetHumanoid and targetHumanoid.Parent then
+					-- Keep restoring health
+					targetHumanoid.Health = originalHealth
+					-- Prevent death
+					if targetHumanoid.Health <= 0 then
+						targetHumanoid.Health = originalHealth
+						debugPrint("Prevented death, restored health to:", originalHealth)
+					end
+				else
+					break
+				end
+				task.wait(0.1)
+				protectionTime = protectionTime + 0.1
+			end
+		end)
+		
+		-- Schedule recovery
+		task.wait(KNOCKBACK_DURATION)
+		
+		if recover then
+			recover()
+			-- Final health restore
 			if targetHumanoid and targetHumanoid.Parent then
 				targetHumanoid.Health = originalHealth
-			else
-				break
 			end
-			task.wait(0.1)
-			protectionTime = protectionTime + 0.1
-		end
-	end)
-	
-	-- Schedule unragdoll
-	task.wait(RAGDOLL_DURATION)
-	
-	if unragdoll then
-		unragdoll()
-		-- Final health restore
-		if targetHumanoid and targetHumanoid.Parent then
-			targetHumanoid.Health = originalHealth
 		end
 	end
-	
-	-- Cancel health protection
-	task.cancel(healthProtection)
 end)
 
 -- Clean up cooldowns when players leave
