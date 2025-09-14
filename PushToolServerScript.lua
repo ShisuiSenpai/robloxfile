@@ -6,10 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
 -- Configuration
-local KNOCKBACK_DURATION = 1.5 -- How long the knockback effect lasts
+local RAGDOLL_DURATION = 1.5 -- How long the ragdoll effect lasts
 local MAX_PUSH_DISTANCE = 15 -- Maximum allowed push distance
 local PUSH_COOLDOWN_PER_PLAYER = {} -- Track cooldowns per player
-local USE_SIMPLE_PUSH = true -- Use simple push without any ragdoll/sit
+local USE_RAGDOLL = true -- Use ragdoll physics (set to false for simple push)
 
 -- Debug mode
 local DEBUG = true -- Set to false to hide debug messages
@@ -30,9 +30,9 @@ pushRemote.Parent = ReplicatedStorage
 
 debugPrint("RemoteEvent created")
 
--- SAFER APPROACH: Simple knockback without breaking joints
-local function applyKnockback(character)
-	debugPrint("Applying knockback to:", character.Name)
+-- PROPER RAGDOLL: Safe ragdoll with BallSocketConstraints
+local function ragdollCharacter(character)
+	debugPrint("Starting safe ragdoll for:", character.Name)
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then 
@@ -40,45 +40,157 @@ local function applyKnockback(character)
 		return 
 	end
 	
-	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
 	if not rootPart then
-		debugPrint("No HumanoidRootPart found!")
+		debugPrint("No root part found!")
 		return
 	end
 	
-	-- Store current health to ensure no damage
-	local currentHealth = humanoid.Health
+	-- CRITICAL: Prevent death
+	humanoid.RequiresNeck = false
+	humanoid.BreakJointsOnDeath = false
+	local originalHealth = humanoid.Health
+	local originalMaxHealth = humanoid.MaxHealth
 	
-	-- Simple knockback: Just make them fall over without breaking joints
-	humanoid.Sit = true  -- Makes them sit/fall
+	-- Change state to ragdoll (use Ragdoll state if available, otherwise Physics)
+	humanoid.PlatformStand = true
+	if Enum.HumanoidStateType.Ragdoll then
+		humanoid:ChangeState(Enum.HumanoidStateType.Ragdoll)
+	else
+		humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
+	end
 	
-	-- Wait a moment then stand them back up
-	task.wait(0.1)
+	-- Store joints and create constraints
+	local joints = {}
+	local constraints = {}
 	
-	-- Return function to recover
+	-- Process each Motor6D joint
+	for _, joint in pairs(character:GetDescendants()) do
+		if joint:IsA("Motor6D") then
+			-- Skip RootJoint to keep character together
+			if joint.Name == "RootJoint" then
+				continue
+			end
+			
+			-- Store joint info
+			local jointInfo = {
+				joint = joint,
+				part0 = joint.Part0,
+				part1 = joint.Part1,
+				c0 = joint.C0,
+				c1 = joint.C1,
+				enabled = joint.Enabled
+			}
+			table.insert(joints, jointInfo)
+			
+			-- Create attachments for BallSocketConstraint
+			local attachment0 = Instance.new("Attachment")
+			attachment0.CFrame = joint.C0
+			attachment0.Parent = joint.Part0
+			
+			local attachment1 = Instance.new("Attachment")
+			attachment1.CFrame = joint.C1
+			attachment1.Parent = joint.Part1
+			
+			-- Create BallSocketConstraint
+			local ballSocket = Instance.new("BallSocketConstraint")
+			ballSocket.Attachment0 = attachment0
+			ballSocket.Attachment1 = attachment1
+			ballSocket.LimitsEnabled = true
+			ballSocket.TwistLimitsEnabled = true
+			ballSocket.UpperAngle = 45
+			ballSocket.TwistUpperAngle = 45
+			ballSocket.TwistLowerAngle = -45
+			ballSocket.Restitution = 0.5
+			ballSocket.Parent = joint.Parent
+			
+			-- Store constraint info for cleanup
+			table.insert(constraints, {
+				constraint = ballSocket,
+				attachment0 = attachment0,
+				attachment1 = attachment1
+			})
+			
+			-- Disable the Motor6D (don't destroy it!)
+			joint.Enabled = false
+			
+			debugPrint("Created ragdoll constraint for:", joint.Name)
+		end
+	end
+	
+	-- Make limbs collidable
+	for _, part in pairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and part ~= rootPart then
+			part.CanCollide = true
+		end
+	end
+	
+	-- Continuously protect health
+	local healthProtection = task.spawn(function()
+		while humanoid and humanoid.Parent do
+			humanoid.Health = originalHealth
+			humanoid.MaxHealth = originalMaxHealth
+			task.wait(0.1)
+		end
+	end)
+	
+	debugPrint("Ragdoll applied with", #constraints, "constraints")
+	
+	-- Return recovery function
 	return function()
-		debugPrint("Recovering character:", character.Name)
+		debugPrint("Recovering from ragdoll:", character.Name)
 		
 		if not character.Parent then 
 			debugPrint("Character no longer exists")
 			return 
 		end
 		
-		-- Stand back up
-		if humanoid and humanoid.Parent then
-			humanoid.Sit = false
-			humanoid.Jump = true  -- Help them get up
-			
-			-- Restore health
-			humanoid.Health = currentHealth
-			
-			-- Small upward impulse to help stand
-			if rootPart and rootPart.Parent then
-				rootPart.AssemblyLinearVelocity = rootPart.AssemblyLinearVelocity + Vector3.new(0, 20, 0)
+		-- Stop health protection
+		task.cancel(healthProtection)
+		
+		-- Remove constraints and attachments
+		for _, constraintInfo in pairs(constraints) do
+			if constraintInfo.constraint then
+				constraintInfo.constraint:Destroy()
+			end
+			if constraintInfo.attachment0 then
+				constraintInfo.attachment0:Destroy()
+			end
+			if constraintInfo.attachment1 then
+				constraintInfo.attachment1:Destroy()
 			end
 		end
 		
-		debugPrint("Character recovered successfully")
+		-- Re-enable Motor6Ds
+		for _, jointInfo in pairs(joints) do
+			if jointInfo.joint and jointInfo.joint.Parent then
+				jointInfo.joint.Enabled = true
+			end
+		end
+		
+		-- Reset limb collision
+		for _, part in pairs(character:GetDescendants()) do
+			if part:IsA("BasePart") and part ~= rootPart then
+				part.CanCollide = false
+			end
+		end
+		
+		-- Restore humanoid
+		if humanoid and humanoid.Parent then
+			humanoid.RequiresNeck = true
+			humanoid.BreakJointsOnDeath = true
+			humanoid.PlatformStand = false
+			humanoid:ChangeState(Enum.HumanoidStateType.Running)
+			humanoid.Health = originalHealth
+			humanoid.MaxHealth = originalMaxHealth
+			
+			-- Help them stand
+			if rootPart then
+				rootPart.AssemblyLinearVelocity = Vector3.new(0, 10, 0)
+			end
+		end
+		
+		debugPrint("Character recovered from ragdoll successfully")
 	end
 end
 
@@ -139,59 +251,38 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	local actualForce = math.clamp(force or 50, 10, 100)
 	local pushVelocity = (direction + Vector3.new(0, 0.3, 0)).Unit * actualForce
 	
-	if USE_SIMPLE_PUSH then
-		-- SIMPLEST APPROACH: Just apply velocity, no ragdoll or sitting
-		debugPrint("Using simple push (no ragdoll)")
+	-- Apply push velocity
+	-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
+	targetRoot.AssemblyLinearVelocity = pushVelocity
+	
+	-- Method 2: Using BodyVelocity for stronger effect
+	local bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(4000, 2000, 4000)
+	bodyVelocity.Velocity = pushVelocity
+	bodyVelocity.Parent = targetRoot
+	
+	-- Remove BodyVelocity after short time
+	Debris:AddItem(bodyVelocity, 0.3)
+	
+	debugPrint("Push force applied")
+	
+	-- Ensure health protection
+	targetHumanoid.Health = originalHealth
+	
+	if USE_RAGDOLL then
+		debugPrint("Applying ragdoll physics")
 		
-		-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
-		targetRoot.AssemblyLinearVelocity = pushVelocity
+		-- Apply proper ragdoll with BallSocketConstraints
+		local recover = ragdollCharacter(targetPlayer.Character)
 		
-		-- Method 2: Using BodyVelocity for stronger effect
-		local bodyVelocity = Instance.new("BodyVelocity")
-		bodyVelocity.MaxForce = Vector3.new(4000, 2000, 4000)
-		bodyVelocity.Velocity = pushVelocity
-		bodyVelocity.Parent = targetRoot
-		
-		-- Remove BodyVelocity after short time
-		Debris:AddItem(bodyVelocity, 0.5)
-		
-		-- Just ensure health stays the same
-		targetHumanoid.Health = originalHealth
-		
-		debugPrint("Simple push applied successfully")
-	else
-		-- Original approach with knockback
-		-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
-		targetRoot.AssemblyLinearVelocity = pushVelocity
-		
-		-- Method 2: Using BodyVelocity (backup method)
-		local bodyVelocity = Instance.new("BodyVelocity")
-		bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-		bodyVelocity.Velocity = pushVelocity
-		bodyVelocity.Parent = targetRoot
-		
-		-- Remove BodyVelocity after short time
-		Debris:AddItem(bodyVelocity, 0.3)
-		
-		debugPrint("Push force applied successfully")
-		
-		-- Ensure no damage was done
-		targetHumanoid.Health = originalHealth
-		
-		-- Apply knockback effect (safer than ragdoll)
-		local recover = applyKnockback(targetPlayer.Character)
-		
-		-- Create a health protection loop
-		local healthProtection = task.spawn(function()
+		-- Additional health protection during ragdoll
+		local extraProtection = task.spawn(function()
 			local protectionTime = 0
-			while protectionTime < KNOCKBACK_DURATION + 0.5 do
+			while protectionTime < RAGDOLL_DURATION + 1 do
 				if targetHumanoid and targetHumanoid.Parent then
-					-- Keep restoring health
-					targetHumanoid.Health = originalHealth
-					-- Prevent death
-					if targetHumanoid.Health <= 0 then
+					if targetHumanoid.Health < originalHealth then
 						targetHumanoid.Health = originalHealth
-						debugPrint("Prevented death, restored health to:", originalHealth)
+						debugPrint("Health protected during ragdoll")
 					end
 				else
 					break
@@ -201,16 +292,22 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 			end
 		end)
 		
-		-- Schedule recovery
-		task.wait(KNOCKBACK_DURATION)
+		-- Wait for ragdoll duration
+		task.wait(RAGDOLL_DURATION)
 		
+		-- Recover from ragdoll
 		if recover then
 			recover()
-			-- Final health restore
-			if targetHumanoid and targetHumanoid.Parent then
-				targetHumanoid.Health = originalHealth
-			end
 		end
+		
+		-- Final health check
+		if targetHumanoid and targetHumanoid.Parent then
+			targetHumanoid.Health = originalHealth
+		end
+	else
+		debugPrint("Simple push without ragdoll")
+		-- Just the push, no ragdoll
+		targetHumanoid.Health = originalHealth
 	end
 end)
 
