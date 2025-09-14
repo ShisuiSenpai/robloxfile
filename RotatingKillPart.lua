@@ -6,12 +6,17 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 -- Configuration
-local ROTATION_SPEED = 50 -- Degrees per second
+local MIN_ROTATION_SPEED = 10 -- Starting rotation speed (degrees per second)
+local MAX_ROTATION_SPEED = 200 -- Maximum rotation speed (degrees per second)
+local SPEED_INCREASE_RATE = 5 -- How fast the speed increases per second
 local RESPAWN_TIME = 3 -- Time before player respawns (in seconds)
+
+-- Current rotation speed (starts at minimum)
+local currentRotationSpeed = MIN_ROTATION_SPEED
 
 -- Set up the part properties
 part.Material = Enum.Material.Neon -- Makes it look dangerous
-part.BrickColor = BrickColor.new("Really red") -- Red color for danger
+part.BrickColor = BrickColor.new("Lime green") -- Starts green (safe/slow)
 part.TopSurface = Enum.SurfaceType.Smooth
 part.BottomSurface = Enum.SurfaceType.Smooth
 part.CanCollide = true
@@ -25,11 +30,20 @@ selectionBox.Color3 = Color3.new(1, 0, 0) -- Red outline
 selectionBox.LineThickness = 0.1
 selectionBox.Transparency = 0.5
 
--- Rotation using RunService for smooth rotation
+-- Rotation using RunService for smooth rotation with speed increase
 local connection
 connection = RunService.Heartbeat:Connect(function(deltaTime)
+	-- Increase speed over time (up to maximum)
+	if currentRotationSpeed < MAX_ROTATION_SPEED then
+		currentRotationSpeed = math.min(currentRotationSpeed + (SPEED_INCREASE_RATE * deltaTime), MAX_ROTATION_SPEED)
+		
+		-- Optional: Change color based on speed (green to red)
+		local speedRatio = (currentRotationSpeed - MIN_ROTATION_SPEED) / (MAX_ROTATION_SPEED - MIN_ROTATION_SPEED)
+		part.Color = Color3.new(speedRatio, 1 - speedRatio, 0) -- Gradual color change from green to red
+	end
+	
 	-- Rotate the part on Z axis for horizontal spinning (like a rolling log)
-	part.CFrame = part.CFrame * CFrame.Angles(0, 0, math.rad(ROTATION_SPEED * deltaTime))
+	part.CFrame = part.CFrame * CFrame.Angles(0, 0, math.rad(currentRotationSpeed * deltaTime))
 end)
 
 -- Alternative rotation method using TweenService (smoother but less flexible)
@@ -53,17 +67,28 @@ end
 rotatePart()
 --]]
 
--- Kill function
+-- Kill function with speed reset
 local function killPlayer(character)
 	local humanoid = character:FindFirstChild("Humanoid")
 	if humanoid and humanoid.Health > 0 then
 		-- Set health to 0 to kill the player
 		humanoid.Health = 0
 		
+		-- RESET THE SPEED BACK TO MINIMUM
+		currentRotationSpeed = MIN_ROTATION_SPEED
+		part.BrickColor = BrickColor.new("Lime green") -- Visual feedback for reset
+		
+		-- Flash effect to show speed reset
+		task.spawn(function()
+			task.wait(0.2)
+			part.BrickColor = BrickColor.new("Really red")
+		end)
+		
 		-- Optional: Add death effect
 		local player = game.Players:GetPlayerFromCharacter(character)
 		if player then
-			print(player.Name .. " was killed by the rotating cylinder!")
+			print(player.Name .. " was killed by the rotating cylinder! Speed reset to minimum.")
+			print("Current speed: " .. currentRotationSpeed .. " degrees/second")
 		end
 	end
 end
