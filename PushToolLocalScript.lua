@@ -41,18 +41,51 @@ end
 
 debugPrint("RemoteEvent found/created successfully")
 
+-- Optional: Create visual push effect
+local function createPushEffect(targetPosition, distance)
+	local character = getCharacter()
+	if not character then return end
+	
+	local myRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not myRootPart then return end
+	
+	-- Create a visual effect
+	local part = Instance.new("Part")
+	part.Name = "PushEffect"
+	part.Anchored = true
+	part.CanCollide = false
+	part.Size = Vector3.new(0.5, 0.5, distance or PUSH_RANGE)
+	part.Material = Enum.Material.ForceField
+	part.BrickColor = BrickColor.new("Cyan")
+	part.Transparency = 0.5
+	part.CFrame = CFrame.lookAt(myRootPart.Position, targetPosition) * CFrame.new(0, 0, -part.Size.Z/2)
+	part.Parent = workspace
+	
+	-- Fade out and remove
+	game:GetService("Debris"):AddItem(part, 0.3)
+	
+	-- Fade animation
+	local startTime = tick()
+	game:GetService("RunService").Heartbeat:Connect(function()
+		local elapsed = tick() - startTime
+		if elapsed < 0.3 and part.Parent then
+			part.Transparency = 0.5 + (elapsed / 0.3) * 0.5
+		end
+	end)
+end
+
 -- Function to find the closest player in front
 local function getTargetInFront()
 	local character = getCharacter()
 	if not character then 
 		debugPrint("No character found")
-		return nil 
+		return nil, nil 
 	end
 	
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then 
 		debugPrint("No HumanoidRootPart found")
-		return nil 
+		return nil, nil 
 	end
 	
 	local closestPlayer = nil
@@ -85,7 +118,7 @@ local function getTargetInFront()
 		end
 	end
 	
-	return closestPlayer
+	return closestPlayer, closestDistance
 end
 
 -- Tool activation
@@ -104,15 +137,18 @@ local function onActivated()
 		return
 	end
 	
-	-- Find target
-	local targetPlayer = getTargetInFront()
+	-- Find target (now returns both player and distance)
+	local targetPlayer, targetDistance = getTargetInFront()
 	
 	if targetPlayer then
-		debugPrint("Pushing player:", targetPlayer.Name)
+		debugPrint("Pushing player:", targetPlayer.Name, "at distance:", targetDistance)
 		
 		-- Calculate push direction
 		local targetRoot = targetPlayer.Character.HumanoidRootPart
 		local pushDirection = (targetRoot.Position - humanoidRootPart.Position).Unit
+		
+		-- Create visual effect (optional)
+		createPushEffect(targetRoot.Position, targetDistance)
 		
 		-- Send to server
 		pushRemote:FireServer(targetPlayer, pushDirection, PUSH_FORCE)
