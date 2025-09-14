@@ -50,11 +50,18 @@ selectionBox.LineThickness = 0.1
 selectionBox.Transparency = 0.5
 
 
+-- Check if we should be active (controlled by round system)
+local isActive = true
+
 -- Rotation using RunService for smooth rotation (EXACTLY like the original script)
 print("RotatingKillPart: Starting rotation loop...")
 
 local connection
 connection = RunService.Heartbeat:Connect(function(deltaTime)
+	-- Check if script is disabled (by round system)
+	if not script.Enabled then
+		return -- Skip rotation and damage when disabled
+	end
 	-- Increase speed over time (up to maximum)
 	if currentRotationSpeed < MAX_ROTATION_SPEED then
 		currentRotationSpeed = math.min(currentRotationSpeed + (SPEED_INCREASE_RATE * deltaTime), MAX_ROTATION_SPEED)
@@ -172,6 +179,10 @@ local debounce = {}
 
 -- Touch event
 part.Touched:Connect(function(hit)
+	-- Check if script is disabled (by round system)
+	if not script.Enabled then
+		return -- No damage when disabled
+	end
 	-- Check if the touched object belongs to a player
 	local character = hit.Parent
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
