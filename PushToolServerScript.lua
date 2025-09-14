@@ -41,13 +41,24 @@ local function ragdollCharacter(character)
 	
 	-- Store current health to ensure no damage
 	local currentHealth = humanoid.Health
+	local maxHealth = humanoid.MaxHealth
 	
-	-- Change humanoid state (NO DAMAGE, just physics)
+	-- IMPORTANT: Set BreakJointsOnDeath to false to prevent death from breaking joints
+	humanoid.BreakJointsOnDeath = false
+	
+	-- Set RequiresNeck to false if it exists (newer property)
+	if humanoid:FindFirstChild("RequiresNeck") ~= nil then
+		humanoid.RequiresNeck = false
+	end
+	
+	-- Change humanoid state (safer approach)
 	humanoid.PlatformStand = true
-	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	-- Don't use Physics state as it can cause death, use FallingDown instead
+	humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
 	
 	-- Ensure health stays the same
 	humanoid.Health = currentHealth
+	humanoid.MaxHealth = maxHealth
 	
 	-- Store original values
 	local joints = {}
@@ -92,8 +103,17 @@ local function ragdollCharacter(character)
 		
 		-- Restore humanoid
 		if humanoid and humanoid.Parent then
-			-- Ensure no damage was done
-			humanoid.Health = humanoid.MaxHealth
+			-- Restore health to original values
+			humanoid.MaxHealth = maxHealth
+			humanoid.Health = currentHealth
+			
+			-- Restore BreakJointsOnDeath
+			humanoid.BreakJointsOnDeath = true
+			
+			-- Restore RequiresNeck if it exists
+			if humanoid:FindFirstChild("RequiresNeck") ~= nil then
+				humanoid.RequiresNeck = true
+			end
 			
 			humanoid.PlatformStand = false
 			humanoid:ChangeState(Enum.HumanoidStateType.Running)
@@ -186,16 +206,33 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	-- Apply ragdoll (no damage, just physics effect)
 	local unragdoll = ragdollCharacter(targetPlayer.Character)
 	
+	-- Create a health protection loop during ragdoll
+	local healthProtection = task.spawn(function()
+		local protectionTime = 0
+		while protectionTime < RAGDOLL_DURATION + 0.5 do
+			if targetHumanoid and targetHumanoid.Parent then
+				targetHumanoid.Health = originalHealth
+			else
+				break
+			end
+			task.wait(0.1)
+			protectionTime = protectionTime + 0.1
+		end
+	end)
+	
 	-- Schedule unragdoll
 	task.wait(RAGDOLL_DURATION)
 	
 	if unragdoll then
 		unragdoll()
-		-- Restore health again just to be safe
+		-- Final health restore
 		if targetHumanoid and targetHumanoid.Parent then
 			targetHumanoid.Health = originalHealth
 		end
 	end
+	
+	-- Cancel health protection
+	task.cancel(healthProtection)
 end)
 
 -- Clean up cooldowns when players leave
