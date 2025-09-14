@@ -1,0 +1,290 @@
+-- Disappearing Floors System
+-- Place this script in ServerScriptService
+
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Configuration
+local MIN_TIME_BETWEEN_DISAPPEAR = 3 -- Minimum seconds between parts disappearing
+local MAX_TIME_BETWEEN_DISAPPEAR = 8 -- Maximum seconds between parts disappearing
+local WARNING_TIME = 2 -- How long the warning phase lasts (color changing)
+local DISAPPEAR_TIME = 3 -- How long the part stays invisible
+local RESPAWN_FADE_TIME = 1 -- How long it takes to fade back in
+
+-- Color sequence for warning (goes through these colors before disappearing)
+local WARNING_COLORS = {
+	BrickColor.new("Lime green"),
+	BrickColor.new("Yellow"),
+	BrickColor.new("Orange"),
+	BrickColor.new("Really red")
+}
+
+-- Hazards flag from server round system
+local hazardsValue = ReplicatedStorage:WaitForChild("HazardsEnabled")
+
+-- Get the Map folder
+local mapFolder = workspace:WaitForChild("Map")
+local parts = {}
+
+-- Function to collect all parts from the Map folder
+local function collectParts()
+	parts = {}
+	for _, child in pairs(mapFolder:GetChildren()) do
+		if child:IsA("BasePart") and child.Name == "Part" then
+			table.insert(parts, child)
+			-- Store original properties (only once when first found)
+			if not child:GetAttribute("OriginalTransparency") then
+				child:SetAttribute("OriginalTransparency", child.Transparency)
+				child:SetAttribute("OriginalColor", child.BrickColor.Name)
+				child:SetAttribute("OriginalMaterial", child.Material.Name)
+				child:SetAttribute("IsDisappearing", false)
+			end
+		end
+	end
+	print("DisappearingFloors: Found", #parts, "parts in Map folder")
+end
+
+-- Initial collection
+collectParts()
+
+-- Re-collect parts if new ones are added
+mapFolder.ChildAdded:Connect(function(child)
+	wait(0.1) -- Small delay to ensure part is fully loaded
+	if child:IsA("BasePart") and child.Name == "Part" then
+		collectParts()
+	end
+end)
+
+mapFolder.ChildRemoved:Connect(function(child)
+	if child:IsA("BasePart") and child.Name == "Part" then
+		collectParts()
+	end
+end)
+
+-- Function to make a part flash warning colors
+local function flashWarning(part)
+	if not part or not part.Parent then return end
+
+	part:SetAttribute("IsDisappearing", true)
+
+	-- Calculate time for each color
+	local timePerColor = WARNING_TIME / #WARNING_COLORS
+
+	-- Go through each warning color
+	for i, color in ipairs(WARNING_COLORS) do
+		if part and part.Parent then
+			-- If hazards turned off mid-warning, abort and reset
+			if not hazardsValue.Value then
+				part:SetAttribute("IsDisappearing", false)
+				return
+			end
+			-- Tween to the warning color
+			local colorTween = TweenService:Create(
+				part,
+				TweenInfo.new(timePerColor / 2, Enum.EasingStyle.Linear),
+				{Color = color.Color}
+			)
+			colorTween:Play()
+
+			-- Also change BrickColor for compatibility
+			part.BrickColor = color
+
+			-- Add a slight glow effect
+			if i == #WARNING_COLORS then
+				-- Last color - make it glow more
+				part.Material = Enum.Material.Neon
+			end
+
+			wait(timePerColor)
+		end
+	end
+end
+
+-- Function to make a part disappear
+local function disappearPart(part)
+	if not part or not part.Parent then return end
+
+	-- Store original properties from attributes
+	local originalTransparency = part:GetAttribute("OriginalTransparency") or 0
+	local originalColor = BrickColor.new(part:GetAttribute("OriginalColor") or "Medium stone grey")
+	local originalMaterialName = part:GetAttribute("OriginalMaterial") or "Plastic"
+	local originalMaterial = Enum.Material[originalMaterialName]
+	local originalCanCollide = part.CanCollide
+
+	-- Create disappear effect with tween (just transparency, no color change)
+	local disappearTween = TweenService:Create(
+		part,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{
+			Transparency = 1
+		}
+	)
+
+	disappearTween:Play()
+
+	-- Wait for tween to complete
+	wait(0.5)
+
+	-- Make it non-collidable so players fall through
+	part.CanCollide = false
+
+	-- Keep it invisible for the specified time
+	wait(DISAPPEAR_TIME)
+
+	-- Respawn the part
+	if part and part.Parent then
+		-- Make it collidable again first
+		part.CanCollide = originalCanCollide
+
+		-- IMPORTANT: Reset ALL properties to original BEFORE tweening
+		part.Material = originalMaterial
+		part.BrickColor = originalColor
+		part.Color = originalColor.Color
+
+		-- Create reappear effect (only transparency)
+		local reappearTween = TweenService:Create(
+			part,
+			TweenInfo.new(RESPAWN_FADE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{
+				Transparency = originalTransparency
+			}
+		)
+
+		reappearTween:Play()
+
+		-- Mark as no longer disappearing
+		part:SetAttribute("IsDisappearing", false)
+	end
+end
+
+-- Main function to handle a single part disappearing
+local function processPart(part)
+	if not part or not part.Parent then return end
+
+	-- Check if part is already disappearing
+	if part:GetAttribute("IsDisappearing") then
+		return
+	end
+
+	-- Flash warning colors
+	flashWarning(part)
+
+	-- If hazards were disabled during the warning, stop here
+	if not hazardsValue.Value then
+		return
+	end
+
+	-- Make it disappear
+	disappearPart(part)
+end
+
+-- Function to randomly select and disappear a part
+local function selectAndDisappearPart()
+	if #parts == 0 then
+		warn("DisappearingFloors: No parts found in Map folder")
+		return
+	end
+
+	-- Filter out parts that are already disappearing
+	local availableParts = {}
+	for _, part in ipairs(parts) do
+		if part and part.Parent and not part:GetAttribute("IsDisappearing") then
+			table.insert(availableParts, part)
+		end
+	end
+
+	if #availableParts == 0 then
+		print("DisappearingFloors: All parts are currently disappearing, waiting...")
+		return
+	end
+
+	-- Select a random part
+	local randomIndex = math.random(1, #availableParts)
+	local selectedPart = availableParts[randomIndex]
+
+	print("DisappearingFloors: Making part disappear at position", selectedPart.Position)
+
+	-- Process the part in a new thread so we don't block
+	task.spawn(function()
+		processPart(selectedPart)
+	end)
+end
+
+-- Main loop gated by hazards flag
+task.spawn(function()
+	wait(3) -- Initial delay before starting
+
+	while true do
+		-- Wait until hazards are enabled (during IN_PROGRESS)
+		if not hazardsValue.Value then
+			hazardsValue.Changed:Wait()
+		end
+		if not hazardsValue.Value then
+			-- In case it flipped back immediately
+			task.wait(0.1)
+			continue
+		end
+
+		-- Make a part disappear
+		selectAndDisappearPart()
+
+		-- Wait random time, but break early if hazards turn off
+		local waitTime = math.random(MIN_TIME_BETWEEN_DISAPPEAR, MAX_TIME_BETWEEN_DISAPPEAR)
+		local elapsed = 0
+		while elapsed < waitTime do
+			if not hazardsValue.Value then
+				break
+			end
+			task.wait(0.25)
+			elapsed += 0.25
+		end
+	end
+end)
+
+-- Optional: Multiple parts disappearing at once for harder difficulty
+local HARD_MODE = false -- Set to true for multiple parts disappearing
+local MAX_SIMULTANEOUS = 3 -- Maximum parts that can disappear at once
+
+if HARD_MODE then
+	task.spawn(function()
+		wait(10) -- Wait 10 seconds before starting hard mode
+
+		while true do
+			-- Wait until hazards are enabled
+			if not hazardsValue.Value then
+				hazardsValue.Changed:Wait()
+			end
+			if not hazardsValue.Value then
+				task.wait(0.1)
+				continue
+			end
+
+			local numParts = math.random(1, MAX_SIMULTANEOUS)
+			for i = 1, numParts do
+				if not hazardsValue.Value then break end
+				task.spawn(function()
+					selectAndDisappearPart()
+				end)
+				wait(0.5) -- Small delay between each part
+			end
+
+			local waitTime = math.random(MIN_TIME_BETWEEN_DISAPPEAR * 2, MAX_TIME_BETWEEN_DISAPPEAR * 2)
+			local elapsed = 0
+			while elapsed < waitTime do
+				if not hazardsValue.Value then
+					break
+				end
+				task.wait(0.25)
+				elapsed += 0.25
+			end
+		end
+	end)
+end
+
+print("DisappearingFloors: System initialized!")
+print("DisappearingFloors: Parts will disappear every", MIN_TIME_BETWEEN_DISAPPEAR, "-", MAX_TIME_BETWEEN_DISAPPEAR, "seconds")
+print("DisappearingFloors: Warning time:", WARNING_TIME, "seconds")
+print("DisappearingFloors: Disappear time:", DISAPPEAR_TIME, "seconds")
+
