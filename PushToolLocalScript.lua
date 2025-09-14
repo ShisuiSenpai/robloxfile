@@ -7,6 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local tool = script.Parent
 local player = Players.LocalPlayer
 
+-- Verify this is actually a tool
+if not tool:IsA("Tool") then
+	warn("[PUSH CLIENT] Script parent is not a Tool! Parent is:", tool.ClassName)
+	return
+end
+
 -- Configuration
 local PUSH_RANGE = 10 -- How far in front the push reaches (studs)
 local PUSH_FORCE = 75 -- How strong the push is
@@ -27,6 +33,20 @@ local function debugPrint(...)
 end
 
 debugPrint("Push tool LocalScript starting...")
+debugPrint("Tool name:", tool.Name)
+debugPrint("Tool parent:", tool.Parent and tool.Parent.Name or "nil")
+debugPrint("Tool RequiresHandle:", tool.RequiresHandle)
+
+-- Check if tool has a handle
+local handle = tool:FindFirstChild("Handle")
+if handle then
+	debugPrint("Tool has a Handle part")
+else
+	debugPrint("Tool has NO Handle part")
+	if tool.RequiresHandle then
+		warn("[PUSH CLIENT] Tool requires handle but no Handle part found!")
+	end
+end
 
 -- Create or wait for RemoteEvent
 local pushRemote = ReplicatedStorage:FindFirstChild("PushRemote")
@@ -164,4 +184,28 @@ end
 -- Connect events
 tool.Activated:Connect(onActivated)
 
+-- Also try with Equipped/Unequipped for debugging
+tool.Equipped:Connect(function()
+	debugPrint("Tool equipped!")
+end)
+
+tool.Unequipped:Connect(function()
+	debugPrint("Tool unequipped!")
+end)
+
+-- Alternative activation method (mouse click when equipped)
+local mouse = nil
+tool.Equipped:Connect(function(newMouse)
+	mouse = newMouse
+	debugPrint("Mouse connected")
+	
+	if mouse then
+		mouse.Button1Down:Connect(function()
+			debugPrint("Mouse clicked while tool equipped!")
+			onActivated()
+		end)
+	end
+end)
+
 debugPrint("Push tool LocalScript loaded successfully!")
+debugPrint("Waiting for tool activation...")
