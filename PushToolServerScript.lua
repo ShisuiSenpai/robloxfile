@@ -247,24 +247,38 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	
 	debugPrint("Applying push force...")
 	
-	-- Apply push force
-	local actualForce = math.clamp(force or 50, 10, 100)
-	local pushVelocity = (direction + Vector3.new(0, 0.3, 0)).Unit * actualForce
+	-- Apply push force (reduced for shorter distance)
+	local actualForce = math.clamp(force or 30, 10, 40) -- Much lower max force
+	local pushVelocity = (direction + Vector3.new(0, 0.2, 0)).Unit * actualForce -- Less upward force too
 	
 	-- Apply push velocity
 	-- Method 1: Using AssemblyLinearVelocity (newer, more reliable)
 	targetRoot.AssemblyLinearVelocity = pushVelocity
 	
-	-- Method 2: Using BodyVelocity for stronger effect
+	-- Method 2: Using BodyVelocity for controlled push
 	local bodyVelocity = Instance.new("BodyVelocity")
-	bodyVelocity.MaxForce = Vector3.new(4000, 2000, 4000)
+	bodyVelocity.MaxForce = Vector3.new(2000, 1000, 2000) -- Reduced max force
 	bodyVelocity.Velocity = pushVelocity
 	bodyVelocity.Parent = targetRoot
 	
-	-- Remove BodyVelocity after short time
-	Debris:AddItem(bodyVelocity, 0.3)
+	-- Remove BodyVelocity quickly for shorter push
+	Debris:AddItem(bodyVelocity, 0.2) -- Shorter duration
 	
-	debugPrint("Push force applied")
+	-- Add friction to stop sliding (creates drag effect)
+	task.wait(0.2)
+	if targetRoot and targetRoot.Parent then
+		-- Apply counter-force to stop sliding
+		local dragVelocity = Instance.new("BodyVelocity")
+		dragVelocity.MaxForce = Vector3.new(3000, 0, 3000) -- Only horizontal drag
+		dragVelocity.Velocity = Vector3.new(0, 0, 0) -- Stop movement
+		dragVelocity.Parent = targetRoot
+		
+		-- Remove drag after brief moment
+		Debris:AddItem(dragVelocity, 0.3)
+		debugPrint("Applied drag to limit push distance")
+	end
+	
+	debugPrint("Push force applied with distance limiting")
 	
 	-- Ensure health protection
 	targetHumanoid.Health = originalHealth

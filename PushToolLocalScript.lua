@@ -15,7 +15,7 @@ end
 
 -- Configuration
 local PUSH_RANGE = 10 -- How far in front the push reaches (studs)
-local PUSH_FORCE = 75 -- How strong the push is
+local PUSH_FORCE = 30 -- Reduced push force for shorter distance
 local COOLDOWN_TIME = 2 -- Cooldown between pushes in seconds
 
 -- Debug mode
