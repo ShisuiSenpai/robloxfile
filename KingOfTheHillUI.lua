@@ -162,61 +162,86 @@ gradient.Color = ColorSequence.new{
 gradient.Rotation = 0 -- Horizontal gradient
 gradient.Parent = progressBar
 
--- Winner Announcement Frame
+-- Winner Announcement Frame (Top of screen, wider design)
 local winnerFrame = Instance.new("Frame")
 winnerFrame.Name = "WinnerAnnouncement"
-winnerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-winnerFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-winnerFrame.Size = UDim2.new(0, 500, 0, 200)
+winnerFrame.AnchorPoint = Vector2.new(0.5, 0)
+winnerFrame.Position = UDim2.new(0.5, 0, 0, -120) -- Start off-screen at top
+winnerFrame.Size = UDim2.new(0, 550, 0, 100) -- Wider, similar height to king display
 winnerFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-winnerFrame.BackgroundTransparency = 1
+winnerFrame.BackgroundTransparency = 0.12 -- Slightly less transparent for emphasis
 winnerFrame.BorderSizePixel = 0
 winnerFrame.Visible = false
 winnerFrame.Parent = screenGui
 
 local winnerCorner = Instance.new("UICorner")
-winnerCorner.CornerRadius = UDim.new(0, 20)
+winnerCorner.CornerRadius = UDim.new(0, 16)
 winnerCorner.Parent = winnerFrame
 
+-- Blue stroke to match king display
 local winnerStroke = Instance.new("UIStroke")
-winnerStroke.Color = Color3.fromRGB(255, 215, 0)
-winnerStroke.Thickness = 3
-winnerStroke.Transparency = 0.5
+winnerStroke.Color = Color3.fromRGB(100, 180, 255)
+winnerStroke.Thickness = 2.5
+winnerStroke.Transparency = 0.3
 winnerStroke.Parent = winnerFrame
 
--- Winner Text
-local winnerText = Instance.new("TextLabel")
-winnerText.Size = UDim2.new(1, 0, 0, 60)
-winnerText.Position = UDim2.new(0, 0, 0, 30)
-winnerText.BackgroundTransparency = 1
-winnerText.Font = Enum.Font.GothamBold
-winnerText.Text = "VICTORY"
-winnerText.TextColor3 = Color3.fromRGB(255, 215, 0)
-winnerText.TextSize = 48
-winnerText.TextStrokeTransparency = 0.8
-winnerText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-winnerText.Parent = winnerFrame
+-- Winner Crown Icon (simple blue indicator)
+local crownIcon = Instance.new("Frame")
+crownIcon.Name = "CrownIndicator"
+crownIcon.Position = UDim2.new(0, 20, 0.5, -20)
+crownIcon.Size = UDim2.new(0, 40, 0, 40)
+crownIcon.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+crownIcon.BackgroundTransparency = 0.2
+crownIcon.BorderSizePixel = 0
+crownIcon.Parent = winnerFrame
 
--- Winner Player Name
+local crownCorner = Instance.new("UICorner")
+crownCorner.CornerRadius = UDim.new(0, 10)
+crownCorner.Parent = crownIcon
+
+local crownStroke = Instance.new("UIStroke")
+crownStroke.Color = Color3.fromRGB(150, 200, 255)
+crownStroke.Thickness = 2
+crownStroke.Transparency = 0.4
+crownStroke.Parent = crownIcon
+
+-- Winner Label (simple "WINNER" text)
+local winnerLabel = Instance.new("TextLabel")
+winnerLabel.Position = UDim2.new(0, 70, 0, 20)
+winnerLabel.Size = UDim2.new(0, 100, 0, 22)
+winnerLabel.BackgroundTransparency = 1
+winnerLabel.Font = Enum.Font.GothamBold
+winnerLabel.Text = "WINNER"
+winnerLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+winnerLabel.TextSize = 14
+winnerLabel.TextXAlignment = Enum.TextXAlignment.Left
+winnerLabel.TextYAlignment = Enum.TextYAlignment.Center
+winnerLabel.Parent = winnerFrame
+
+-- Winner Player Name (prominent)
 local winnerPlayerName = Instance.new("TextLabel")
-winnerPlayerName.Size = UDim2.new(1, 0, 0, 40)
-winnerPlayerName.Position = UDim2.new(0, 0, 0, 100)
+winnerPlayerName.Position = UDim2.new(0, 70, 0, 40)
+winnerPlayerName.Size = UDim2.new(1, -90, 0, 32)
 winnerPlayerName.BackgroundTransparency = 1
 winnerPlayerName.Font = Enum.Font.GothamBold
 winnerPlayerName.Text = ""
 winnerPlayerName.TextColor3 = Color3.fromRGB(255, 255, 255)
-winnerPlayerName.TextSize = 32
+winnerPlayerName.TextSize = 26
+winnerPlayerName.TextXAlignment = Enum.TextXAlignment.Left
+winnerPlayerName.TextYAlignment = Enum.TextYAlignment.Center
 winnerPlayerName.Parent = winnerFrame
 
 -- Winner Subtitle
 local winnerSubtitle = Instance.new("TextLabel")
-winnerSubtitle.Size = UDim2.new(1, 0, 0, 30)
-winnerSubtitle.Position = UDim2.new(0, 0, 0, 145)
+winnerSubtitle.Position = UDim2.new(0, 70, 0, 70)
+winnerSubtitle.Size = UDim2.new(1, -90, 0, 18)
 winnerSubtitle.BackgroundTransparency = 1
 winnerSubtitle.Font = Enum.Font.Gotham
-winnerSubtitle.Text = "conquered the pyramid!"
-winnerSubtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-winnerSubtitle.TextSize = 20
+winnerSubtitle.Text = "conquered the pyramid"
+winnerSubtitle.TextColor3 = Color3.fromRGB(180, 200, 255)
+winnerSubtitle.TextSize = 13
+winnerSubtitle.TextXAlignment = Enum.TextXAlignment.Left
+winnerSubtitle.TextYAlignment = Enum.TextYAlignment.Center
 winnerSubtitle.Parent = winnerFrame
 
 -- Animation functions
@@ -336,40 +361,28 @@ winnerEvent.OnClientEvent:Connect(function(winner)
 		-- Set winner text
 		winnerPlayerName.Text = winner.Name
 		
-		-- Show winner announcement
+		-- Show winner frame (slide down animation)
 		winnerFrame.Visible = true
-		winnerFrame.BackgroundTransparency = 1
-		winnerText.TextTransparency = 1
-		winnerPlayerName.TextTransparency = 1
-		winnerSubtitle.TextTransparency = 1
 		
-		-- Fade in animation
-		local fadeIn = TweenService:Create(
+		local slideDown = TweenService:Create(
 			winnerFrame,
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundTransparency = 0.1}
+			TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{Position = UDim2.new(0.5, 0, 0, 30)}
 		)
-		fadeIn:Play()
+		slideDown:Play()
 		
-		TweenService:Create(winnerText, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-		TweenService:Create(winnerPlayerName, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-		TweenService:Create(winnerSubtitle, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+		-- Wait to display
+		task.wait(4)
 		
-		-- Hide after 5 seconds
-		task.wait(5)
-		
-		local fadeOut = TweenService:Create(
+		-- Slide back up
+		local slideUp = TweenService:Create(
 			winnerFrame,
-			TweenInfo.new(0.5),
-			{BackgroundTransparency = 1}
+			TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+			{Position = UDim2.new(0.5, 0, 0, -120)}
 		)
-		fadeOut:Play()
+		slideUp:Play()
 		
-		TweenService:Create(winnerText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-		TweenService:Create(winnerPlayerName, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-		TweenService:Create(winnerSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-		
-		fadeOut.Completed:Wait()
+		slideUp.Completed:Wait()
 		winnerFrame.Visible = false
 	end
 end)
