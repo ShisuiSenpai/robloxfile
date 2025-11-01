@@ -165,6 +165,17 @@ local function onActivated()
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
+	-- PLAY ANIMATION REGARDLESS (before checking for target)
+	if pushAnimationTrack then
+		pushAnimationTrack:Play()
+		debugPrint("Playing push animation")
+	else
+		debugPrint("No animation track loaded")
+	end
+
+	-- Set cooldown immediately
+	lastPushTime = currentTime
+
 	-- Find target
 	local targetPlayer, targetDistance = getTargetInFront()
 
@@ -172,22 +183,11 @@ local function onActivated()
 		local targetRoot = targetPlayer.Character.HumanoidRootPart
 		local pushDirection = (targetRoot.Position - humanoidRootPart.Position).Unit
 
-		-- Play push animation
-		if pushAnimationTrack then
-			pushAnimationTrack:Play()
-			debugPrint("Playing push animation")
-		else
-			debugPrint("No animation track loaded")
-		end
-
 		-- Create visual effect
 		createPushEffect(targetRoot.Position, targetDistance)
 
 		-- Send to server
 		pushRemote:FireServer(targetPlayer, pushDirection, PUSH_FORCE)
-
-		-- Set cooldown
-		lastPushTime = currentTime
 
 		print("Pushed", targetPlayer.Name, "!")
 	else
