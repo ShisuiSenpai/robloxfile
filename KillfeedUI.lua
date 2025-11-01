@@ -219,7 +219,7 @@ killfeedEvent.OnClientEvent:Connect(function(killerName, victimName)
 end)
 
 -- Cleanup
-player.AncestorRemoved:Connect(function()
+player.CharacterRemoving:Connect(function()
 	for _, killData in ipairs(activeKills) do
 		if killData.frame then
 			killData.frame:Destroy()

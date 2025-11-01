@@ -602,8 +602,17 @@ winnerEvent.OnClientEvent:Connect(function(winner)
 	winnerFrame.Visible = false
 end)
 
--- Cleanup on player leaving
-player.AncestorRemoved:Connect(function()
+-- Cleanup on character removing
+if player.Character then
+	player.Character.AncestorRemoved:Connect(function()
+		stopDotAnimation()
+		if currentTween then currentTween:Cancel() end
+		if currentProgressTween then currentProgressTween:Cancel() end
+		if intermissionTask then task.cancel(intermissionTask) end
+	end)
+end
+
+player.CharacterRemoving:Connect(function()
 	stopDotAnimation()
 	if currentTween then currentTween:Cancel() end
 	if currentProgressTween then currentProgressTween:Cancel() end

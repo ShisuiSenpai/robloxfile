@@ -198,7 +198,7 @@ lavaStatusEvent.OnClientEvent:Connect(function(status, currentHeight, maxHeight)
 end)
 
 -- Cleanup
-player.AncestorRemoved:Connect(function()
+player.CharacterRemoving:Connect(function()
 	if warningTween then warningTween:Cancel() end
 	if pulseTween then pulseTween:Cancel() end
 end)
