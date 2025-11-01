@@ -32,8 +32,8 @@ screenGui.Parent = playerGui
 local warningFrame = Instance.new("Frame")
 warningFrame.Name = "LavaWarning"
 warningFrame.AnchorPoint = Vector2.new(0.5, 1)
-warningFrame.Position = UDim2.new(0.5, 0, 1, 100) -- Start off-screen at bottom
-warningFrame.Size = UDim2.new(0, 400, 0, 60)
+warningFrame.Position = UDim2.new(0.5, 0, 1, 120) -- Start off-screen at bottom
+warningFrame.Size = UDim2.new(0, 500, 0, 75)
 warningFrame.BackgroundColor3 = Color3.fromRGB(255, 80, 60)
 warningFrame.BackgroundTransparency = 0.3
 warningFrame.BorderSizePixel = 0
@@ -57,25 +57,25 @@ warningStroke.Parent = warningFrame
 -- Warning icon (?? emoji or text)
 local warningIcon = Instance.new("TextLabel")
 warningIcon.Name = "Icon"
-warningIcon.Position = UDim2.new(0, 10, 0, 0)
-warningIcon.Size = UDim2.new(0, 50, 1, 0)
+warningIcon.Position = UDim2.new(0, 12, 0, 0)
+warningIcon.Size = UDim2.new(0, 60, 1, 0)
 warningIcon.BackgroundTransparency = 1
 warningIcon.Font = Enum.Font.GothamBold
 warningIcon.Text = "??"
 warningIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-warningIcon.TextSize = 32
+warningIcon.TextSize = 40
 warningIcon.Parent = warningFrame
 
 -- Warning text
 local warningText = Instance.new("TextLabel")
 warningText.Name = "WarningText"
-warningText.Position = UDim2.new(0, 65, 0, 8)
-warningText.Size = UDim2.new(1, -75, 0, 24)
+warningText.Position = UDim2.new(0, 75, 0, 10)
+warningText.Size = UDim2.new(1, -85, 0, 30)
 warningText.BackgroundTransparency = 1
 warningText.Font = Enum.Font.GothamBold
 warningText.Text = "LAVA RISING!"
 warningText.TextColor3 = Color3.fromRGB(255, 255, 255)
-warningText.TextSize = 20
+warningText.TextSize = 24
 warningText.TextXAlignment = Enum.TextXAlignment.Left
 warningText.TextStrokeTransparency = 0.7
 warningText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -84,74 +84,16 @@ warningText.Parent = warningFrame
 -- Height indicator
 local heightText = Instance.new("TextLabel")
 heightText.Name = "HeightText"
-heightText.Position = UDim2.new(0, 65, 0, 32)
-heightText.Size = UDim2.new(1, -75, 0, 18)
+heightText.Position = UDim2.new(0, 75, 0, 42)
+heightText.Size = UDim2.new(1, -85, 0, 22)
 heightText.BackgroundTransparency = 1
 heightText.Font = Enum.Font.Gotham
 heightText.Text = "Height: 0%"
 heightText.TextColor3 = Color3.fromRGB(255, 220, 200)
-heightText.TextSize = 14
+heightText.TextSize = 16
 heightText.TextXAlignment = Enum.TextXAlignment.Left
 heightText.TextTransparency = 0.2
 heightText.Parent = warningFrame
-
--- Persistent indicator (shows when lava is active but not rising right now)
-local lavaIndicator = Instance.new("Frame")
-lavaIndicator.Name = "LavaIndicator"
-lavaIndicator.AnchorPoint = Vector2.new(1, 1)
-lavaIndicator.Position = UDim2.new(1, -10, 1, -10)
-lavaIndicator.Size = UDim2.new(0, 180, 0, 45)
-lavaIndicator.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-lavaIndicator.BackgroundTransparency = 0.2
-lavaIndicator.BorderSizePixel = 0
-lavaIndicator.Visible = false
-lavaIndicator.Parent = screenGui
-
-local indicatorScale = Instance.new("UIScale")
-indicatorScale.Parent = lavaIndicator
-
-local indicatorCorner = Instance.new("UICorner")
-indicatorCorner.CornerRadius = UDim.new(0, 10)
-indicatorCorner.Parent = lavaIndicator
-
-local indicatorStroke = Instance.new("UIStroke")
-indicatorStroke.Color = Color3.fromRGB(255, 100, 80)
-indicatorStroke.Thickness = 1.5
-indicatorStroke.Transparency = 0.5
-indicatorStroke.Parent = lavaIndicator
-
-local indicatorIcon = Instance.new("TextLabel")
-indicatorIcon.Position = UDim2.new(0, 8, 0, 0)
-indicatorIcon.Size = UDim2.new(0, 30, 1, 0)
-indicatorIcon.BackgroundTransparency = 1
-indicatorIcon.Font = Enum.Font.GothamBold
-indicatorIcon.Text = "??"
-indicatorIcon.TextColor3 = Color3.fromRGB(255, 100, 80)
-indicatorIcon.TextSize = 20
-indicatorIcon.Parent = lavaIndicator
-
-local indicatorLabel = Instance.new("TextLabel")
-indicatorLabel.Position = UDim2.new(0, 40, 0, 4)
-indicatorLabel.Size = UDim2.new(1, -45, 0, 18)
-indicatorLabel.BackgroundTransparency = 1
-indicatorLabel.Font = Enum.Font.GothamBold
-indicatorLabel.Text = "Lava Active"
-indicatorLabel.TextColor3 = Color3.fromRGB(255, 100, 80)
-indicatorLabel.TextSize = 13
-indicatorLabel.TextXAlignment = Enum.TextXAlignment.Left
-indicatorLabel.Parent = lavaIndicator
-
-local indicatorHeight = Instance.new("TextLabel")
-indicatorHeight.Position = UDim2.new(0, 40, 0, 22)
-indicatorHeight.Size = UDim2.new(1, -45, 0, 16)
-indicatorHeight.BackgroundTransparency = 1
-indicatorHeight.Font = Enum.Font.Gotham
-indicatorHeight.Text = "Height: 0%"
-indicatorHeight.TextColor3 = Color3.fromRGB(200, 200, 200)
-indicatorHeight.TextSize = 11
-indicatorHeight.TextXAlignment = Enum.TextXAlignment.Left
-indicatorHeight.TextTransparency = 0.3
-indicatorHeight.Parent = lavaIndicator
 
 -- ==================== MOBILE SCALING ====================
 
@@ -161,10 +103,9 @@ local function updateUIScale()
 	local screenHeight = viewportSize.Y
 	
 	local baseScale = math.min(screenWidth / 1920, screenHeight / 1080)
-	local scale = math.clamp(baseScale, 0.7, 1.2)
+	local scale = math.clamp(baseScale, 0.85, 1.3)
 	
 	warningScale.Scale = scale
-	indicatorScale.Scale = scale
 end
 
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
@@ -187,7 +128,7 @@ local function showWarning(height, maxHeight)
 	warningTween = TweenService:Create(
 		warningFrame,
 		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{Position = UDim2.new(0.5, 0, 1, -70)}
+		{Position = UDim2.new(0.5, 0, 1, -85)}
 	)
 	warningTween:Play()
 	
@@ -224,36 +165,12 @@ local function hideWarning()
 	warningTween = TweenService:Create(
 		warningFrame,
 		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-		{Position = UDim2.new(0.5, 0, 1, 100)}
+		{Position = UDim2.new(0.5, 0, 1, 120)}
 	)
 	warningTween:Play()
 	
 	warningTween.Completed:Wait()
 	warningFrame.Visible = false
-end
-
-local function updateIndicator(height, maxHeight, visible)
-	lavaIndicator.Visible = visible
-	
-	if visible then
-		local percentage = math.floor((height / maxHeight) * 100)
-		indicatorHeight.Text = "Height: " .. percentage .. "%"
-		
-		-- Change color as lava gets higher
-		if percentage >= 80 then
-			indicatorStroke.Color = Color3.fromRGB(255, 50, 50)
-			indicatorLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-			indicatorIcon.Text = "??"
-		elseif percentage >= 50 then
-			indicatorStroke.Color = Color3.fromRGB(255, 100, 50)
-			indicatorLabel.TextColor3 = Color3.fromRGB(255, 100, 50)
-			indicatorIcon.Text = "??"
-		else
-			indicatorStroke.Color = Color3.fromRGB(255, 100, 80)
-			indicatorLabel.TextColor3 = Color3.fromRGB(255, 100, 80)
-			indicatorIcon.Text = "??"
-		end
-	end
 end
 
 -- ==================== EVENT HANDLERS ====================
@@ -263,27 +180,19 @@ lavaStatusEvent.OnClientEvent:Connect(function(status, currentHeight, maxHeight)
 	
 	if status == "started" then
 		-- Lava rising has begun
-		updateIndicator(currentHeight, maxHeight, true)
 		showWarning(currentHeight, maxHeight)
 		
 	elseif status == "rising" then
 		-- Lava is rising right now
-		updateIndicator(currentHeight, maxHeight, true)
 		showWarning(currentHeight, maxHeight)
-		
-	elseif status == "update" then
-		-- Update current status (for late joiners)
-		updateIndicator(currentHeight, maxHeight, true)
 		
 	elseif status == "maxHeight" then
 		-- Lava reached maximum
-		updateIndicator(currentHeight, maxHeight, true)
 		warningText.Text = "LAVA AT MAX HEIGHT!"
 		showWarning(currentHeight, maxHeight)
 		
 	elseif status == "reset" then
 		-- Lava reset to start
-		updateIndicator(0, maxHeight, false)
 		hideWarning()
 	end
 end)

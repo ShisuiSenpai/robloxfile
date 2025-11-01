@@ -347,8 +347,8 @@ local function updateUIScale()
 	
 	-- Base scale on smaller screen dimension for responsiveness
 	local baseScale = math.min(screenWidth / 1920, screenHeight / 1080)
-	-- Clamp between 0.6 and 1.2 for readability
-	local scale = math.clamp(baseScale, 0.6, 1.2)
+	-- Clamp between 0.85 and 1.3 for better readability (bigger UI)
+	local scale = math.clamp(baseScale, 0.85, 1.3)
 	
 	-- Apply scale to all UI elements
 	uiScale.Scale = scale
