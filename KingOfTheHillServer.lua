@@ -1,4 +1,4 @@
--- King of the Hill Server Script (Fixed)
+-- King of the Hill Server Script (Fixed - Stable Detection)
 -- Place this in ServerScriptService
 
 local Players = game:GetService("Players")
@@ -8,13 +8,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local KING_PART_NAME = "PyramidKing" -- Name of the part in workspace
 local TIME_TO_WIN = 5 -- Seconds on the king part to win
 local ROUND_INTERMISSION = 8 -- Seconds between rounds
-local DEBUG = true
+local DEBUG = false -- Set to true for debug messages
 
 -- Game state
 local currentKing = nil
 local kingTimer = 0
 local roundInProgress = true
-local playersOnPart = {} -- Track who's currently on the part
 
 -- Debug print
 local function debugPrint(...)
@@ -48,10 +47,9 @@ if not kingPart then
 	return
 end
 
-debugPrint("Found king part:", kingPart.Name, "| Position:", kingPart.Position)
+debugPrint("Found king part:", kingPart.Name)
 
 -- Create an invisible detection zone (box volume) above the king part
--- This way jumping doesn't make you lose king status
 local detectionZone = Instance.new("Part")
 detectionZone.Name = "KingDetectionZone"
 detectionZone.Size = Vector3.new(kingPart.Size.X, 12, kingPart.Size.Z) -- Tall box (12 studs high)
@@ -61,14 +59,7 @@ detectionZone.CanCollide = false -- Don't interfere with player movement
 detectionZone.Transparency = 1 -- Invisible
 detectionZone.Parent = workspace
 
--- Optional: Add a visible outline for testing (comment out in production)
-if DEBUG then
-	detectionZone.Transparency = 0.8
-	detectionZone.BrickColor = BrickColor.new("Bright blue")
-	detectionZone.Material = Enum.Material.ForceField
-end
-
-debugPrint("Detection zone created | Size:", detectionZone.Size, "| Position:", detectionZone.Position)
+debugPrint("Detection zone created")
 
 -- Find the crown accessory
 local crownAccessory = nil
@@ -78,11 +69,9 @@ if ReplicatedStorage:FindFirstChild("Assets") then
 		debugPrint("Crown accessory found!")
 	else
 		warn("[KING SERVER] Crown accessory not found in Assets folder!")
-		warn("Please add a crown hat/accessory named 'Crown' in ReplicatedStorage > Assets")
 	end
 else
 	warn("[KING SERVER] Assets folder not found in ReplicatedStorage!")
-	warn("Please create a folder named 'Assets' in ReplicatedStorage and add the crown")
 end
 
 -- Function to give crown to player
@@ -94,13 +83,12 @@ local function giveCrown(player)
 	
 	-- Check if player already has the crown
 	if character:FindFirstChild("KingCrown") then
-		debugPrint("Player", player.Name, "already has crown")
 		return
 	end
 	
 	-- Clone and add crown to character
 	local crown = crownAccessory:Clone()
-	crown.Name = "KingCrown" -- Rename so we can find it later
+	crown.Name = "KingCrown"
 	crown.Parent = character
 	
 	debugPrint("Gave crown to", player.Name)
@@ -122,23 +110,23 @@ end
 -- Update the current king to all clients
 local function updateKingDisplay(player, timeRemaining)
 	if player then
-		debugPrint("Sending king update:", player.Name, "Time remaining:", string.format("%.1f", timeRemaining))
+		debugPrint("King:", player.Name, "Time:", string.format("%.1f", timeRemaining))
 		updateKingEvent:FireAllClients(player, timeRemaining, TIME_TO_WIN)
 	else
-		debugPrint("Sending clear king signal")
+		debugPrint("No king")
 		updateKingEvent:FireAllClients(nil, 0, TIME_TO_WIN)
 	end
 end
 
 -- Handle player winning
 local function playerWins(player)
-	debugPrint("========================================")
-	debugPrint("WINNER:", player.Name)
-	debugPrint("========================================")
+	print("========================================")
+	print("WINNER:", player.Name)
+	print("========================================")
 	
 	roundInProgress = false
 	
-	-- Remove crown from winner (they won!)
+	-- Remove crown from winner
 	removeCrown(player)
 	
 	-- Announce winner to all clients
@@ -147,126 +135,92 @@ local function playerWins(player)
 	-- Clear king display
 	currentKing = nil
 	kingTimer = 0
-	playersOnPart = {}
 	updateKingDisplay(nil, 0)
 	
 	-- Wait for intermission
-	debugPrint("Intermission started:", ROUND_INTERMISSION, "seconds")
 	task.wait(ROUND_INTERMISSION)
 	
 	-- Reset the round
 	debugPrint("New round starting...")
 	roundInProgress = true
 	roundStatusEvent:FireAllClients("newRound")
-	debugPrint("Game active again!")
 end
 
--- Handle player entering the detection zone (the invisible box)
-detectionZone.Touched:Connect(function(hit)
-	if not roundInProgress then return end
+-- Check if a player's HumanoidRootPart is inside the detection zone
+local function isPlayerInZone(player)
+	if not player.Character then return false end
 	
-	-- Check if it's a player's character part
-	local character = hit.Parent
-	if not character then return end
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return false end
 	
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 then return end
+	local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return false end
 	
-	local player = Players:GetPlayerFromCharacter(character)
-	if not player then return end
+	-- Calculate if root part is within the zone bounds
+	local zonePos = detectionZone.Position
+	local zoneSize = detectionZone.Size / 2
+	local rootPos = rootPart.Position
 	
-	-- Check if player is already tracked
-	if playersOnPart[player] then return end
+	local inX = math.abs(rootPos.X - zonePos.X) <= zoneSize.X
+	local inY = math.abs(rootPos.Y - zonePos.Y) <= zoneSize.Y
+	local inZ = math.abs(rootPos.Z - zonePos.Z) <= zoneSize.Z
 	
-	debugPrint("Player entered king part:", player.Name)
-	playersOnPart[player] = true
-	
-	-- If no current king, make this player the king
-	if not currentKing then
-		debugPrint("New king set:", player.Name)
-		currentKing = player
-		kingTimer = 0
-		updateKingDisplay(currentKing, TIME_TO_WIN)
-		giveCrown(player) -- Give crown to new king
-	end
-end)
+	return inX and inY and inZ
+end
 
--- Handle player leaving the detection zone
-detectionZone.TouchEnded:Connect(function(hit)
-	-- Check if it's a player's character part
-	local character = hit.Parent
-	if not character then return end
-	
-	local player = Players:GetPlayerFromCharacter(character)
-	if not player then return end
-	
-	-- Remove player from tracking
-	if playersOnPart[player] then
-		debugPrint("Player left king part:", player.Name)
-		playersOnPart[player] = nil
-		
-		-- If the current king left, clear everything
-		if currentKing == player then
-			debugPrint("Current king left! Clearing king status")
-			removeCrown(currentKing) -- Remove crown from old king
-			currentKing = nil
-			kingTimer = 0
-			updateKingDisplay(nil, 0)
-			
-			-- Check if there's another player on the part to become king
-			for otherPlayer, _ in pairs(playersOnPart) do
-				if otherPlayer and otherPlayer.Character then
-					local otherHumanoid = otherPlayer.Character:FindFirstChildOfClass("Humanoid")
-					if otherHumanoid and otherHumanoid.Health > 0 then
-						debugPrint("New king from remaining players:", otherPlayer.Name)
-						currentKing = otherPlayer
-						kingTimer = 0
-						updateKingDisplay(currentKing, TIME_TO_WIN)
-						giveCrown(currentKing) -- Give crown to new king
-						break
-					end
-				end
-			end
-		end
-	end
-end)
-
--- Main timer loop
+-- Main game loop with stable detection
 task.spawn(function()
-	debugPrint("Timer loop started")
+	debugPrint("Game loop started")
 	
 	while true do
-		task.wait(0.1) -- Update every 0.1 seconds for smooth timer
+		task.wait(0.1) -- Check every 0.1 seconds
 		
-		if roundInProgress and currentKing then
-			-- Verify king is still valid
-			local kingValid = false
-			if currentKing.Character then
-				local humanoid = currentKing.Character:FindFirstChildOfClass("Humanoid")
-				if humanoid and humanoid.Health > 0 and playersOnPart[currentKing] then
-					kingValid = true
+		if roundInProgress then
+			-- Find who's in the zone
+			local playerInZone = nil
+			
+			for _, player in pairs(Players:GetPlayers()) do
+				if isPlayerInZone(player) then
+					playerInZone = player
+					break -- Only one king at a time
 				end
 			end
 			
-			if kingValid then
-				-- Increment timer
-				kingTimer = kingTimer + 0.1
-				local timeRemaining = TIME_TO_WIN - kingTimer
-				
-				-- Update UI
-				updateKingDisplay(currentKing, timeRemaining)
-				
-				-- Check if they won
-				if kingTimer >= TIME_TO_WIN then
-					playerWins(currentKing)
+			if playerInZone then
+				-- Someone is in the zone
+				if currentKing == playerInZone then
+					-- Same king, increment timer
+					kingTimer = kingTimer + 0.1
+					local timeRemaining = TIME_TO_WIN - kingTimer
+					
+					-- Update UI
+					updateKingDisplay(currentKing, timeRemaining)
+					
+					-- Check if they won
+					if kingTimer >= TIME_TO_WIN then
+						playerWins(currentKing)
+					end
+				else
+					-- New king
+					if currentKing then
+						removeCrown(currentKing)
+					end
+					
+					debugPrint("New king:", playerInZone.Name)
+					currentKing = playerInZone
+					kingTimer = 0
+					updateKingDisplay(currentKing, TIME_TO_WIN)
+					giveCrown(currentKing)
 				end
 			else
-				-- King is no longer valid
-				debugPrint("King became invalid (died or left)")
-				removeCrown(currentKing) -- Remove crown
-				currentKing = nil
-				kingTimer = 0
-				updateKingDisplay(nil, 0)
+				-- No one in the zone
+				if currentKing then
+					debugPrint("King left the zone:", currentKing.Name)
+					removeCrown(currentKing)
+					currentKing = nil
+					kingTimer = 0
+					updateKingDisplay(nil, 0)
+				end
 			end
 		end
 	end
@@ -278,26 +232,12 @@ Players.PlayerAdded:Connect(function(player)
 		local humanoid = character:WaitForChild("Humanoid")
 		
 		humanoid.Died:Connect(function()
-			-- Remove from tracking
-			playersOnPart[player] = nil
-			
 			if currentKing == player then
 				debugPrint("Current king died:", player.Name)
-				removeCrown(player) -- Remove crown when king dies
+				removeCrown(player)
 				currentKing = nil
 				kingTimer = 0
 				updateKingDisplay(nil, 0)
-			end
-		end)
-		
-		-- Also handle respawn - remove crown if they respawn while king
-		character.ChildRemoved:Connect(function(child)
-			if child.Name == "KingCrown" and currentKing == player then
-				-- Crown was removed (likely by reset), give it back if still king
-				task.wait(0.1)
-				if currentKing == player and playersOnPart[player] then
-					giveCrown(player)
-				end
 			end
 		end)
 	end)
@@ -305,18 +245,16 @@ end)
 
 -- Handle player leaving game
 Players.PlayerRemoving:Connect(function(player)
-	playersOnPart[player] = nil
-	
 	if currentKing == player then
 		debugPrint("Current king left the game:", player.Name)
-		removeCrown(player) -- Remove crown when leaving
+		removeCrown(player)
 		currentKing = nil
 		kingTimer = 0
 		updateKingDisplay(nil, 0)
 	end
 end)
 
-debugPrint("==========================================")
-debugPrint("King of the Hill Ready!")
-debugPrint("Waiting for players to reach the pyramid top...")
-debugPrint("==========================================")
+print("========================================")
+print("King of the Hill Ready!")
+print("Climb to the pyramid top to become king!")
+print("========================================")
