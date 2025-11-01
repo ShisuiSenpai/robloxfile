@@ -240,36 +240,22 @@ local function createGamepassCard(data, index)
 	cardStroke.Transparency = 0.5
 	cardStroke.Parent = card
 	
-	-- Icon background
-	local iconBg = Instance.new("Frame")
-	iconBg.Name = "IconBackground"
-	iconBg.Position = UDim2.new(0, 12, 0, 12)
-	iconBg.Size = UDim2.new(0, 60, 0, 60)
-	iconBg.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
-	iconBg.BackgroundTransparency = 0.3
-	iconBg.BorderSizePixel = 0
-	iconBg.Parent = card
-	
-	local iconBgCorner = Instance.new("UICorner")
-	iconBgCorner.CornerRadius = UDim.new(0.2, 0)
-	iconBgCorner.Parent = iconBg
-	
 	-- Icon ImageLabel
 	local iconImage = Instance.new("ImageLabel")
 	iconImage.Name = "Icon"
-	iconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
-	iconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
-	iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+	iconImage.Position = UDim2.new(0, 12, 0, 8)
+	iconImage.Size = UDim2.new(0, 70, 0, 70)
 	iconImage.BackgroundTransparency = 1
 	iconImage.Image = data.icon or "rbxassetid://0"
 	iconImage.ScaleType = Enum.ScaleType.Fit
-	iconImage.Parent = iconBg
+	iconImage.BorderSizePixel = 0
+	iconImage.Parent = card
 	
 	-- Item Name
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "ItemName"
-	nameLabel.Position = UDim2.new(0, 82, 0, 12)
-	nameLabel.Size = UDim2.new(1, -92, 0, 25)
+	nameLabel.Position = UDim2.new(0, 92, 0, 8)
+	nameLabel.Size = UDim2.new(1, -102, 0, 28)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.Text = data.name
@@ -282,8 +268,8 @@ local function createGamepassCard(data, index)
 	-- Description
 	local descLabel = Instance.new("TextLabel")
 	descLabel.Name = "Description"
-	descLabel.Position = UDim2.new(0, 82, 0, 38)
-	descLabel.Size = UDim2.new(1, -92, 0, 34)
+	descLabel.Position = UDim2.new(0, 92, 0, 36)
+	descLabel.Size = UDim2.new(1, -102, 0, 42)
 	descLabel.BackgroundTransparency = 1
 	descLabel.Font = Enum.Font.Gotham
 	descLabel.Text = data.description
