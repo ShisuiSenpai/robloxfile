@@ -1,4 +1,4 @@
--- Push Tool Server Script (Improved with Proper Ragdoll)
+-- Push Tool Server Script (Rewritten with Reliable Push System)
 -- Place this in ServerScriptService
 
 local Players = game:GetService("Players")
@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RAGDOLL_DURATION = 2 -- How long the ragdoll effect lasts (seconds)
 local MAX_PUSH_DISTANCE = 15 -- Maximum allowed push distance
 local PUSH_COOLDOWN_PER_PLAYER = {} -- Track cooldowns per player
-local DEBUG = false -- Set to true for debug messages
+local DEBUG = true -- Set to true for debug messages
 
 -- Debug print function
 local function debugPrint(...)
@@ -26,7 +26,7 @@ pushRemote.Parent = ReplicatedStorage
 
 debugPrint("RemoteEvent created")
 
--- Create proper ragdoll with constraints (joints stay connected)
+-- Create proper ragdoll with constraints
 local function createRagdoll(character)
 	debugPrint("Creating ragdoll for:", character.Name)
 	
@@ -43,6 +43,9 @@ local function createRagdoll(character)
 	-- Prevent death from neck break
 	humanoid.RequiresNeck = false
 	humanoid.BreakJointsOnDeath = false
+	
+	-- Make sure root part is unanchored
+	rootPart.Anchored = false
 	
 	-- Find and replace Motor6D joints with BallSocketConstraints
 	for _, descendant in pairs(character:GetDescendants()) do
@@ -63,7 +66,11 @@ local function createRagdoll(character)
 					Name = joint.Name
 				})
 				
-				-- Create BallSocketConstraint to keep parts connected but allow rotation
+				-- Make sure parts are unanchored
+				part0.Anchored = false
+				part1.Anchored = false
+				
+				-- Create BallSocketConstraint
 				local socket = Instance.new("BallSocketConstraint")
 				socket.Name = "RagdollSocket_" .. joint.Name
 				socket.Attachment0 = Instance.new("Attachment", part0)
@@ -81,23 +88,21 @@ local function createRagdoll(character)
 				table.insert(createdConstraints, socket.Attachment0)
 				table.insert(createdConstraints, socket.Attachment1)
 				
-				-- Disable the Motor6D (don't destroy it)
+				-- Disable the Motor6D
 				joint.Enabled = false
-				
-				debugPrint("Replaced joint:", joint.Name)
 			end
 		end
 	end
 	
 	-- Set humanoid to ragdoll state
 	humanoid.PlatformStand = true
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
 	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 	
-	-- Enable collision on limbs for realistic falling
+	-- Enable collision on limbs
 	for _, part in pairs(character:GetDescendants()) do
 		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 			part.CanCollide = true
-			part.CollisionGroup = "Ragdoll"
 		end
 	end
 	
@@ -128,15 +133,13 @@ local function createRagdoll(character)
 			humanoid.RequiresNeck = true
 			humanoid.BreakJointsOnDeath = true
 			humanoid.PlatformStand = false
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 			
-			-- Give a small upward boost to help stand
+			-- Small upward boost
 			if rootPart and rootPart.Parent then
-				rootPart.AssemblyLinearVelocity = Vector3.new(
-					rootPart.AssemblyLinearVelocity.X * 0.3,
-					8,
-					rootPart.AssemblyLinearVelocity.Z * 0.3
-				)
+				task.wait(0.1)
+				rootPart.AssemblyLinearVelocity = Vector3.new(0, 10, 0)
 			end
 		end
 		
@@ -144,7 +147,6 @@ local function createRagdoll(character)
 		for _, part in pairs(character:GetDescendants()) do
 			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 				part.CanCollide = false
-				part.CollisionGroup = "Default"
 			end
 		end
 		
@@ -152,9 +154,46 @@ local function createRagdoll(character)
 	end
 end
 
+-- Apply push force using LinearVelocity constraint
+local function applyPushForce(character, direction, force)
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return end
+	
+	-- Make absolutely sure root is unanchored
+	rootPart.Anchored = false
+	
+	-- Create attachment for LinearVelocity
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "PushAttachment"
+	attachment.Parent = rootPart
+	
+	-- Create LinearVelocity constraint (modern physics constraint)
+	local linearVelocity = Instance.new("LinearVelocity")
+	linearVelocity.Name = "PushForce"
+	linearVelocity.Attachment0 = attachment
+	linearVelocity.MaxForce = math.huge
+	linearVelocity.VectorVelocity = direction * force
+	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVelocity.Parent = rootPart
+	
+	debugPrint("Created LinearVelocity with force:", direction * force)
+	
+	-- Remove the force after a short duration to allow natural physics
+	task.delay(0.3, function()
+		if linearVelocity and linearVelocity.Parent then
+			linearVelocity:Destroy()
+		end
+		if attachment and attachment.Parent then
+			attachment:Destroy()
+		end
+		debugPrint("Push force removed, natural physics taking over")
+	end)
+end
+
 -- Handle push request
 pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force)
-	debugPrint("Push request from:", pusher.Name, "to:", targetPlayer and targetPlayer.Name or "nil")
+	debugPrint("=== PUSH REQUEST ===")
+	debugPrint("From:", pusher.Name, "To:", targetPlayer and targetPlayer.Name or "nil")
 	
 	-- Check server-side cooldown (anti-exploit)
 	local currentTime = tick()
@@ -166,70 +205,72 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	
 	-- Validate players and characters
 	local pusherCharacter = pusher.Character
-	if not pusherCharacter then return end
+	if not pusherCharacter then 
+		debugPrint("Pusher has no character")
+		return 
+	end
 	
 	local targetCharacter = targetPlayer and targetPlayer.Character
-	if not targetCharacter then return end
+	if not targetCharacter then 
+		debugPrint("Target has no character")
+		return 
+	end
 	
 	local pusherRoot = pusherCharacter:FindFirstChild("HumanoidRootPart")
 	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
 	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
 	
-	if not pusherRoot or not targetRoot or not targetHumanoid then return end
+	if not pusherRoot or not targetRoot or not targetHumanoid then 
+		debugPrint("Missing root parts or humanoid")
+		return 
+	end
 	
 	-- Check distance (anti-exploit)
 	local distance = (targetRoot.Position - pusherRoot.Position).Magnitude
+	debugPrint("Distance:", distance)
+	
 	if distance > MAX_PUSH_DISTANCE then
 		warn(pusher.Name, "attempted to push from too far:", distance)
 		return
 	end
 	
 	-- Check if target is alive
-	if targetHumanoid.Health <= 0 then return end
+	if targetHumanoid.Health <= 0 then 
+		debugPrint("Target is dead")
+		return 
+	end
 	
 	-- Store original health to prevent damage
 	local originalHealth = targetHumanoid.Health
 	
-	debugPrint("Applying push to", targetPlayer.Name)
+	debugPrint("Push accepted! Applying...")
 	
 	-- Calculate push direction with upward arc
 	local normalizedDirection = direction.Unit
-	local pushDirection = (normalizedDirection + Vector3.new(0, 0.35, 0)).Unit
+	local pushDirection = (normalizedDirection + Vector3.new(0, 0.3, 0)).Unit
 	
-	-- Adjust force based on distance (closer = stronger, but not too strong)
+	-- Adjust force based on distance
 	local distanceMultiplier = math.clamp(1.1 - (distance / MAX_PUSH_DISTANCE) * 0.3, 0.8, 1.1)
-	local actualForce = math.clamp((force or 65) * distanceMultiplier, 45, 75)
+	local actualForce = math.clamp((force or 65) * distanceMultiplier, 35, 60)
 	
-	debugPrint("Push force:", actualForce, "Distance multiplier:", distanceMultiplier)
+	debugPrint("Final push direction:", pushDirection)
+	debugPrint("Final push force:", actualForce)
 	
-	-- Create ragdoll FIRST
+	-- Apply the push BEFORE ragdolling for maximum effect
+	applyPushForce(targetCharacter, pushDirection, actualForce)
+	
+	-- Slight delay then ragdoll
+	task.wait(0.1)
+	
+	-- Create ragdoll
 	local removeRagdoll = createRagdoll(targetCharacter)
-	
-	-- Wait a tiny bit for ragdoll to initialize
-	task.wait(0.05)
-	
-	-- Apply impulse to multiple body parts for reliable push
-	local partsToApplyForce = {
-		targetRoot,
-		targetCharacter:FindFirstChild("UpperTorso") or targetCharacter:FindFirstChild("Torso"),
-		targetCharacter:FindFirstChild("Head")
-	}
-	
-	for _, part in pairs(partsToApplyForce) do
-		if part and part:IsA("BasePart") then
-			-- Use ApplyImpulse for more reliable physics
-			local impulse = pushDirection * actualForce * part.AssemblyMass
-			part:ApplyImpulse(impulse)
-			debugPrint("Applied impulse to", part.Name)
-		end
-	end
 	
 	if removeRagdoll then
 		-- Health protection during ragdoll
 		local healthCheck = task.spawn(function()
-			for i = 1, RAGDOLL_DURATION * 10 do
-				task.wait(0.1)
-				if targetHumanoid and targetHumanoid.Parent and targetHumanoid.Health < originalHealth then
+			while task.wait(0.1) do
+				if not targetHumanoid or not targetHumanoid.Parent then break end
+				if targetHumanoid.Health < originalHealth then
 					targetHumanoid.Health = originalHealth
 				end
 			end
@@ -247,7 +288,7 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 			targetHumanoid.Health = originalHealth
 		end
 		
-		debugPrint("Push complete for", targetPlayer.Name)
+		debugPrint("Push complete!")
 	end
 end)
 
@@ -257,4 +298,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 debugPrint("Push server script loaded successfully!")
-print("Push System Ready! Players will be pushed with realistic ragdoll physics.")
+print("===========================================")
+print("Push System Ready!")
+print("Using LinearVelocity constraints for reliable pushing")
+print("===========================================")
