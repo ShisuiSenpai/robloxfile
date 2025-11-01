@@ -9,6 +9,8 @@ local TweenService = game:GetService("TweenService")
 local RAGDOLL_DURATION = 2 -- How long the ragdoll effect lasts (seconds)
 local MAX_PUSH_DISTANCE = 15 -- Maximum allowed push distance
 local PUSH_COOLDOWN_PER_PLAYER = {} -- Track cooldowns per player
+local RECENT_PUSHES = {} -- Track recent pushes for kill attribution: [victimUserId] = {pusher = Player, time = tick()}
+local PUSH_ATTRIBUTION_TIME = 3 -- Seconds to attribute a lava death to a push
 local DEBUG = false -- Set to true for debug messages
 
 -- Debug print function
@@ -314,6 +316,12 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	applyPushForce(targetCharacter, pushDirection, actualForce)
 	local removeRagdoll = createRagdoll(targetCharacter)
 	
+	-- Track this push for kill attribution
+	RECENT_PUSHES[targetPlayer.UserId] = {
+		pusher = pusher,
+		time = tick()
+	}
+	
 	if removeRagdoll then
 		-- Lightweight health protection (no heavy loops)
 		local healthProtected = true
@@ -344,10 +352,32 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	end
 end)
 
--- Clean up cooldowns when players leave
+-- Clean up cooldowns and push tracking when players leave
 Players.PlayerRemoving:Connect(function(player)
 	PUSH_COOLDOWN_PER_PLAYER[player] = nil
+	RECENT_PUSHES[player.UserId] = nil
+	
+	-- Also clean up if they were the pusher
+	for victimId, data in pairs(RECENT_PUSHES) do
+		if data.pusher == player then
+			RECENT_PUSHES[victimId] = nil
+		end
+	end
 end)
+
+-- Make push tracking accessible globally
+_G.PushTracker = {
+	getRecentPusher = function(victimUserId)
+		local pushData = RECENT_PUSHES[victimUserId]
+		if pushData and (tick() - pushData.time) <= PUSH_ATTRIBUTION_TIME then
+			return pushData.pusher
+		end
+		return nil
+	end,
+	clearPushData = function(victimUserId)
+		RECENT_PUSHES[victimUserId] = nil
+	end
+}
 
 debugPrint("Push server script loaded successfully!")
 print("===========================================")

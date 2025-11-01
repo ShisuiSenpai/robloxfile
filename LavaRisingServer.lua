@@ -38,15 +38,22 @@ end
 -- Store original position
 local originalPosition = lavaPart.Position
 
--- Create RemoteEvent for UI updates
+-- Create RemoteEvents
 local lavaStatusEvent = ReplicatedStorage:FindFirstChild("LavaStatus") or Instance.new("RemoteEvent")
 lavaStatusEvent.Name = "LavaStatus"
 lavaStatusEvent.Parent = ReplicatedStorage
 
+local killfeedEvent = ReplicatedStorage:FindFirstChild("KillfeedEvent") or Instance.new("RemoteEvent")
+killfeedEvent.Name = "KillfeedEvent"
+killfeedEvent.Parent = ReplicatedStorage
+
 debugPrint("Lava part found at:", lavaPart.Position)
 debugPrint("Will rise from Y:", START_Y_POSITION, "to Y:", MAX_Y_POSITION)
 
--- Setup lava touch kill
+-- Track players who died to lava (prevent duplicate kill credits)
+local recentLavaDeaths = {}
+
+-- Setup lava touch kill with kill attribution
 local function setupLavaKill()
 	lavaPart.Touched:Connect(function(hit)
 		if not lavaActive then return end -- Only kill during active rounds
@@ -55,11 +62,38 @@ local function setupLavaKill()
 		if not character then return end
 		
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid and humanoid.Health > 0 then
-			-- Kill player
-			humanoid.Health = 0
-			debugPrint("Player killed by lava:", character.Name)
+		if not humanoid or humanoid.Health <= 0 then return end
+		
+		-- Get player
+		local victim = Players:GetPlayerFromCharacter(character)
+		if not victim then return end
+		
+		-- Prevent duplicate kills
+		if recentLavaDeaths[victim.UserId] then return end
+		recentLavaDeaths[victim.UserId] = true
+		
+		debugPrint("Player killed by lava:", victim.Name)
+		
+		-- Check if they were recently pushed
+		local killer = nil
+		if _G.PushTracker then
+			killer = _G.PushTracker.getRecentPusher(victim.UserId)
+			if killer then
+				debugPrint("Kill attributed to pusher:", killer.Name)
+				-- Send killfeed notification
+				killfeedEvent:FireAllClients(killer.Name, victim.Name)
+				-- Clear push data
+				_G.PushTracker.clearPushData(victim.UserId)
+			end
 		end
+		
+		-- Kill player
+		humanoid.Health = 0
+		
+		-- Clear death tracking after respawn
+		task.delay(2, function()
+			recentLavaDeaths[victim.UserId] = nil
+		end)
 	end)
 end
 
@@ -110,6 +144,9 @@ local function resetLava()
 	
 	lavaActive = false
 	currentHeight = START_Y_POSITION
+	
+	-- Clear lava death tracking
+	recentLavaDeaths = {}
 	
 	-- Instantly reset position (no tween)
 	lavaPart.Position = originalPosition
