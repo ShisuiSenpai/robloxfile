@@ -145,46 +145,61 @@ local function updateKillPositions()
 	end
 end
 
-local function removeKill(killData)
-	if not killData or not killData.frame or not killData.frame.Parent then return end
+local isRemoving = false
+
+local function removeKill(killData, skipListRemoval)
+	if not killData or not killData.frame then return end
 	
-	-- Find and remove from active kills
-	for i, data in ipairs(activeKills) do
-		if data == killData then
-			table.remove(activeKills, i)
-			break
+	-- Mark as removing to prevent double-removal
+	if killData.removing then return end
+	killData.removing = true
+	
+	-- Find and remove from active kills list
+	if not skipListRemoval then
+		for i, data in ipairs(activeKills) do
+			if data == killData then
+				table.remove(activeKills, i)
+				break
+			end
 		end
+	end
+	
+	local frame = killData.frame
+	if not frame.Parent then 
+		return 
 	end
 	
 	-- Quick fade out animation
 	local tween = TweenService:Create(
-		killData.frame,
-		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		frame,
+		TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 		{
-			Position = UDim2.new(0, -400, killData.frame.Position.Y.Scale, killData.frame.Position.Y.Offset),
+			Position = UDim2.new(0, -400, frame.Position.Y.Scale, frame.Position.Y.Offset),
 			BackgroundTransparency = 1
 		}
 	)
 	tween:Play()
 	
-	-- Also fade children
-	for _, child in pairs(killData.frame:GetDescendants()) do
+	-- Fade children
+	for _, child in pairs(frame:GetDescendants()) do
 		if child:IsA("TextLabel") then
-			TweenService:Create(child, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+			TweenService:Create(child, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
 		elseif child:IsA("UIStroke") then
-			TweenService:Create(child, TweenInfo.new(0.2), {Transparency = 1}):Play()
+			TweenService:Create(child, TweenInfo.new(0.25), {Transparency = 1}):Play()
 		end
 	end
 	
-	task.delay(0.2, function()
-		if killData.frame and killData.frame.Parent then
-			killData.frame:Destroy()
+	-- Destroy after animation
+	task.delay(0.3, function()
+		if frame and frame.Parent then
+			frame:Destroy()
 		end
-		updateKillPositions()
 	end)
 end
 
 local function addKill(killerName, victimName)
+	print("[KILLFEED] Adding kill:", killerName, "~>", victimName)
+	
 	-- Create notification
 	local killFrame = createKillNotification(killerName, victimName)
 	
@@ -194,29 +209,43 @@ local function addKill(killerName, victimName)
 	-- Add to active kills
 	local killData = {
 		frame = killFrame,
-		timestamp = tick()
+		timestamp = tick(),
+		removing = false
 	}
-	table.insert(activeKills, 1, killData) -- Insert at beginning
+	table.insert(activeKills, 1, killData) -- Insert at beginning (newest at top)
 	
-	-- Remove oldest if too many (quickly fade them out)
-	while #activeKills > MAX_KILLS_DISPLAYED do
-		local oldest = activeKills[#activeKills]
-		-- Immediately remove without waiting
-		task.spawn(function()
-			removeKill(oldest)
-		end)
-		table.remove(activeKills, #activeKills) -- Remove from list immediately
+	-- Remove oldest if exceeding max (instant removal from list, animated fade)
+	if #activeKills > MAX_KILLS_DISPLAYED then
+		local toRemove = {}
+		
+		-- Collect items to remove
+		for i = MAX_KILLS_DISPLAYED + 1, #activeKills do
+			table.insert(toRemove, activeKills[i])
+		end
+		
+		-- Remove from list first
+		for i = #activeKills, MAX_KILLS_DISPLAYED + 1, -1 do
+			table.remove(activeKills, i)
+		end
+		
+		-- Then animate them out
+		for _, oldKill in ipairs(toRemove) do
+			task.spawn(function()
+				removeKill(oldKill, true) -- Skip list removal since already removed
+			end)
+		end
 	end
 	
-	-- Update positions (this will animate the new kill in)
+	-- Update positions (animates the new kill in)
 	updateKillPositions()
 	
-	-- Schedule removal after display time
+	-- Schedule auto-removal after display time
 	task.delay(KILL_DISPLAY_TIME, function()
-		-- Check if still in active kills list
+		-- Verify it's still in the list and not already removed
 		for i, data in ipairs(activeKills) do
-			if data == killData and data.frame and data.frame.Parent then
+			if data == killData and not killData.removing then
 				removeKill(killData)
+				updateKillPositions()
 				break
 			end
 		end
