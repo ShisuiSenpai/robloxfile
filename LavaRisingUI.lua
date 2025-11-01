@@ -32,8 +32,8 @@ screenGui.Parent = playerGui
 local warningFrame = Instance.new("Frame")
 warningFrame.Name = "LavaWarning"
 warningFrame.AnchorPoint = Vector2.new(0.5, 1)
-warningFrame.Position = UDim2.new(0.5, 0, 1, 120) -- Start off-screen at bottom
-warningFrame.Size = UDim2.new(0, 500, 0, 75)
+warningFrame.Position = UDim2.new(0.5, 0, 1, 100) -- Start off-screen at bottom
+warningFrame.Size = UDim2.new(0, 380, 0, 60)
 warningFrame.BackgroundColor3 = Color3.fromRGB(255, 80, 60)
 warningFrame.BackgroundTransparency = 0.3
 warningFrame.BorderSizePixel = 0
@@ -57,25 +57,25 @@ warningStroke.Parent = warningFrame
 -- Warning icon (?? emoji or text)
 local warningIcon = Instance.new("TextLabel")
 warningIcon.Name = "Icon"
-warningIcon.Position = UDim2.new(0, 12, 0, 0)
-warningIcon.Size = UDim2.new(0, 60, 1, 0)
+warningIcon.Position = UDim2.new(0, 10, 0, 0)
+warningIcon.Size = UDim2.new(0, 50, 1, 0)
 warningIcon.BackgroundTransparency = 1
 warningIcon.Font = Enum.Font.GothamBold
 warningIcon.Text = "??"
 warningIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-warningIcon.TextSize = 40
+warningIcon.TextSize = 32
 warningIcon.Parent = warningFrame
 
 -- Warning text
 local warningText = Instance.new("TextLabel")
 warningText.Name = "WarningText"
-warningText.Position = UDim2.new(0, 75, 0, 10)
-warningText.Size = UDim2.new(1, -85, 0, 30)
+warningText.Position = UDim2.new(0, 62, 0, 8)
+warningText.Size = UDim2.new(1, -70, 0, 24)
 warningText.BackgroundTransparency = 1
 warningText.Font = Enum.Font.GothamBold
 warningText.Text = "LAVA RISING!"
 warningText.TextColor3 = Color3.fromRGB(255, 255, 255)
-warningText.TextSize = 24
+warningText.TextSize = 19
 warningText.TextXAlignment = Enum.TextXAlignment.Left
 warningText.TextStrokeTransparency = 0.7
 warningText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -84,13 +84,13 @@ warningText.Parent = warningFrame
 -- Height indicator
 local heightText = Instance.new("TextLabel")
 heightText.Name = "HeightText"
-heightText.Position = UDim2.new(0, 75, 0, 42)
-heightText.Size = UDim2.new(1, -85, 0, 22)
+heightText.Position = UDim2.new(0, 62, 0, 34)
+heightText.Size = UDim2.new(1, -70, 0, 18)
 heightText.BackgroundTransparency = 1
 heightText.Font = Enum.Font.Gotham
 heightText.Text = "Height: 0%"
 heightText.TextColor3 = Color3.fromRGB(255, 220, 200)
-heightText.TextSize = 16
+heightText.TextSize = 14
 heightText.TextXAlignment = Enum.TextXAlignment.Left
 heightText.TextTransparency = 0.2
 heightText.Parent = warningFrame
@@ -128,7 +128,7 @@ local function showWarning(height, maxHeight)
 	warningTween = TweenService:Create(
 		warningFrame,
 		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{Position = UDim2.new(0.5, 0, 1, -85)}
+		{Position = UDim2.new(0.5, 0, 1, -70)}
 	)
 	warningTween:Play()
 	
@@ -165,7 +165,7 @@ local function hideWarning()
 	warningTween = TweenService:Create(
 		warningFrame,
 		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-		{Position = UDim2.new(0.5, 0, 1, 120)}
+		{Position = UDim2.new(0.5, 0, 1, 100)}
 	)
 	warningTween:Play()
 	
