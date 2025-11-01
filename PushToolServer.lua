@@ -1,9 +1,9 @@
--- Push Tool Server Script (Improved)
+-- Push Tool Server Script (Optimized)
 -- Place this in ServerScriptService
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
 
 -- Configuration
 local RAGDOLL_DURATION = 1.5 -- How long the ragdoll effect lasts
@@ -30,7 +30,7 @@ pushRemote.Parent = ReplicatedStorage
 
 debugPrint("RemoteEvent created")
 
--- FUNNY RAGDOLL: Actually breaks joints for ragdoll effect
+-- PROPER RAGDOLL: Joints break but parts stay together
 local function ragdollCharacter(character)
 	debugPrint("Starting ragdoll (breaking joints) for:", character.Name)
 
@@ -54,23 +54,14 @@ local function ragdollCharacter(character)
 	humanoid.RequiresNeck = false
 	humanoid.BreakJointsOnDeath = false
 
-	-- Store joint information for restoration - we'll recreate them
+	-- Store joint information - DISABLE them (not destroy) so parts stay together
 	local joints = {}
 
-	-- Actually BREAK (destroy) Motor6D joints for funny ragdoll effect (except RootJoint)
+	-- Break joints by disabling them (parts stay attached but joints don't work)
 	for _, joint in pairs(character:GetDescendants()) do
 		if joint:IsA("Motor6D") and joint.Name ~= "RootJoint" then
-			-- Store joint info before breaking
-			joints[joint] = {
-				part0 = joint.Part0,
-				part1 = joint.Part1,
-				c0 = joint.C0,
-				c1 = joint.C1,
-				name = joint.Name,
-				parent = joint.Parent
-			}
-			-- Actually break the joint!
-			joint:Destroy()
+			joints[joint] = joint.Enabled
+			joint.Enabled = false -- Break the joint (disable it)
 			debugPrint("Broke joint:", joint.Name)
 		end
 	end
@@ -103,7 +94,7 @@ local function ragdollCharacter(character)
 
 	-- Return recovery function
 	return function()
-		debugPrint("Recovering from ragdoll - recreating joints:", character.Name)
+		debugPrint("Recovering from ragdoll - restoring joints:", character.Name)
 
 		if not character.Parent then 
 			debugPrint("Character no longer exists")
@@ -113,18 +104,10 @@ local function ragdollCharacter(character)
 		-- Stop health protection
 		task.cancel(healthProtection)
 
-		-- RECREATE all broken joints
-		for brokenJoint, jointInfo in pairs(joints) do
-			if jointInfo.part0 and jointInfo.part0.Parent and jointInfo.part1 and jointInfo.part1.Parent then
-				-- Recreate the Motor6D joint
-				local newJoint = Instance.new("Motor6D")
-				newJoint.Name = jointInfo.name
-				newJoint.Part0 = jointInfo.part0
-				newJoint.Part1 = jointInfo.part1
-				newJoint.C0 = jointInfo.c0
-				newJoint.C1 = jointInfo.c1
-				newJoint.Parent = jointInfo.parent
-				debugPrint("Recreated joint:", jointInfo.name)
+		-- RESTORE all broken joints (re-enable them)
+		for joint, wasEnabled in pairs(joints) do
+			if joint and joint.Parent then
+				joint.Enabled = wasEnabled
 			end
 		end
 
@@ -152,11 +135,11 @@ local function ragdollCharacter(character)
 			end
 		end
 
-		debugPrint("Character recovered from ragdoll successfully - joints recreated")
+		debugPrint("Character recovered from ragdoll successfully - joints restored")
 	end
 end
 
--- Handle push request
+-- Handle push request (OPTIMIZED)
 pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force)
 	debugPrint("Push request from:", pusher.Name, "to:", targetPlayer and targetPlayer.Name or "nil")
 
@@ -168,20 +151,22 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	end
 	PUSH_COOLDOWN_PER_PLAYER[pusher] = currentTime
 
-	-- Validate
-	if not pusher.Character then
+	-- Validate and cache references
+	local pusherCharacter = pusher.Character
+	if not pusherCharacter then
 		debugPrint("Pusher has no character")
 		return
 	end
 
-	if not targetPlayer or not targetPlayer.Character then
+	local targetCharacter = targetPlayer and targetPlayer.Character
+	if not targetCharacter then
 		debugPrint("Invalid target player or character")
 		return
 	end
 
-	local pusherRoot = pusher.Character:FindFirstChild("HumanoidRootPart")
-	local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-	local targetHumanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
+	local pusherRoot = pusherCharacter:FindFirstChild("HumanoidRootPart")
+	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
+	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
 
 	if not pusherRoot or not targetRoot or not targetHumanoid then
 		debugPrint("Missing HumanoidRootPart or Humanoid")
@@ -209,16 +194,13 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 
 	debugPrint("Applying push force...")
 
-	-- IMPROVED: Calculate proper push force
-	-- Normalize direction and add slight upward component for natural arc
+	-- OPTIMIZED: Calculate push force (cached calculations)
 	local normalizedDirection = direction.Unit
 	local pushDirection = (normalizedDirection + Vector3.new(0, 0.3, 0)).Unit -- Slight upward arc
 	
 	-- Calculate force based on distance (closer = stronger push)
-	local distanceMultiplier = 1 - (distance / MAX_PUSH_DISTANCE) * 0.3 -- Reduce force slightly with distance
-	local actualForce = math.clamp((force or 50) * distanceMultiplier, 30, 80) -- Increased base force
-	
-	-- Calculate push velocity
+	local distanceMultiplier = 1 - (distance / MAX_PUSH_DISTANCE) * 0.3
+	local actualForce = math.clamp((force or 50) * distanceMultiplier, 30, 80)
 	local pushVelocity = pushDirection * actualForce
 	
 	debugPrint("Calculated push velocity:", pushVelocity, "Force:", actualForce)
@@ -234,47 +216,51 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 		debugPrint("Applied initial push velocity")
 
 		-- Apply ragdoll (breaks joints)
-		local recover = ragdollCharacter(targetPlayer.Character)
+		local recover = ragdollCharacter(targetCharacter)
 
-		-- Continuously apply velocity to maintain push during ragdoll
-		-- This ensures the character keeps moving while ragdolled
-		local velocityApplication = task.spawn(function()
-			local startTime = tick()
-			local duration = 0.5 -- Apply velocity for 0.5 seconds
-			
-			while tick() - startTime < duration do
-				if targetRoot and targetRoot.Parent then
-					-- Apply velocity with slight decay over time
-					local elapsed = tick() - startTime
-					local decayFactor = 1 - (elapsed / duration) * 0.5 -- Decay to 50% by end
-					targetRoot.AssemblyLinearVelocity = pushVelocity * decayFactor
-					task.wait(0.05) -- Update every frame
-				else
-					break
-				end
+		-- OPTIMIZED: Use RunService.Heartbeat for smooth velocity application
+		local velocityConnection
+		local startTime = tick()
+		local duration = 0.5 -- Apply velocity for 0.5 seconds
+		
+		velocityConnection = RunService.Heartbeat:Connect(function()
+			local elapsed = tick() - startTime
+			if elapsed < duration and targetRoot and targetRoot.Parent then
+				-- Apply velocity with decay over time
+				local decayFactor = 1 - (elapsed / duration) * 0.5 -- Decay to 50% by end
+				targetRoot.AssemblyLinearVelocity = pushVelocity * decayFactor
+			else
+				velocityConnection:Disconnect()
+				debugPrint("Velocity application complete")
 			end
-			debugPrint("Velocity application complete")
 		end)
 
-		-- Additional health protection during ragdoll
-		local extraProtection = task.spawn(function()
-			local protectionTime = 0
-			while protectionTime < RAGDOLL_DURATION + 1 do
-				if targetHumanoid and targetHumanoid.Parent then
-					if targetHumanoid.Health < originalHealth then
-						targetHumanoid.Health = originalHealth
-						debugPrint("Health protected during ragdoll")
-					end
-				else
-					break
+		-- OPTIMIZED: Combined health protection (single loop)
+		local protectionConnection
+		local protectionStartTime = tick()
+		local protectionDuration = RAGDOLL_DURATION + 1
+		
+		protectionConnection = RunService.Heartbeat:Connect(function()
+			local elapsed = tick() - protectionStartTime
+			if elapsed < protectionDuration and targetHumanoid and targetHumanoid.Parent then
+				if targetHumanoid.Health < originalHealth then
+					targetHumanoid.Health = originalHealth
 				end
-				task.wait(0.1)
-				protectionTime = protectionTime + 0.1
+			else
+				protectionConnection:Disconnect()
 			end
 		end)
 
 		-- Wait for ragdoll duration
 		task.wait(RAGDOLL_DURATION)
+
+		-- Cleanup connections
+		if velocityConnection then
+			velocityConnection:Disconnect()
+		end
+		if protectionConnection then
+			protectionConnection:Disconnect()
+		end
 
 		-- Recover from ragdoll
 		if recover then
@@ -300,4 +286,4 @@ end)
 
 debugPrint("Push server script loaded successfully!")
 print("Push System Ready! Debug mode is ON - check output for detailed logs")
-print("Push tool: NO DAMAGE, improved physics push with ragdoll")
+print("Push tool: NO DAMAGE, optimized physics push with ragdoll")
