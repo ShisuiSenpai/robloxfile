@@ -48,13 +48,27 @@ if not kingPart then
 	return
 end
 
--- Make sure CanCollide is enabled for touch detection
-if not kingPart.CanCollide then
-	warn("[KING SERVER] Warning: PyramidKing part has CanCollide = false. Setting it to true for detection.")
-	kingPart.CanCollide = true
+debugPrint("Found king part:", kingPart.Name, "| Position:", kingPart.Position)
+
+-- Create an invisible detection zone (box volume) above the king part
+-- This way jumping doesn't make you lose king status
+local detectionZone = Instance.new("Part")
+detectionZone.Name = "KingDetectionZone"
+detectionZone.Size = Vector3.new(kingPart.Size.X, 12, kingPart.Size.Z) -- Tall box (12 studs high)
+detectionZone.Position = kingPart.Position + Vector3.new(0, 6, 0) -- Center it above the part
+detectionZone.Anchored = true
+detectionZone.CanCollide = false -- Don't interfere with player movement
+detectionZone.Transparency = 1 -- Invisible
+detectionZone.Parent = workspace
+
+-- Optional: Add a visible outline for testing (comment out in production)
+if DEBUG then
+	detectionZone.Transparency = 0.8
+	detectionZone.BrickColor = BrickColor.new("Bright blue")
+	detectionZone.Material = Enum.Material.ForceField
 end
 
-debugPrint("Found king part:", kingPart.Name, "| Position:", kingPart.Position)
+debugPrint("Detection zone created | Size:", detectionZone.Size, "| Position:", detectionZone.Position)
 
 -- Update the current king to all clients
 local function updateKingDisplay(player, timeRemaining)
@@ -95,8 +109,8 @@ local function playerWins(player)
 	debugPrint("Game active again!")
 end
 
--- Handle player entering the king part
-kingPart.Touched:Connect(function(hit)
+-- Handle player entering the detection zone (the invisible box)
+detectionZone.Touched:Connect(function(hit)
 	if not roundInProgress then return end
 	
 	-- Check if it's a player's character part
@@ -124,8 +138,8 @@ kingPart.Touched:Connect(function(hit)
 	end
 end)
 
--- Handle player leaving the king part
-kingPart.TouchEnded:Connect(function(hit)
+-- Handle player leaving the detection zone
+detectionZone.TouchEnded:Connect(function(hit)
 	-- Check if it's a player's character part
 	local character = hit.Parent
 	if not character then return end
