@@ -60,7 +60,7 @@ local shopButton = Instance.new("TextButton")
 shopButton.Name = "ShopButton"
 shopButton.AnchorPoint = Vector2.new(0, 0.5)
 shopButton.Position = UDim2.new(0, 15, 0.45, 0)
-shopButton.Size = UDim2.new(0, 90, 0, 90)
+shopButton.Size = UDim2.new(0, 110, 0, 110)
 shopButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
 shopButton.BackgroundTransparency = 0.05
 shopButton.BorderSizePixel = 0
@@ -95,11 +95,11 @@ buttonGradient.Parent = shopButton
 -- Shop icon/text
 local shopIcon = Instance.new("TextLabel")
 shopIcon.Size = UDim2.new(1, 0, 0.5, 0)
-shopIcon.Position = UDim2.new(0, 0, 0, 8)
+shopIcon.Position = UDim2.new(0, 0, 0, 10)
 shopIcon.BackgroundTransparency = 1
 shopIcon.Font = Enum.Font.GothamBold
 shopIcon.Text = "??"
-shopIcon.TextSize = 36
+shopIcon.TextSize = 42
 shopIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
 shopIcon.Parent = shopButton
 
@@ -109,7 +109,7 @@ shopText.Position = UDim2.new(0, 0, 0.6, 0)
 shopText.BackgroundTransparency = 1
 shopText.Font = Enum.Font.GothamBold
 shopText.Text = "SHOP"
-shopText.TextSize = 16
+shopText.TextSize = 18
 shopText.TextColor3 = Color3.fromRGB(255, 255, 255)
 shopText.Parent = shopButton
 
@@ -408,7 +408,7 @@ local function openShop()
 	local buttonTween = TweenService:Create(
 		shopButton,
 		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{Size = UDim2.new(0, 85, 0, 85)}
+		{Size = UDim2.new(0, 105, 0, 105)}
 	)
 	buttonTween:Play()
 	
@@ -441,7 +441,7 @@ local function closeShop()
 	local buttonTween = TweenService:Create(
 		shopButton,
 		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{Size = UDim2.new(0, 90, 0, 90), Rotation = 0}
+		{Size = UDim2.new(0, 110, 0, 110), Rotation = 0}
 	)
 	buttonTween:Play()
 end
@@ -465,7 +465,7 @@ shopButton.MouseEnter:Connect(function()
 		local hoverTween = TweenService:Create(
 			shopButton,
 			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{Size = UDim2.new(0, 95, 0, 95)}
+			{Size = UDim2.new(0, 118, 0, 118)}
 		)
 		hoverTween:Play()
 		
@@ -484,7 +484,7 @@ shopButton.MouseLeave:Connect(function()
 		local leaveTween = TweenService:Create(
 			shopButton,
 			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{Size = UDim2.new(0, 90, 0, 90), Rotation = 0}
+			{Size = UDim2.new(0, 110, 0, 110), Rotation = 0}
 		)
 		leaveTween:Play()
 	end
