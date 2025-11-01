@@ -22,22 +22,33 @@ local playerGamepasses = {} -- [UserId] = {PUSH_BOOST = true/false, etc.}
 
 -- ==================== OWNERSHIP CHECKING ====================
 
--- Check if player owns a specific gamepass
-local function checkGamepassOwnership(player, gamepassId)
+-- Check if player owns a specific gamepass (with retry logic)
+local function checkGamepassOwnership(player, gamepassId, retryCount)
 	if gamepassId == 0 then
 		warn("[GAMEPASS] Gamepass ID is 0 (placeholder) - returning false")
 		return false
 	end
+	
+	retryCount = retryCount or 0
 	
 	local success, hasPass = pcall(function()
 		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gamepassId)
 	end)
 	
 	if success then
+		print("[GAMEPASS] Ownership check for", player.Name, "- Gamepass", gamepassId, ":", hasPass)
 		return hasPass
 	else
-		warn("[GAMEPASS] Error checking gamepass for", player.Name, "- assuming false")
-		return false
+		warn("[GAMEPASS] Error checking gamepass for", player.Name, "- Attempt", retryCount + 1)
+		
+		-- Retry up to 3 times with delay
+		if retryCount < 3 then
+			task.wait(0.5)
+			return checkGamepassOwnership(player, gamepassId, retryCount + 1)
+		else
+			warn("[GAMEPASS] Failed to check ownership after 3 attempts - assuming false")
+			return false
+		end
 	end
 end
 
@@ -169,20 +180,33 @@ end
 
 -- Detect when a player purchases a gamepass in-game
 MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamepassId, purchaseSuccess)
-	if not purchaseSuccess then return end
+	print("[GAMEPASS] Purchase prompt finished for", player.Name, "- Gamepass:", gamepassId, "Success:", purchaseSuccess)
 	
-	print("[GAMEPASS]", player.Name, "purchased gamepass:", gamepassId)
+	if not purchaseSuccess then 
+		warn("[GAMEPASS] Purchase was not successful or was cancelled")
+		return 
+	end
+	
+	print("[GAMEPASS] ?", player.Name, "successfully purchased gamepass:", gamepassId)
+	
+	-- Wait a moment for Roblox to register the purchase
+	task.wait(1)
 	
 	-- Refresh the player's gamepass cache
+	print("[GAMEPASS] Refreshing gamepass cache for", player.Name)
 	loadPlayerGamepasses(player)
 	
 	-- Apply speed boost immediately if they bought it
 	if gamepassId == GAMEPASS_IDS.SPEED_BOOST and player.Character then
+		print("[GAMEPASS] Applying speed boost immediately")
 		local speedMultiplier = getSpeedMultiplier(player)
 		if speedMultiplier > 1 then
 			applySpeedBoost(player.Character, speedMultiplier)
 		end
 	end
+	
+	-- Notify player
+	print("[GAMEPASS] Gamepass activated for", player.Name, "!")
 end)
 
 -- ==================== GLOBAL API ====================
@@ -193,7 +217,9 @@ _G.GamepassManager = {
 	getPushMultiplier = getPushMultiplier,
 	getSpeedMultiplier = getSpeedMultiplier,
 	applySpeedBoost = applySpeedBoost,
-	refreshPlayer = loadPlayerGamepasses
+	refreshPlayer = loadPlayerGamepasses,
+	checkOwnership = checkGamepassOwnership, -- Exposed for debugging
+	GAMEPASS_IDS = GAMEPASS_IDS -- Exposed so other scripts can verify IDs match
 }
 
 print("========================================")
@@ -201,4 +227,8 @@ print("Gamepass Manager Ready!")
 print("Push Boost ID:", GAMEPASS_IDS.PUSH_BOOST)
 print("2x Wins ID:", GAMEPASS_IDS.WINS_2X)
 print("Speed Boost ID:", GAMEPASS_IDS.SPEED_BOOST)
+if GAMEPASS_IDS.PUSH_BOOST == 0 or GAMEPASS_IDS.WINS_2X == 0 or GAMEPASS_IDS.SPEED_BOOST == 0 then
+	warn("[GAMEPASS] WARNING: Some gamepass IDs are still set to 0 (placeholder)!")
+	warn("[GAMEPASS] Make sure to replace them with your real gamepass IDs!")
+end
 print("========================================")
