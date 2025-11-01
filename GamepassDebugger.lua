@@ -68,8 +68,36 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamep
 		
 		-- Check if they now have the gamepass
 		print("[GAMEPASS DEBUG] Checking ownership after purchase...")
-		local testOwnership = _G.GamepassManager.checkOwnership(player, gamepassId)
-		print("[GAMEPASS DEBUG] Direct ownership check result:", testOwnership)
+		
+		if _G.GamepassManager and _G.GamepassManager.checkOwnership then
+			local success, testOwnership = pcall(function()
+				return _G.GamepassManager.checkOwnership(player, gamepassId)
+			end)
+			
+			if success then
+				print("[GAMEPASS DEBUG] Direct ownership check result:", testOwnership)
+			else
+				warn("[GAMEPASS DEBUG] Error checking ownership:", testOwnership)
+			end
+		else
+			warn("[GAMEPASS DEBUG] checkOwnership function not found!")
+		end
+		
+		-- Also check if this gamepass ID is in the GAMEPASS_IDS table
+		local ids = _G.GamepassManager.GAMEPASS_IDS
+		local foundMatch = false
+		for name, id in pairs(ids) do
+			if id == gamepassId then
+				print("[GAMEPASS DEBUG] Purchased gamepass matches:", name)
+				foundMatch = true
+				break
+			end
+		end
+		
+		if not foundMatch then
+			warn("[GAMEPASS DEBUG] ?? Purchased gamepass ID", gamepassId, "is NOT in GAMEPASS_IDS table!")
+			warn("[GAMEPASS DEBUG] This gamepass won't do anything! Check your ShopUI.lua IDs!")
+		end
 	end
 end)
 

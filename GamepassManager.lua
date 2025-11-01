@@ -54,22 +54,32 @@ end
 
 -- Load all gamepasses for a player (called on join)
 local function loadPlayerGamepasses(player)
+	if not player or not player.Parent then
+		warn("[GAMEPASS] Cannot load gamepasses - player is nil or left")
+		return
+	end
+	
 	local userId = player.UserId
 	playerGamepasses[userId] = {}
 	
 	print("[GAMEPASS] Loading gamepasses for", player.Name)
+	print("[GAMEPASS] ===== Checking Ownership =====")
 	
 	-- Check each gamepass
 	for passName, passId in pairs(GAMEPASS_IDS) do
+		print("[GAMEPASS] Checking", passName, "(ID:", passId, ")...")
 		local hasPass = checkGamepassOwnership(player, passId)
 		playerGamepasses[userId][passName] = hasPass
 		
 		if hasPass then
-			print("[GAMEPASS]", player.Name, "owns", passName)
+			print("[GAMEPASS] ?", player.Name, "OWNS", passName)
+		else
+			print("[GAMEPASS] ?", player.Name, "does NOT own", passName)
 		end
 	end
 	
-	print("[GAMEPASS] Loaded", player.Name, "'s gamepasses")
+	print("[GAMEPASS] ===========================")
+	print("[GAMEPASS] Finished loading", player.Name, "'s gamepasses")
 end
 
 -- Get cached gamepass status (fast, no API call)
@@ -180,33 +190,54 @@ end
 
 -- Detect when a player purchases a gamepass in-game
 MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamepassId, purchaseSuccess)
-	print("[GAMEPASS] Purchase prompt finished for", player.Name, "- Gamepass:", gamepassId, "Success:", purchaseSuccess)
+	print("========================================")
+	print("[GAMEPASS] Purchase prompt finished")
+	print("[GAMEPASS] Player:", player.Name)
+	print("[GAMEPASS] Gamepass ID:", gamepassId)
+	print("[GAMEPASS] Success:", purchaseSuccess)
+	print("========================================")
 	
 	if not purchaseSuccess then 
 		warn("[GAMEPASS] Purchase was not successful or was cancelled")
 		return 
 	end
 	
-	print("[GAMEPASS] ?", player.Name, "successfully purchased gamepass:", gamepassId)
+	-- Check if this gamepass is one we handle
+	local gamepassName = nil
+	for name, id in pairs(GAMEPASS_IDS) do
+		if id == gamepassId then
+			gamepassName = name
+			break
+		end
+	end
+	
+	if not gamepassName then
+		warn("[GAMEPASS] ?? Purchased gamepass ID", gamepassId, "is NOT in our GAMEPASS_IDS table!")
+		warn("[GAMEPASS] This gamepass won't do anything! Check your ShopUI.lua and GamepassManager.lua IDs match!")
+		return
+	end
+	
+	print("[GAMEPASS] ? Player purchased:", gamepassName)
 	
 	-- Wait a moment for Roblox to register the purchase
-	task.wait(1)
+	print("[GAMEPASS] Waiting for Roblox to register purchase...")
+	task.wait(2)
 	
 	-- Refresh the player's gamepass cache
-	print("[GAMEPASS] Refreshing gamepass cache for", player.Name)
+	print("[GAMEPASS] Refreshing gamepass cache...")
 	loadPlayerGamepasses(player)
 	
 	-- Apply speed boost immediately if they bought it
 	if gamepassId == GAMEPASS_IDS.SPEED_BOOST and player.Character then
-		print("[GAMEPASS] Applying speed boost immediately")
+		print("[GAMEPASS] Applying speed boost immediately...")
 		local speedMultiplier = getSpeedMultiplier(player)
 		if speedMultiplier > 1 then
 			applySpeedBoost(player.Character, speedMultiplier)
+			print("[GAMEPASS] ? Speed boost applied!")
 		end
 	end
 	
-	-- Notify player
-	print("[GAMEPASS] Gamepass activated for", player.Name, "!")
+	print("[GAMEPASS] ? Gamepass activated for", player.Name, "!")
 end)
 
 -- ==================== GLOBAL API ====================
@@ -224,11 +255,15 @@ _G.GamepassManager = {
 
 print("========================================")
 print("Gamepass Manager Ready!")
+print("========================================")
 print("Push Boost ID:", GAMEPASS_IDS.PUSH_BOOST)
 print("2x Wins ID:", GAMEPASS_IDS.WINS_2X)
 print("Speed Boost ID:", GAMEPASS_IDS.SPEED_BOOST)
+print("========================================")
 if GAMEPASS_IDS.PUSH_BOOST == 0 or GAMEPASS_IDS.WINS_2X == 0 or GAMEPASS_IDS.SPEED_BOOST == 0 then
-	warn("[GAMEPASS] WARNING: Some gamepass IDs are still set to 0 (placeholder)!")
+	warn("[GAMEPASS] ?? WARNING: Some gamepass IDs are still set to 0 (placeholder)!")
 	warn("[GAMEPASS] Make sure to replace them with your real gamepass IDs!")
 end
+warn("[GAMEPASS] ?? IMPORTANT: Gamepasses DO NOT work in Studio!")
+warn("[GAMEPASS] You MUST test in a published game on Roblox.com!")
 print("========================================")
