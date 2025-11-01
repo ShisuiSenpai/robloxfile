@@ -447,6 +447,12 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 		-- Countdown
 		for i = timeOrData, 1, -1 do
 			statusSubtitle.Text = "Next round in " .. i .. " second" .. (i == 1 and "" or "s")
+			
+			-- Play intermission tick sound
+			if _G.SoundManager and i > 1 then
+				_G.SoundManager.play("intermission_tick", true)
+			end
+			
 			task.wait(1)
 		end
 		
@@ -462,6 +468,11 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 		countdownNumber.TextSize = 120
 		countdownFrame.Visible = true
 		
+		-- Play countdown tick sound
+		if _G.SoundManager then
+			_G.SoundManager.play("countdown_tick", true)
+		end
+		
 		-- Pulse animation
 		countdownNumber.Size = UDim2.new(0, 0, 0, 0)
 		local pulseTween = TweenService:Create(
@@ -475,6 +486,11 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 		-- Show GO! and hide everything
 		stopDotAnimation()
 		hideStatusDisplay()
+		
+		-- Play GO sound
+		if _G.SoundManager then
+			_G.SoundManager.play("countdown_go", true)
+		end
 		
 		-- Show GO!
 		countdownNumber.Text = "GO!"

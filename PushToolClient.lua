@@ -173,6 +173,11 @@ local function onActivated()
 		debugPrint("No animation track loaded")
 	end
 
+	-- Play swing sound
+	if _G.SoundManager then
+		_G.SoundManager.play("push_swing", true)
+	end
+
 	-- Set cooldown immediately
 	lastPushTime = currentTime
 
@@ -188,6 +193,11 @@ local function onActivated()
 
 		-- Send to server
 		pushRemote:FireServer(targetPlayer, pushDirection, PUSH_FORCE)
+
+		-- Play hit sound
+		if _G.SoundManager then
+			_G.SoundManager.play("push_hit", true)
+		end
 
 		print("Pushed", targetPlayer.Name, "!")
 	else

@@ -39,6 +39,10 @@ local winnerEvent = Instance.new("RemoteEvent")
 winnerEvent.Name = "Winner"
 winnerEvent.Parent = ReplicatedStorage
 
+local playSoundEvent = Instance.new("RemoteEvent")
+playSoundEvent.Name = "PlaySound"
+playSoundEvent.Parent = ReplicatedStorage
+
 debugPrint("RemoteEvents created")
 
 -- Find spawn locations
@@ -164,8 +168,9 @@ local function onPlayerWin(player)
 	gameState = "GameOver"
 	removeCrown(player)
 	
-	-- Announce winner
+	-- Announce winner and play victory sound
 	winnerEvent:FireAllClients(player)
+	playSoundEvent:FireAllClients("player_wins")
 	
 	-- Clear king
 	currentKing = nil
@@ -413,6 +418,11 @@ task.spawn(function()
 					
 					updateKingDisplay(currentKing, timeRemaining)
 					
+					-- Play tick sound every second
+					if math.floor(kingTimer * 10) % 10 == 0 then
+						playSoundEvent:FireClient(currentKing, "king_tick")
+					end
+					
 					-- Check if they won
 					if kingTimer >= TIME_TO_WIN then
 						onPlayerWin(currentKing)
@@ -428,6 +438,9 @@ task.spawn(function()
 					kingTimer = 0
 					updateKingDisplay(currentKing, TIME_TO_WIN)
 					giveCrown(currentKing)
+					
+					-- Play become king sound
+					playSoundEvent:FireClient(playerInZone, "become_king")
 				end
 			else
 				-- No one in zone

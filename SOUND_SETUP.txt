@@ -1,0 +1,168 @@
+================================================================================
+COMPLETE SOUND SYSTEM SETUP
+================================================================================
+
+OVERVIEW:
+A comprehensive, optimized sound system for your King of the Hill game with:
+- Countdown sounds (3, 2, 1, GO!)
+- King timer ticking
+- Become king notification sound
+- Victory sound
+- Intermission countdown ticks
+- Push tool swing and hit sounds
+
+All sounds are tracked, pooled, and optimized to prevent spam and memory leaks.
+
+================================================================================
+SETUP INSTRUCTIONS
+================================================================================
+
+1. SCRIPTS TO PLACE
+   ----------------
+   
+   a) SoundManager.lua
+      - Place in: StarterPlayer > StarterPlayerScripts
+      - This is the CLIENT-SIDE sound system
+      - Handles all sound playback and pooling
+   
+   b) Updated Scripts (Already Modified):
+      - RoundSystemServer.lua (ServerScriptService)
+      - RoundSystemUI.lua (StarterPlayerScripts)
+      - PushToolClient.lua (Inside your Push Tool)
+
+2. SOUND CONFIGURATION
+   -------------------
+   
+   Open SoundManager.lua and replace the placeholder sound IDs with your own:
+   
+   SOUND_IDS = {
+       countdown_tick = "rbxassetid://YOUR_ID_HERE",    -- 3, 2, 1 sounds
+       countdown_go = "rbxassetid://YOUR_ID_HERE",      -- GO! sound
+       become_king = "rbxassetid://YOUR_ID_HERE",       -- Become king sound
+       king_tick = "rbxassetid://YOUR_ID_HERE",         -- Timer tick (subtle)
+       player_wins = "rbxassetid://YOUR_ID_HERE",       -- Victory sound
+       intermission_tick = "rbxassetid://YOUR_ID_HERE", -- Intermission tick
+       push_swing = "rbxassetid://YOUR_ID_HERE",        -- Push swing sound
+       push_hit = "rbxassetid://YOUR_ID_HERE",          -- Push hit sound
+   }
+
+3. RECOMMENDED SOUND IDS
+   ---------------------
+   
+   Here are some free Roblox sound IDs you can use:
+   
+   countdown_tick: 9120386436 (Short beep)
+   countdown_go: 9120386436 (Same as tick, or use your own)
+   become_king: 9120386436 (Notification sound)
+   king_tick: 9113939301 (Very subtle tick)
+   player_wins: 9120386436 (Victory fanfare)
+   intermission_tick: 9113939301 (Quiet tick)
+   push_swing: 9119713951 (Whoosh sound)
+   push_hit: 9119713951 (Impact sound)
+   
+   Or search the Roblox library for better sounds:
+   - "countdown beep"
+   - "timer tick"
+   - "victory fanfare"
+   - "notification"
+   - "whoosh"
+   - "impact"
+
+4. VOLUME ADJUSTMENT
+   -----------------
+   
+   You can adjust volumes in SoundManager.lua:
+   
+   SOUND_VOLUMES = {
+       countdown_tick = 0.5,      -- Medium volume
+       countdown_go = 0.7,        -- Louder for GO!
+       become_king = 0.6,         -- Medium-loud
+       king_tick = 0.15,          -- Very quiet (background)
+       player_wins = 0.8,         -- Loud for victory
+       intermission_tick = 0.1,   -- Very quiet
+       push_swing = 0.4,          -- Medium-quiet
+       push_hit = 0.5,            -- Medium
+   }
+
+================================================================================
+HOW IT WORKS
+================================================================================
+
+SOUND POOLING SYSTEM:
+- Prevents sound spam (max 1 of each sound playing at once, unless forced)
+- Automatically cleans up finished sounds (no memory leaks)
+- Uses _G.SoundManager for cross-script communication
+
+WHEN SOUNDS PLAY:
+1. Countdown: 3, 2, 1 each play a tick sound
+2. GO!: Plays a distinct "go" sound
+3. Become King: When you step on the pyramid and become king
+4. King Timer: Subtle tick every 1 second while you're king
+5. Victory: Loud sound when someone wins
+6. Intermission: Quiet tick each second during intermission countdown
+7. Push Swing: Plays every time you use the push tool (even if no target)
+8. Push Hit: Plays when you successfully hit a player
+
+SERVER-SIDE TRIGGERS:
+- Server fires PlaySound RemoteEvent to clients
+- Only the affected player hears "become_king" and "king_tick"
+- Everyone hears "player_wins" when someone wins
+
+CLIENT-SIDE PLAYBACK:
+- SoundManager handles all actual sound playback
+- Sounds play through SoundService (best audio quality)
+- UI scripts call _G.SoundManager.play() directly
+
+================================================================================
+OPTIMIZATIONS
+================================================================================
+
+? Sound Pooling - Prevents duplicate sounds from overlapping
+? Automatic Cleanup - Sounds destroy themselves when finished
+? Selective Broadcasting - Not all sounds go to all players
+? Volume Control - Each sound has appropriate volume
+? Force New Flag - Can override pooling for rapid sounds (like countdown)
+? Global Access - _G.SoundManager available to all LocalScripts
+
+================================================================================
+TESTING
+================================================================================
+
+1. Join the game
+2. Check output for: "[SOUND MANAGER] Ready!"
+3. Wait for countdown to hear: tick, tick, tick, GO!
+4. Get on pyramid to hear: become king sound + timer ticks
+5. Hold pyramid for 5 seconds to hear: victory sound
+6. Use push tool to hear: swing sound (always) + hit sound (when hitting)
+
+If sounds don't play:
+- Check output for errors
+- Verify sound IDs are correct (test in Studio Sound Explorer)
+- Make sure SoundManager.lua loads before other scripts use it
+- Check volumes aren't set to 0
+
+================================================================================
+CUSTOMIZATION
+================================================================================
+
+Want different sounds for different numbers?
+- Modify the countdown handler in RoundSystemUI.lua
+- Add countdown_3, countdown_2, countdown_1 to SOUND_IDS
+- Play different sound based on number
+
+Want music during rounds?
+- Add a "round_music" sound to SOUND_IDS
+- Play it when roundStart happens
+- Stop it when round ends
+
+Want unique king sounds per player?
+- Store sound preferences per player
+- Pass sound name as parameter from server
+- Play custom sound in SoundManager
+
+================================================================================
+
+Your complete sound system is ready! ???
+Replace the placeholder IDs with your sounds and enjoy!
+
+================================================================================
