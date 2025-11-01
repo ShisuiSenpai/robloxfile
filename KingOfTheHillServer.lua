@@ -1,9 +1,8 @@
--- King of the Hill Server Script
+-- King of the Hill Server Script (Fixed)
 -- Place this in ServerScriptService
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
 
 -- Configuration
 local KING_PART_NAME = "PyramidKing" -- Name of the part in workspace
@@ -14,13 +13,13 @@ local DEBUG = true
 -- Game state
 local currentKing = nil
 local kingTimer = 0
-local gameActive = false
-local roundInProgress = false
+local roundInProgress = true
+local playersOnPart = {} -- Track who's currently on the part
 
 -- Debug print
 local function debugPrint(...)
 	if DEBUG then
-		print("[KING OF THE HILL]", ...)
+		print("[KING SERVER]", ...)
 	end
 end
 
@@ -44,98 +43,144 @@ debugPrint("RemoteEvents created")
 -- Find the king part
 local kingPart = workspace:FindFirstChild(KING_PART_NAME)
 if not kingPart then
-	warn("[KING OF THE HILL] Could not find part named '" .. KING_PART_NAME .. "' in workspace!")
+	warn("[KING SERVER] Could not find part named '" .. KING_PART_NAME .. "' in workspace!")
 	warn("Please create a part named 'PyramidKing' at the top of your pyramid!")
 	return
 end
 
-debugPrint("Found king part:", kingPart.Name)
-
--- Get all players currently touching the king part
-local function getPlayersOnKingPart()
-	local playersOnPart = {}
-	local touchingParts = kingPart:GetTouchingParts()
-	
-	for _, part in pairs(touchingParts) do
-		if part.Parent and part.Parent:FindFirstChildOfClass("Humanoid") then
-			local player = Players:GetPlayerFromCharacter(part.Parent)
-			if player then
-				local humanoid = part.Parent:FindFirstChildOfClass("Humanoid")
-				if humanoid and humanoid.Health > 0 then
-					table.insert(playersOnPart, player)
-				end
-			end
-		end
-	end
-	
-	return playersOnPart
+-- Make sure CanCollide is enabled for touch detection
+if not kingPart.CanCollide then
+	warn("[KING SERVER] Warning: PyramidKing part has CanCollide = false. Setting it to true for detection.")
+	kingPart.CanCollide = true
 end
+
+debugPrint("Found king part:", kingPart.Name, "| Position:", kingPart.Position)
 
 -- Update the current king to all clients
 local function updateKingDisplay(player, timeRemaining)
 	if player then
-		debugPrint("Updating king display:", player.Name, "Time:", timeRemaining)
+		debugPrint("Sending king update:", player.Name, "Time remaining:", string.format("%.1f", timeRemaining))
 		updateKingEvent:FireAllClients(player, timeRemaining, TIME_TO_WIN)
 	else
-		debugPrint("Clearing king display")
+		debugPrint("Sending clear king signal")
 		updateKingEvent:FireAllClients(nil, 0, TIME_TO_WIN)
 	end
 end
 
 -- Handle player winning
 local function playerWins(player)
-	debugPrint("===== PLAYER WINS =====")
-	debugPrint("Winner:", player.Name)
+	debugPrint("========================================")
+	debugPrint("WINNER:", player.Name)
+	debugPrint("========================================")
 	
 	roundInProgress = false
-	gameActive = false
 	
 	-- Announce winner to all clients
 	winnerEvent:FireAllClients(player)
 	
 	-- Clear king display
+	currentKing = nil
+	kingTimer = 0
+	playersOnPart = {}
 	updateKingDisplay(nil, 0)
 	
 	-- Wait for intermission
-	debugPrint("Starting intermission for", ROUND_INTERMISSION, "seconds")
+	debugPrint("Intermission started:", ROUND_INTERMISSION, "seconds")
 	task.wait(ROUND_INTERMISSION)
 	
 	-- Reset the round
-	debugPrint("Resetting round...")
-	currentKing = nil
-	kingTimer = 0
+	debugPrint("New round starting...")
 	roundInProgress = true
-	gameActive = true
-	
-	-- Announce new round
 	roundStatusEvent:FireAllClients("newRound")
-	
-	debugPrint("New round started!")
+	debugPrint("Game active again!")
 end
 
--- Main game loop
-local function gameLoop()
-	debugPrint("Game loop started")
-	gameActive = true
-	roundInProgress = true
+-- Handle player entering the king part
+kingPart.Touched:Connect(function(hit)
+	if not roundInProgress then return end
+	
+	-- Check if it's a player's character part
+	local character = hit.Parent
+	if not character then return end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return end
+	
+	local player = Players:GetPlayerFromCharacter(character)
+	if not player then return end
+	
+	-- Check if player is already tracked
+	if playersOnPart[player] then return end
+	
+	debugPrint("Player entered king part:", player.Name)
+	playersOnPart[player] = true
+	
+	-- If no current king, make this player the king
+	if not currentKing then
+		debugPrint("New king set:", player.Name)
+		currentKing = player
+		kingTimer = 0
+		updateKingDisplay(currentKing, TIME_TO_WIN)
+	end
+end)
+
+-- Handle player leaving the king part
+kingPart.TouchEnded:Connect(function(hit)
+	-- Check if it's a player's character part
+	local character = hit.Parent
+	if not character then return end
+	
+	local player = Players:GetPlayerFromCharacter(character)
+	if not player then return end
+	
+	-- Remove player from tracking
+	if playersOnPart[player] then
+		debugPrint("Player left king part:", player.Name)
+		playersOnPart[player] = nil
+		
+		-- If the current king left, clear everything
+		if currentKing == player then
+			debugPrint("Current king left! Clearing king status")
+			currentKing = nil
+			kingTimer = 0
+			updateKingDisplay(nil, 0)
+			
+			-- Check if there's another player on the part to become king
+			for otherPlayer, _ in pairs(playersOnPart) do
+				if otherPlayer and otherPlayer.Character then
+					local otherHumanoid = otherPlayer.Character:FindFirstChildOfClass("Humanoid")
+					if otherHumanoid and otherHumanoid.Health > 0 then
+						debugPrint("New king from remaining players:", otherPlayer.Name)
+						currentKing = otherPlayer
+						kingTimer = 0
+						updateKingDisplay(currentKing, TIME_TO_WIN)
+						break
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- Main timer loop
+task.spawn(function()
+	debugPrint("Timer loop started")
 	
 	while true do
-		task.wait(0.1) -- Check every 0.1 seconds for smooth timer
+		task.wait(0.1) -- Update every 0.1 seconds for smooth timer
 		
-		if not roundInProgress then
-			task.wait(1)
-			continue
-		end
-		
-		-- Get all players on the king part
-		local playersOnPart = getPlayersOnKingPart()
-		
-		if #playersOnPart > 0 then
-			-- At least one player is on the part
-			local newKing = playersOnPart[1] -- Take the first player (or could randomize)
+		if roundInProgress and currentKing then
+			-- Verify king is still valid
+			local kingValid = false
+			if currentKing.Character then
+				local humanoid = currentKing.Character:FindFirstChildOfClass("Humanoid")
+				if humanoid and humanoid.Health > 0 and playersOnPart[currentKing] then
+					kingValid = true
+				end
+			end
 			
-			if currentKing == newKing then
-				-- Same king, increment timer
+			if kingValid then
+				-- Increment timer
 				kingTimer = kingTimer + 0.1
 				local timeRemaining = TIME_TO_WIN - kingTimer
 				
@@ -147,30 +192,25 @@ local function gameLoop()
 					playerWins(currentKing)
 				end
 			else
-				-- New king, reset timer
-				debugPrint("New king:", newKing.Name)
-				currentKing = newKing
+				-- King is no longer valid
+				debugPrint("King became invalid (died or left)")
+				currentKing = nil
 				kingTimer = 0
-				updateKingDisplay(currentKing, TIME_TO_WIN)
+				updateKingDisplay(nil, 0)
 			end
-		else
-			-- No one on the part
-			if currentKing then
-				debugPrint("King left the part:", currentKing.Name)
-			end
-			currentKing = nil
-			kingTimer = 0
-			updateKingDisplay(nil, 0)
 		end
 	end
-end
+end)
 
--- Handle player respawn (clear them as king if they die)
+-- Handle player death
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function(character)
 		local humanoid = character:WaitForChild("Humanoid")
 		
 		humanoid.Died:Connect(function()
+			-- Remove from tracking
+			playersOnPart[player] = nil
+			
 			if currentKing == player then
 				debugPrint("Current king died:", player.Name)
 				currentKing = nil
@@ -181,8 +221,10 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 end)
 
--- Handle player leaving
+-- Handle player leaving game
 Players.PlayerRemoving:Connect(function(player)
+	playersOnPart[player] = nil
+	
 	if currentKing == player then
 		debugPrint("Current king left the game:", player.Name)
 		currentKing = nil
@@ -191,13 +233,7 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
--- Start the game
 debugPrint("==========================================")
-debugPrint("King of the Hill Game Ready!")
-debugPrint("King Part:", KING_PART_NAME)
-debugPrint("Time to Win:", TIME_TO_WIN, "seconds")
-debugPrint("Starting game loop...")
+debugPrint("King of the Hill Ready!")
+debugPrint("Waiting for players to reach the pyramid top...")
 debugPrint("==========================================")
-
--- Start game loop
-task.spawn(gameLoop)

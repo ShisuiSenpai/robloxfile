@@ -36,6 +36,7 @@ mainFrame.Size = UDim2.new(0, 400, 0, 140)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BackgroundTransparency = 0.15
 mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false -- START HIDDEN
 mainFrame.Parent = screenGui
 
 -- Add UICorner for rounded edges
@@ -206,6 +207,7 @@ winnerSubtitle.Parent = winnerFrame
 local currentTween = nil
 
 local function showKingDisplay()
+	mainFrame.Visible = true
 	if currentTween then currentTween:Cancel() end
 	currentTween = TweenService:Create(
 		mainFrame,
@@ -213,6 +215,7 @@ local function showKingDisplay()
 		{Position = UDim2.new(0.5, 0, 0, 20)}
 	)
 	currentTween:Play()
+	print("[KING UI] Showing king display")
 end
 
 local function hideKingDisplay()
@@ -223,6 +226,10 @@ local function hideKingDisplay()
 		{Position = UDim2.new(0.5, 0, 0, -150)}
 	)
 	currentTween:Play()
+	currentTween.Completed:Connect(function()
+		mainFrame.Visible = false
+	end)
+	print("[KING UI] Hiding king display")
 end
 
 local function updateProgressBar(timeRemaining, totalTime)
@@ -250,13 +257,23 @@ end
 
 -- Handle king update from server
 updateKingEvent.OnClientEvent:Connect(function(kingPlayer, timeRemaining, totalTime)
+	print("[KING UI] Received update - King:", kingPlayer and kingPlayer.Name or "nil", "Time:", timeRemaining)
+	
 	if kingPlayer then
 		-- Show the king display
 		nameLabel.Text = kingPlayer.Name
 		
-		-- Get player avatar
-		local userId = kingPlayer.UserId
-		avatarImage.Image = Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		-- Get player avatar (with error handling)
+		local success, thumbnail = pcall(function()
+			return Players:GetUserThumbnailAsync(kingPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		end)
+		
+		if success then
+			avatarImage.Image = thumbnail
+		else
+			warn("[KING UI] Failed to load avatar for", kingPlayer.Name)
+			avatarImage.Image = ""
+		end
 		
 		-- Update progress bar
 		updateProgressBar(timeRemaining, totalTime)
