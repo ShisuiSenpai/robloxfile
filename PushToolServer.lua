@@ -192,22 +192,37 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	
 	debugPrint("Applying push to", targetPlayer.Name)
 	
-	-- Calculate push velocity with upward arc
+	-- Calculate push direction with upward arc
 	local normalizedDirection = direction.Unit
-	local pushDirection = (normalizedDirection + Vector3.new(0, 0.4, 0)).Unit -- Upward arc
+	local pushDirection = (normalizedDirection + Vector3.new(0, 0.35, 0)).Unit
 	
-	-- Adjust force based on distance (closer = stronger)
-	local distanceMultiplier = math.clamp(1.2 - (distance / MAX_PUSH_DISTANCE), 0.7, 1.2)
-	local actualForce = math.clamp((force or 65) * distanceMultiplier, 40, 90)
-	local pushVelocity = pushDirection * actualForce
+	-- Adjust force based on distance (closer = stronger, but not too strong)
+	local distanceMultiplier = math.clamp(1.1 - (distance / MAX_PUSH_DISTANCE) * 0.3, 0.8, 1.1)
+	local actualForce = math.clamp((force or 65) * distanceMultiplier, 45, 75)
 	
-	debugPrint("Push velocity:", pushVelocity, "Force:", actualForce)
+	debugPrint("Push force:", actualForce, "Distance multiplier:", distanceMultiplier)
 	
-	-- Apply the push velocity ONCE
-	targetRoot.AssemblyLinearVelocity = pushVelocity
-	
-	-- Create ragdoll
+	-- Create ragdoll FIRST
 	local removeRagdoll = createRagdoll(targetCharacter)
+	
+	-- Wait a tiny bit for ragdoll to initialize
+	task.wait(0.05)
+	
+	-- Apply impulse to multiple body parts for reliable push
+	local partsToApplyForce = {
+		targetRoot,
+		targetCharacter:FindFirstChild("UpperTorso") or targetCharacter:FindFirstChild("Torso"),
+		targetCharacter:FindFirstChild("Head")
+	}
+	
+	for _, part in pairs(partsToApplyForce) do
+		if part and part:IsA("BasePart") then
+			-- Use ApplyImpulse for more reliable physics
+			local impulse = pushDirection * actualForce * part.AssemblyMass
+			part:ApplyImpulse(impulse)
+			debugPrint("Applied impulse to", part.Name)
+		end
+	end
 	
 	if removeRagdoll then
 		-- Health protection during ragdoll
