@@ -121,33 +121,34 @@ timerText.TextSize = 24
 timerText.TextXAlignment = Enum.TextXAlignment.Right
 timerText.Parent = mainFrame
 
--- Progress Bar Background (horizontal at bottom - part of the UI frame)
+-- Progress Bar Background (with padding from edges)
 local progressBg = Instance.new("Frame")
 progressBg.Name = "ProgressBackground"
-progressBg.Position = UDim2.new(0, 0, 1, -8) -- Flush to bottom
-progressBg.Size = UDim2.new(1, 0, 0, 8) -- Thin horizontal bar, full width
+progressBg.Position = UDim2.new(0, 10, 1, -14) -- Padded from edges
+progressBg.Size = UDim2.new(1, -20, 0, 6) -- Inset from sides
 progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 progressBg.BackgroundTransparency = 0.4
 progressBg.BorderSizePixel = 0
+progressBg.ClipsDescendants = true -- Clips progress bar to rounded corners
 progressBg.Parent = mainFrame
 
--- Rounded bottom corners only (matches main frame)
+-- Rounded corners for smooth look
 local progressBgCorner = Instance.new("UICorner")
-progressBgCorner.CornerRadius = UDim.new(0, 16) -- Matches main frame corner
+progressBgCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded pill shape
 progressBgCorner.Parent = progressBg
 
 -- Progress Bar Fill (starts from left to right)
 local progressBar = Instance.new("Frame")
 progressBar.Name = "ProgressFill"
+progressBar.Position = UDim2.new(0, 0, 0, 0)
 progressBar.Size = UDim2.new(0, 0, 1, 0)
 progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255) -- Nice blue
 progressBar.BorderSizePixel = 0
-progressBar.ClipsDescendants = false
 progressBar.Parent = progressBg
 
--- Rounded corners on the progress bar (matches container)
+-- Rounded corners for the fill
 local progressCorner = Instance.new("UICorner")
-progressCorner.CornerRadius = UDim.new(0, 16) -- Matches bottom corners
+progressCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded pill shape
 progressCorner.Parent = progressBar
 
 -- Add subtle darkening gradient (left to right - slight darkening)
@@ -245,18 +246,27 @@ local function hideKingDisplay()
 	print("[KING UI] Hiding king display")
 end
 
+-- Track last progress to make animation smoother
+local lastProgress = 0
+
 local function updateProgressBar(timeRemaining, totalTime)
 	local progress = (totalTime - timeRemaining) / totalTime
 	
-	-- Faster, smooth progress animation
+	-- Calculate smooth interpolation time based on progress change
+	local progressDelta = math.abs(progress - lastProgress)
+	local tweenTime = math.max(0.08, progressDelta * 0.5) -- Adaptive tween time
+	
+	-- Ultra smooth progress animation
 	local progressTween = TweenService:Create(
 		progressBar,
-		TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		TweenInfo.new(tweenTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
 		{Size = UDim2.new(progress, 0, 1, 0)}
 	)
 	progressTween:Play()
 	
-	-- Update timer text
+	lastProgress = progress
+	
+	-- Update timer text with smooth formatting
 	timerText.Text = string.format("%.1fs", math.max(0, timeRemaining))
 	
 	-- Subtle darkening as progress increases (stays blue, just gets slightly darker)
@@ -264,20 +274,20 @@ local function updateProgressBar(timeRemaining, totalTime)
 	local baseBrightness = 180
 	local baseBlue2 = 255
 	
-	-- Calculate darkening factor (0 to 0.3 max darkening)
-	local darkenAmount = progress * 0.25
+	-- Calculate darkening factor (0 to 0.25 max darkening)
+	local darkenAmount = progress * 0.2
 	
-	-- Update gradient colors to gradually darken
+	-- Update gradient colors to gradually darken smoothly
 	gradient.Color = ColorSequence.new{
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(
-			baseBlue * (1 - darkenAmount),
-			baseBrightness * (1 - darkenAmount),
-			baseBlue2 * (1 - darkenAmount * 0.5)
+			math.floor(baseBlue * (1 - darkenAmount)),
+			math.floor(baseBrightness * (1 - darkenAmount)),
+			math.floor(baseBlue2 * (1 - darkenAmount * 0.5))
 		)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(
-			70 * (1 - darkenAmount * 1.2),
-			140 * (1 - darkenAmount * 1.2),
-			220 * (1 - darkenAmount * 0.7)
+			math.floor(70 * (1 - darkenAmount * 1.1)),
+			math.floor(140 * (1 - darkenAmount * 1.1)),
+			math.floor(220 * (1 - darkenAmount * 0.6))
 		))
 	}
 end
