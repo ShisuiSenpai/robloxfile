@@ -105,7 +105,11 @@ local function setupLavaKill()
 				
 				-- Award kill to pusher
 				if _G.StatsManager then
+					print("[LAVA] Awarding kill to:", killer.Name)
 					_G.StatsManager.addKill(killer)
+					print("[LAVA] Kill awarded successfully")
+				else
+					warn("[LAVA] StatsManager not available, cannot award kill!")
 				end
 				
 				-- Clear push data
@@ -304,7 +308,7 @@ end
 
 integrateWithRoundSystem()
 
--- Wait for PushTracker to be ready (ensure proper load order)
+-- Wait for PushTracker and StatsManager to be ready (ensure proper load order)
 task.spawn(function()
 	local attempts = 0
 	while not _G.PushTracker and attempts < 50 do
@@ -316,6 +320,20 @@ task.spawn(function()
 		print("[LAVA] PushTracker found! Kill attribution ready")
 	else
 		warn("[LAVA] PushTracker not found after 5 seconds - kills won't be attributed")
+	end
+end)
+
+task.spawn(function()
+	local attempts = 0
+	while not _G.StatsManager and attempts < 50 do
+		task.wait(0.1)
+		attempts = attempts + 1
+	end
+	
+	if _G.StatsManager then
+		print("[LAVA] StatsManager found! Kill tracking ready")
+	else
+		warn("[LAVA] StatsManager not found after 5 seconds - kills won't be tracked")
 	end
 end)
 

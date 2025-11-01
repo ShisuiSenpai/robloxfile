@@ -8,7 +8,7 @@ local TweenService = game:GetService("TweenService")
 print("[STREAK] Win Streak System starting...")
 
 -- Configuration
-local MIN_STREAK_TO_SHOW = 2 -- Show streak UI starting from 2 wins
+local MIN_STREAK_TO_SHOW = 1 -- Show streak UI starting from 1 win
 local STREAK_UI_HEIGHT = 3 -- Height above character's head
 
 -- Table to track player streaks
@@ -78,14 +78,26 @@ local function createStreakUI(character, streak)
 	bgStroke.Transparency = 0.4
 	bgStroke.Parent = bgFrame
 
-	-- Streak text label
+	-- Fire emoji
+	local fireLabel = Instance.new("TextLabel")
+	fireLabel.Name = "FireEmoji"
+	fireLabel.Size = UDim2.new(0.4, 0, 0.8, 0)
+	fireLabel.Position = UDim2.new(0.15, 0, 0.5, 0)
+	fireLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	fireLabel.BackgroundTransparency = 1
+	fireLabel.Text = "??"
+	fireLabel.TextScaled = true
+	fireLabel.Font = Enum.Font.GothamBold
+	fireLabel.Parent = bgFrame
+	
+	-- Streak number label
 	local streakLabel = Instance.new("TextLabel")
 	streakLabel.Name = "StreakLabel"
-	streakLabel.Size = UDim2.new(1, -10, 1, -10)
-	streakLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	streakLabel.Size = UDim2.new(0.6, 0, 0.8, 0)
+	streakLabel.Position = UDim2.new(0.6, 0, 0.5, 0)
 	streakLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	streakLabel.BackgroundTransparency = 1
-	streakLabel.Text = "?? " .. tostring(streak)
+	streakLabel.Text = tostring(streak)
 	streakLabel.TextScaled = true
 	streakLabel.TextColor3 = getStreakColor(streak)
 	streakLabel.Font = Enum.Font.GothamBold
