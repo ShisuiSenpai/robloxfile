@@ -305,19 +305,23 @@ local function hideKingDisplay()
 	end)
 end
 
+local currentProgressTween = nil
+
 local function updateProgressBar(timeRemaining, totalTime)
 	local progress = (totalTime - timeRemaining) / totalTime
 	
-	-- Faster, smoother tweening
-	local progressDelta = math.abs(progress - lastProgress)
-	local tweenTime = math.min(0.08, progressDelta * 0.3)
+	-- Cancel existing tween for smooth transition
+	if currentProgressTween then
+		currentProgressTween:Cancel()
+	end
 	
-	local progressTween = TweenService:Create(
+	-- Smooth liquid-like animation with consistent timing
+	currentProgressTween = TweenService:Create(
 		progressBar,
-		TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{Size = UDim2.new(progress, 0, 1, 0)}
 	)
-	progressTween:Play()
+	currentProgressTween:Play()
 	
 	lastProgress = progress
 	timerText.Text = string.format("%.1fs", math.max(0, timeRemaining))
