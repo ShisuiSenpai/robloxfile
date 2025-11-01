@@ -309,7 +309,19 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	local distanceMultiplier = math.clamp(1.1 - (distance / MAX_PUSH_DISTANCE) * 0.3, 0.8, 1.1)
 	local actualForce = math.clamp((force or 65) * distanceMultiplier, 35, 60)
 	
-	debugPrint("Final push force:", actualForce)
+	-- Check for 2x push boost gamepass
+	local pushMultiplier = 1
+	if _G.GamepassManager then
+		pushMultiplier = _G.GamepassManager.getPushMultiplier(pusher)
+	end
+	
+	actualForce = actualForce * pushMultiplier
+	
+	if pushMultiplier > 1 then
+		debugPrint("Final push force:", actualForce, "(2x Boost applied!)")
+	else
+		debugPrint("Final push force:", actualForce)
+	end
 	
 	-- INSTANT APPLICATION - No delays for smooth feel
 	-- Apply force and ragdoll simultaneously

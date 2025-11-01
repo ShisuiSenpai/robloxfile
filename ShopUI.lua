@@ -13,31 +13,32 @@ print("[SHOP] Loading Shop UI...")
 
 -- ==================== CONFIGURATION ====================
 
--- Placeholder gamepass data (replace with real IDs later)
+-- Gamepass data (replace IDs with your actual gamepass IDs)
+-- IMPORTANT: These IDs must match the ones in GamepassManager.lua!
 local GAMEPASSES = {
 	{
-		id = 0, -- Replace with real gamepass ID
+		id = 0, -- Replace with real gamepass ID (PUSH_BOOST in GamepassManager)
 		name = "2x Push Boost",
 		description = "Push players twice as far with your tool",
 		price = 299,
 		icon = "rbxassetid://0" -- Placeholder icon
 	},
 	{
-		id = 0,
+		id = 0, -- Replace with real gamepass ID (WINS_2X in GamepassManager)
 		name = "2x Wins",
 		description = "Double win rewards for every victory",
 		price = 199,
 		icon = "rbxassetid://0"
 	},
 	{
-		id = 0,
+		id = 0, -- Replace with real gamepass ID (SPEED_BOOST in GamepassManager)
 		name = "Speed Boost",
 		description = "Move 25% faster during rounds",
 		price = 149,
 		icon = "rbxassetid://0"
 	},
 	{
-		id = 0,
+		id = 0, -- HD Admin (not implemented in GamepassManager yet)
 		name = "HD Admin",
 		description = "Get admin commands and moderation tools",
 		price = 99,
