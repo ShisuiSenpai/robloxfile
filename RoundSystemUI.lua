@@ -1,15 +1,15 @@
--- Round System UI (Combines King Display + Intermission)
+-- Round System UI [OPTIMIZED FOR ALL DEVICES]
 -- Place this as a LocalScript in StarterPlayer > StarterPlayerScripts
--- REPLACES KingOfTheHillUI.lua
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Wait for RemoteEvents
+-- Wait for RemoteEvents with timeout
 local updateKingEvent = ReplicatedStorage:WaitForChild("UpdateKing", 10)
 local roundStatusEvent = ReplicatedStorage:WaitForChild("RoundStatus", 10)
 local winnerEvent = ReplicatedStorage:WaitForChild("Winner", 10)
@@ -21,12 +21,35 @@ end
 
 print("[ROUND UI] Loaded successfully")
 
--- Create ScreenGui
+-- ==================== OPTIMIZED UI CREATION ====================
+
+-- Create ScreenGui with mobile-friendly settings
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "RoundSystemUI"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.IgnoreGuiInset = false -- Respects safe area on mobile
 screenGui.Parent = playerGui
+
+-- OPTIMIZATION: Thumbnail cache to prevent repeated API calls
+local thumbnailCache = {}
+
+local function getCachedThumbnail(userId)
+	if thumbnailCache[userId] then
+		return thumbnailCache[userId]
+	end
+	
+	local success, thumbnail = pcall(function()
+		return Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+	end)
+	
+	if success and thumbnail then
+		thumbnailCache[userId] = thumbnail
+		return thumbnail
+	end
+	
+	return "" -- Return empty string on failure
+end
 
 -- ==================== KING DISPLAY ====================
 
@@ -41,6 +64,10 @@ mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
 mainFrame.ClipsDescendants = false
 mainFrame.Parent = screenGui
+
+-- Add UIScale for mobile/tablet scaling
+local uiScale = Instance.new("UIScale")
+uiScale.Parent = mainFrame
 
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 16)
@@ -88,6 +115,7 @@ nameLabel.Font = Enum.Font.GothamBold
 nameLabel.Text = ""
 nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 nameLabel.TextSize = 18
+nameLabel.TextScaled = false
 nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 nameLabel.TextYAlignment = Enum.TextYAlignment.Top
 nameLabel.Parent = textContainer
@@ -101,6 +129,7 @@ statusLabel.Font = Enum.Font.Gotham
 statusLabel.Text = "is the King of the Pyramid"
 statusLabel.TextColor3 = Color3.fromRGB(180, 200, 255)
 statusLabel.TextSize = 12
+statusLabel.TextScaled = false
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.Parent = textContainer
@@ -114,6 +143,7 @@ timerText.Font = Enum.Font.GothamBold
 timerText.Text = "5.0s"
 timerText.TextColor3 = Color3.fromRGB(255, 255, 255)
 timerText.TextSize = 22
+timerText.TextScaled = false
 timerText.TextXAlignment = Enum.TextXAlignment.Right
 timerText.Parent = mainFrame
 
@@ -152,7 +182,7 @@ gradient.Color = ColorSequence.new{
 gradient.Rotation = 0
 gradient.Parent = progressBar
 
--- ==================== INTERMISSION/STATUS DISPLAY ====================
+-- ==================== STATUS DISPLAY ====================
 
 local statusFrame = Instance.new("Frame")
 statusFrame.Name = "StatusDisplay"
@@ -165,28 +195,8 @@ statusFrame.BorderSizePixel = 0
 statusFrame.Visible = false
 statusFrame.Parent = screenGui
 
--- ==================== COUNTDOWN DISPLAY ====================
-
-local countdownFrame = Instance.new("Frame")
-countdownFrame.Name = "CountdownDisplay"
-countdownFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-countdownFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-countdownFrame.Size = UDim2.new(0, 200, 0, 200)
-countdownFrame.BackgroundTransparency = 1
-countdownFrame.Visible = false
-countdownFrame.Parent = screenGui
-
-local countdownNumber = Instance.new("TextLabel")
-countdownNumber.Name = "CountdownNumber"
-countdownNumber.Size = UDim2.new(1, 0, 1, 0)
-countdownNumber.BackgroundTransparency = 1
-countdownNumber.Font = Enum.Font.GothamBold
-countdownNumber.Text = "3"
-countdownNumber.TextColor3 = Color3.fromRGB(100, 180, 255)
-countdownNumber.TextSize = 120
-countdownNumber.TextStrokeTransparency = 0.5
-countdownNumber.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-countdownNumber.Parent = countdownFrame
+local statusScale = Instance.new("UIScale")
+statusScale.Parent = statusFrame
 
 local statusCorner = Instance.new("UICorner")
 statusCorner.CornerRadius = UDim.new(0, 14)
@@ -220,6 +230,32 @@ statusSubtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
 statusSubtitle.TextSize = 13
 statusSubtitle.Parent = statusFrame
 
+-- ==================== COUNTDOWN DISPLAY ====================
+
+local countdownFrame = Instance.new("Frame")
+countdownFrame.Name = "CountdownDisplay"
+countdownFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+countdownFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+countdownFrame.Size = UDim2.new(0, 200, 0, 200)
+countdownFrame.BackgroundTransparency = 1
+countdownFrame.Visible = false
+countdownFrame.Parent = screenGui
+
+local countdownScale = Instance.new("UIScale")
+countdownScale.Parent = countdownFrame
+
+local countdownNumber = Instance.new("TextLabel")
+countdownNumber.Name = "CountdownNumber"
+countdownNumber.Size = UDim2.new(1, 0, 1, 0)
+countdownNumber.BackgroundTransparency = 1
+countdownNumber.Font = Enum.Font.GothamBold
+countdownNumber.Text = "3"
+countdownNumber.TextColor3 = Color3.fromRGB(100, 180, 255)
+countdownNumber.TextSize = 120
+countdownNumber.TextStrokeTransparency = 0.5
+countdownNumber.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+countdownNumber.Parent = countdownFrame
+
 -- ==================== WINNER ANNOUNCEMENT ====================
 
 local winnerFrame = Instance.new("Frame")
@@ -232,6 +268,9 @@ winnerFrame.BackgroundTransparency = 0.12
 winnerFrame.BorderSizePixel = 0
 winnerFrame.Visible = false
 winnerFrame.Parent = screenGui
+
+local winnerScale = Instance.new("UIScale")
+winnerScale.Parent = winnerFrame
 
 local winnerCorner = Instance.new("UICorner")
 winnerCorner.CornerRadius = UDim.new(0, 16)
@@ -299,9 +338,33 @@ winnerSubtitle.TextXAlignment = Enum.TextXAlignment.Left
 winnerSubtitle.TextYAlignment = Enum.TextYAlignment.Center
 winnerSubtitle.Parent = winnerFrame
 
+-- ==================== MOBILE/DEVICE SCALING ====================
+
+local function updateUIScale()
+	local viewportSize = workspace.CurrentCamera.ViewportSize
+	local screenWidth = viewportSize.X
+	local screenHeight = viewportSize.Y
+	
+	-- Base scale on smaller screen dimension for responsiveness
+	local baseScale = math.min(screenWidth / 1920, screenHeight / 1080)
+	-- Clamp between 0.6 and 1.2 for readability
+	local scale = math.clamp(baseScale, 0.6, 1.2)
+	
+	-- Apply scale to all UI elements
+	uiScale.Scale = scale
+	statusScale.Scale = scale
+	countdownScale.Scale = scale
+	winnerScale.Scale = scale
+end
+
+-- Update on viewport change (window resize, device rotation)
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
+updateUIScale() -- Initial update
+
 -- ==================== ANIMATION FUNCTIONS ====================
 
 local currentTween = nil
+local currentProgressTween = nil
 local lastProgress = 0
 
 local function showKingDisplay()
@@ -328,17 +391,15 @@ local function hideKingDisplay()
 	end)
 end
 
-local currentProgressTween = nil
-
 local function updateProgressBar(timeRemaining, totalTime)
 	local progress = (totalTime - timeRemaining) / totalTime
 	
-	-- Cancel existing tween for smooth transition
+	-- Cancel existing tween
 	if currentProgressTween then
 		currentProgressTween:Cancel()
 	end
 	
-	-- Smooth liquid-like animation with consistent timing
+	-- Smooth liquid animation
 	currentProgressTween = TweenService:Create(
 		progressBar,
 		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -365,8 +426,6 @@ local function updateProgressBar(timeRemaining, totalTime)
 	}
 end
 
--- ==================== STATUS DISPLAY ANIMATIONS ====================
-
 local function showStatusDisplay()
 	statusFrame.Visible = true
 end
@@ -375,19 +434,16 @@ local function hideStatusDisplay()
 	statusFrame.Visible = false
 end
 
--- Animated dots for "Waiting for players..."
-local dotCount = 0
+-- OPTIMIZED: Animated dots using connection for better performance
 local dotAnimation = nil
-
 local function startDotAnimation()
-	if dotAnimation then
-		dotAnimation:Disconnect()
-	end
+	if dotAnimation then dotAnimation:Disconnect() end
 	
-	dotAnimation = game:GetService("RunService").Heartbeat:Connect(function()
-		dotCount = (dotCount + 1) % 40 -- Update every ~40 frames
+	local dotCount = 0
+	dotAnimation = RunService.Heartbeat:Connect(function()
+		dotCount = (dotCount + 1) % 40
 		if dotCount == 0 then
-			local dots = math.floor(tick() % 4) -- 0, 1, 2, 3
+			local dots = math.floor(tick() % 4)
 			statusSubtitle.Text = "Waiting for players" .. string.rep(".", dots)
 		end
 	end)
@@ -406,15 +462,7 @@ end
 updateKingEvent.OnClientEvent:Connect(function(kingPlayer, timeRemaining, totalTime)
 	if kingPlayer then
 		nameLabel.Text = kingPlayer.Name
-		
-		local success, thumbnail = pcall(function()
-			return Players:GetUserThumbnailAsync(kingPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-		end)
-		
-		if success then
-			avatarImage.Image = thumbnail
-		end
-		
+		avatarImage.Image = getCachedThumbnail(kingPlayer.UserId)
 		updateProgressBar(timeRemaining, totalTime)
 		showKingDisplay()
 	else
@@ -422,10 +470,16 @@ updateKingEvent.OnClientEvent:Connect(function(kingPlayer, timeRemaining, totalT
 	end
 end)
 
--- Handle round status updates
+-- OPTIMIZED: Non-blocking intermission countdown
+local intermissionTask = nil
 roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
+	-- Cancel previous intermission task if exists
+	if intermissionTask then
+		task.cancel(intermissionTask)
+		intermissionTask = nil
+	end
+	
 	if status == "waitingForPlayers" then
-		-- Show waiting message
 		statusTitle.Text = "WAITING FOR PLAYERS"
 		statusTitle.TextColor3 = Color3.fromRGB(255, 180, 100)
 		statusSubtitle.Text = "Waiting for players..."
@@ -435,70 +489,61 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 		countdownFrame.Visible = false
 		
 	elseif status == "intermission" then
-		-- Show intermission with countdown
 		stopDotAnimation()
 		statusTitle.Text = "INTERMISSION"
 		statusTitle.TextColor3 = Color3.fromRGB(100, 180, 255)
-		statusSubtitle.Text = "Next round in " .. timeOrData .. " seconds"
 		showStatusDisplay()
 		hideKingDisplay()
 		countdownFrame.Visible = false
 		
-		-- Countdown
-		for i = timeOrData, 1, -1 do
-			statusSubtitle.Text = "Next round in " .. i .. " second" .. (i == 1 and "" or "s")
-			
-			-- Play intermission tick sound
-			if _G.SoundManager and i > 1 then
-				_G.SoundManager.play("intermission_tick", true)
+		-- Non-blocking countdown
+		intermissionTask = task.spawn(function()
+			for i = timeOrData, 1, -1 do
+				statusSubtitle.Text = "Next round in " .. i .. " second" .. (i == 1 and "" or "s")
+				
+				if _G.SoundManager and i > 1 then
+					_G.SoundManager.play("intermission_tick", true)
+				end
+				
+				task.wait(1)
 			end
-			
-			task.wait(1)
-		end
+		end)
 		
 	elseif status == "countdown" then
-		-- Show countdown number (3, 2, 1)
 		stopDotAnimation()
 		hideStatusDisplay()
 		hideKingDisplay()
 		
-		local number = timeOrData
-		countdownNumber.Text = tostring(number)
+		countdownNumber.Text = tostring(timeOrData)
 		countdownNumber.TextColor3 = Color3.fromRGB(100, 180, 255)
 		countdownNumber.TextSize = 120
 		countdownFrame.Visible = true
 		
-		-- Play countdown tick sound
 		if _G.SoundManager then
 			_G.SoundManager.play("countdown_tick", true)
 		end
 		
 		-- Pulse animation
 		countdownNumber.Size = UDim2.new(0, 0, 0, 0)
-		local pulseTween = TweenService:Create(
+		TweenService:Create(
 			countdownNumber,
 			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 			{Size = UDim2.new(1, 0, 1, 0)}
-		)
-		pulseTween:Play()
+		):Play()
 		
 	elseif status == "roundStart" then
-		-- Show GO! and hide everything
 		stopDotAnimation()
 		hideStatusDisplay()
 		
-		-- Play GO sound
 		if _G.SoundManager then
 			_G.SoundManager.play("countdown_go", true)
 		end
 		
-		-- Show GO!
 		countdownNumber.Text = "GO!"
 		countdownNumber.TextColor3 = Color3.fromRGB(100, 255, 150)
 		countdownNumber.TextSize = 100
 		countdownFrame.Visible = true
 		
-		-- Pulse and fade out
 		countdownNumber.Size = UDim2.new(0, 0, 0, 0)
 		local goTween = TweenService:Create(
 			countdownNumber,
@@ -515,8 +560,8 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 			{TextTransparency = 1, TextStrokeTransparency = 1}
 		)
 		fadeOut:Play()
-		
 		fadeOut.Completed:Wait()
+		
 		countdownFrame.Visible = false
 		countdownNumber.TextTransparency = 0
 		countdownNumber.TextStrokeTransparency = 0.5
@@ -525,43 +570,44 @@ end)
 
 -- Handle winner announcement
 winnerEvent.OnClientEvent:Connect(function(winner)
-	if winner then
-		print("[ROUND UI] Winner:", winner.Name)
-		
-		hideKingDisplay()
-		hideStatusDisplay()
-		
-		winnerPlayerName.Text = winner.Name
-		
-		local success, thumbnail = pcall(function()
-			return Players:GetUserThumbnailAsync(winner.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
-		end)
-		
-		if success then
-			winnerAvatar.Image = thumbnail
-		end
-		
-		winnerFrame.Visible = true
-		
-		local slideDown = TweenService:Create(
-			winnerFrame,
-			TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{Position = UDim2.new(0.5, 0, 0, 30)}
-		)
-		slideDown:Play()
-		
-		task.wait(4)
-		
-		local slideUp = TweenService:Create(
-			winnerFrame,
-			TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-			{Position = UDim2.new(0.5, 0, 0, -120)}
-		)
-		slideUp:Play()
-		
-		slideUp.Completed:Wait()
-		winnerFrame.Visible = false
-	end
+	if not winner then return end
+	
+	print("[ROUND UI] Winner:", winner.Name)
+	
+	hideKingDisplay()
+	hideStatusDisplay()
+	
+	winnerPlayerName.Text = winner.Name
+	winnerAvatar.Image = getCachedThumbnail(winner.UserId)
+	
+	winnerFrame.Visible = true
+	
+	local slideDown = TweenService:Create(
+		winnerFrame,
+		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Position = UDim2.new(0.5, 0, 0, 30)}
+	)
+	slideDown:Play()
+	
+	task.wait(4)
+	
+	local slideUp = TweenService:Create(
+		winnerFrame,
+		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		{Position = UDim2.new(0.5, 0, 0, -120)}
+	)
+	slideUp:Play()
+	slideUp.Completed:Wait()
+	
+	winnerFrame.Visible = false
 end)
 
-print("[ROUND UI] Ready!")
+-- Cleanup on player leaving
+player.AncestorRemoved:Connect(function()
+	stopDotAnimation()
+	if currentTween then currentTween:Cancel() end
+	if currentProgressTween then currentProgressTween:Cancel() end
+	if intermissionTask then task.cancel(intermissionTask) end
+end)
+
+print("[ROUND UI] Ready! [OPTIMIZED]")
