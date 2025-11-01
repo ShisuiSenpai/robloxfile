@@ -268,6 +268,18 @@ local function onPlayerWin(player)
 		_G.StatsManager.addWin(player)
 	end
 	
+	-- Increment win streak
+	if _G.StreakManager then
+		_G.StreakManager.incrementStreak(player)
+	end
+	
+	-- Reset other players' streaks
+	for _, otherPlayer in pairs(Players:GetPlayers()) do
+		if otherPlayer ~= player and _G.StreakManager then
+			_G.StreakManager.resetStreak(otherPlayer)
+		end
+	end
+	
 	-- Announce winner
 	winnerEvent:FireAllClients(player)
 	playSoundEvent:FireAllClients("player_wins")
