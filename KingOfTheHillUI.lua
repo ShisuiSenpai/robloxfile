@@ -185,25 +185,26 @@ winnerStroke.Thickness = 2.5
 winnerStroke.Transparency = 0.3
 winnerStroke.Parent = winnerFrame
 
--- Winner Crown Icon (simple blue indicator)
-local crownIcon = Instance.new("Frame")
-crownIcon.Name = "CrownIndicator"
-crownIcon.Position = UDim2.new(0, 20, 0.5, -20)
-crownIcon.Size = UDim2.new(0, 40, 0, 40)
-crownIcon.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
-crownIcon.BackgroundTransparency = 0.2
-crownIcon.BorderSizePixel = 0
-crownIcon.Parent = winnerFrame
+-- Winner Avatar Image
+local winnerAvatar = Instance.new("ImageLabel")
+winnerAvatar.Name = "WinnerAvatar"
+winnerAvatar.Position = UDim2.new(0, 20, 0.5, -20)
+winnerAvatar.Size = UDim2.new(0, 40, 0, 40)
+winnerAvatar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+winnerAvatar.BackgroundTransparency = 0.3
+winnerAvatar.BorderSizePixel = 0
+winnerAvatar.Image = ""
+winnerAvatar.Parent = winnerFrame
 
-local crownCorner = Instance.new("UICorner")
-crownCorner.CornerRadius = UDim.new(0, 10)
-crownCorner.Parent = crownIcon
+local winnerAvatarCorner = Instance.new("UICorner")
+winnerAvatarCorner.CornerRadius = UDim.new(0, 10)
+winnerAvatarCorner.Parent = winnerAvatar
 
-local crownStroke = Instance.new("UIStroke")
-crownStroke.Color = Color3.fromRGB(150, 200, 255)
-crownStroke.Thickness = 2
-crownStroke.Transparency = 0.4
-crownStroke.Parent = crownIcon
+local winnerAvatarStroke = Instance.new("UIStroke")
+winnerAvatarStroke.Color = Color3.fromRGB(100, 180, 255)
+winnerAvatarStroke.Thickness = 2
+winnerAvatarStroke.Transparency = 0.4
+winnerAvatarStroke.Parent = winnerAvatar
 
 -- Winner Label (simple "WINNER" text)
 local winnerLabel = Instance.new("TextLabel")
@@ -360,6 +361,18 @@ winnerEvent.OnClientEvent:Connect(function(winner)
 		
 		-- Set winner text
 		winnerPlayerName.Text = winner.Name
+		
+		-- Load winner's avatar
+		local success, thumbnail = pcall(function()
+			return Players:GetUserThumbnailAsync(winner.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		end)
+		
+		if success then
+			winnerAvatar.Image = thumbnail
+		else
+			warn("[KING UI] Failed to load winner avatar for", winner.Name)
+			winnerAvatar.Image = ""
+		end
 		
 		-- Show winner frame (slide down animation)
 		winnerFrame.Visible = true
