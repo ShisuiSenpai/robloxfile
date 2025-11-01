@@ -17,8 +17,8 @@ print("[SHOP] Loading Shop UI...")
 local GAMEPASSES = {
 	{
 		id = 0, -- Replace with real gamepass ID
-		name = "VIP Pass",
-		description = "Access to VIP perks and exclusive benefits",
+		name = "2x Push Boost",
+		description = "Push players twice as far with your tool",
 		price = 299,
 		icon = "rbxassetid://0" -- Placeholder icon
 	},
@@ -38,8 +38,8 @@ local GAMEPASSES = {
 	},
 	{
 		id = 0,
-		name = "Glow Effect",
-		description = "Stand out with a special glow effect",
+		name = "HD Admin",
+		description = "Get admin commands and moderation tools",
 		price = 99,
 		icon = "rbxassetid://0"
 	}
