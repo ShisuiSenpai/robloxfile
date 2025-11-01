@@ -263,6 +263,11 @@ local function onPlayerWin(player)
 	gameState = "GameOver"
 	removeCrown(player)
 	
+	-- Award win to player
+	if _G.StatsManager then
+		_G.StatsManager.addWin(player)
+	end
+	
 	-- Announce winner
 	winnerEvent:FireAllClients(player)
 	playSoundEvent:FireAllClients("player_wins")

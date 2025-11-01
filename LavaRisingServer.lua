@@ -99,8 +99,15 @@ local function setupLavaKill()
 			killer = _G.PushTracker.getRecentPusher(victim.UserId)
 			if killer then
 				print("[LAVA] Kill attributed to pusher:", killer.Name)
+				
 				-- Send killfeed notification
 				killfeedEvent:FireAllClients(killer.Name, victim.Name)
+				
+				-- Award kill to pusher
+				if _G.StatsManager then
+					_G.StatsManager.addKill(killer)
+				end
+				
 				-- Clear push data
 				_G.PushTracker.clearPushData(victim.UserId)
 			else
