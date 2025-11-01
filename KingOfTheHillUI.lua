@@ -121,18 +121,19 @@ timerText.TextSize = 24
 timerText.TextXAlignment = Enum.TextXAlignment.Right
 timerText.Parent = mainFrame
 
--- Progress Bar Background (horizontal at bottom)
+-- Progress Bar Background (horizontal at bottom - part of the UI frame)
 local progressBg = Instance.new("Frame")
 progressBg.Name = "ProgressBackground"
-progressBg.Position = UDim2.new(0, 12, 1, -18)
-progressBg.Size = UDim2.new(1, -24, 0, 6) -- Thin horizontal bar
+progressBg.Position = UDim2.new(0, 0, 1, -8) -- Flush to bottom
+progressBg.Size = UDim2.new(1, 0, 0, 8) -- Thin horizontal bar, full width
 progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 progressBg.BackgroundTransparency = 0.4
 progressBg.BorderSizePixel = 0
 progressBg.Parent = mainFrame
 
+-- Rounded bottom corners only (matches main frame)
 local progressBgCorner = Instance.new("UICorner")
-progressBgCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded ends
+progressBgCorner.CornerRadius = UDim.new(0, 16) -- Matches main frame corner
 progressBgCorner.Parent = progressBg
 
 -- Progress Bar Fill (starts from left to right)
@@ -141,10 +142,12 @@ progressBar.Name = "ProgressFill"
 progressBar.Size = UDim2.new(0, 0, 1, 0)
 progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255) -- Nice blue
 progressBar.BorderSizePixel = 0
+progressBar.ClipsDescendants = false
 progressBar.Parent = progressBg
 
+-- Rounded corners on the progress bar (matches container)
 local progressCorner = Instance.new("UICorner")
-progressCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded ends
+progressCorner.CornerRadius = UDim.new(0, 16) -- Matches bottom corners
 progressCorner.Parent = progressBar
 
 -- Add subtle darkening gradient (left to right - slight darkening)
@@ -221,7 +224,7 @@ local function showKingDisplay()
 	if currentTween then currentTween:Cancel() end
 	currentTween = TweenService:Create(
 		mainFrame,
-		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{Position = UDim2.new(0.5, 0, 0, 20)}
 	)
 	currentTween:Play()
@@ -232,7 +235,7 @@ local function hideKingDisplay()
 	if currentTween then currentTween:Cancel() end
 	currentTween = TweenService:Create(
 		mainFrame,
-		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
 		{Position = UDim2.new(0.5, 0, 0, -120)} -- Updated for new height
 	)
 	currentTween:Play()
@@ -245,10 +248,10 @@ end
 local function updateProgressBar(timeRemaining, totalTime)
 	local progress = (totalTime - timeRemaining) / totalTime
 	
-	-- Smooth progress animation
+	-- Faster, smooth progress animation
 	local progressTween = TweenService:Create(
 		progressBar,
-		TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+		TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{Size = UDim2.new(progress, 0, 1, 0)}
 	)
 	progressTween:Play()
