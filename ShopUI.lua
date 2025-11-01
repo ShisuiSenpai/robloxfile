@@ -240,19 +240,30 @@ local function createGamepassCard(data, index)
 	cardStroke.Transparency = 0.5
 	cardStroke.Parent = card
 	
-	-- Icon placeholder
-	local iconFrame = Instance.new("Frame")
-	iconFrame.Name = "Icon"
-	iconFrame.Position = UDim2.new(0, 12, 0, 12)
-	iconFrame.Size = UDim2.new(0, 60, 0, 60)
-	iconFrame.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
-	iconFrame.BackgroundTransparency = 0.3
-	iconFrame.BorderSizePixel = 0
-	iconFrame.Parent = card
+	-- Icon background
+	local iconBg = Instance.new("Frame")
+	iconBg.Name = "IconBackground"
+	iconBg.Position = UDim2.new(0, 12, 0, 12)
+	iconBg.Size = UDim2.new(0, 60, 0, 60)
+	iconBg.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+	iconBg.BackgroundTransparency = 0.3
+	iconBg.BorderSizePixel = 0
+	iconBg.Parent = card
 	
-	local iconCorner = Instance.new("UICorner")
-	iconCorner.CornerRadius = UDim.new(0.2, 0)
-	iconCorner.Parent = iconFrame
+	local iconBgCorner = Instance.new("UICorner")
+	iconBgCorner.CornerRadius = UDim.new(0.2, 0)
+	iconBgCorner.Parent = iconBg
+	
+	-- Icon ImageLabel
+	local iconImage = Instance.new("ImageLabel")
+	iconImage.Name = "Icon"
+	iconImage.Size = UDim2.new(0.85, 0, 0.85, 0)
+	iconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+	iconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+	iconImage.BackgroundTransparency = 1
+	iconImage.Image = data.icon or "rbxassetid://0"
+	iconImage.ScaleType = Enum.ScaleType.Fit
+	iconImage.Parent = iconBg
 	
 	-- Item Name
 	local nameLabel = Instance.new("TextLabel")
