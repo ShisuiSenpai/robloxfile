@@ -159,7 +159,7 @@ end
 local function resetLava()
 	if not lavaPart then return end
 	
-	debugPrint("Resetting lava to start position")
+	print("[LAVA] Resetting lava to start position")
 	
 	-- Stop any active rising
 	if riseTask then
@@ -173,8 +173,11 @@ local function resetLava()
 	-- Clear lava death tracking
 	recentLavaDeaths = {}
 	
-	-- Instantly reset position (no tween)
-	lavaPart.Position = originalPosition
+	-- Instantly reset position (no tween) - force Y position to start
+	lavaPart.Position = Vector3.new(originalPosition.X, START_Y_POSITION, originalPosition.Z)
+	
+	print("[LAVA] Lava reset to position:", lavaPart.Position)
+	print("[LAVA] Current height set to:", currentHeight)
 	
 	-- Notify clients
 	lavaStatusEvent:FireAllClients("reset", START_Y_POSITION, MAX_Y_POSITION)
@@ -182,12 +185,21 @@ end
 
 -- Start lava rising loop
 local function startLavaRising()
-	if riseTask then return end -- Already running
+	if riseTask then 
+		print("[LAVA] Lava rising already active, canceling old task")
+		task.cancel(riseTask)
+		riseTask = nil
+	end
 	
-	debugPrint("Starting lava rising sequence")
+	print("[LAVA] Starting lava rising sequence")
+	
+	-- Force reset to start position first
+	lavaPart.Position = Vector3.new(originalPosition.X, START_Y_POSITION, originalPosition.Z)
 	
 	lavaActive = true
 	currentHeight = START_Y_POSITION
+	
+	print("[LAVA] Lava reset to Y:", lavaPart.Position.Y, "before rising")
 	
 	-- Initial notification
 	lavaStatusEvent:FireAllClients("started", currentHeight, MAX_Y_POSITION)

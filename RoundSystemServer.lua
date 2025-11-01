@@ -277,12 +277,16 @@ local function onPlayerWin(player)
 	
 	-- Start intermission
 	gameState = "Intermission"
-	roundStatusEvent:FireAllClients("intermission", INTERMISSION_TIME)
 	
-	-- Reset lava
+	-- Reset lava IMMEDIATELY
 	if _G.LavaRisingControl then
+		print("[ROUND] Resetting lava for intermission")
 		_G.LavaRisingControl.resetLava()
+	else
+		warn("[ROUND] LavaRisingControl not found!")
 	end
+	
+	roundStatusEvent:FireAllClients("intermission", INTERMISSION_TIME)
 	
 	-- Send all players to lobby
 	for _, plr in pairs(Players:GetPlayers()) do
@@ -323,6 +327,11 @@ function startNewRound()
 	kingTimer = 0
 	lastTimeRemaining = -1
 	playersAlive = {}
+	
+	-- Ensure lava is reset before starting (double-check)
+	if _G.LavaRisingControl then
+		_G.LavaRisingControl.resetLava()
+	end
 	
 	-- Spawn and freeze all players
 	for _, player in pairs(Players:GetPlayers()) do
