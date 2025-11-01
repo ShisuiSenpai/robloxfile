@@ -4,7 +4,6 @@
 
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Configuration
 local DATASTORE_NAME = "PlayerStats_v1"
@@ -16,6 +15,7 @@ local statsDataStore = DataStoreService:GetDataStore(DATASTORE_NAME)
 
 -- Player stats cache (in-memory for performance)
 local playerStats = {} -- [UserId] = {Kills = 0, Wins = 0}
+local playerLeaderstats = {} -- [UserId] = {KillsValue = IntValue, WinsValue = IntValue}
 
 -- Save queue to prevent data loss
 local saveQueue = {}
@@ -30,17 +30,6 @@ end
 
 print("[STATS] Stats Manager starting...")
 
--- Create RemoteEvents
-local updateStatsEvent = ReplicatedStorage:FindFirstChild("UpdateStats") or Instance.new("RemoteEvent")
-updateStatsEvent.Name = "UpdateStats"
-updateStatsEvent.Parent = ReplicatedStorage
-
-local requestStatsEvent = ReplicatedStorage:FindFirstChild("RequestStats") or Instance.new("RemoteEvent")
-requestStatsEvent.Name = "RequestStats"
-requestStatsEvent.Parent = ReplicatedStorage
-
-debugPrint("RemoteEvents created")
-
 -- ==================== DATA MANAGEMENT ====================
 
 -- Default stats
@@ -49,6 +38,36 @@ local function getDefaultStats()
 		Kills = 0,
 		Wins = 0
 	}
+end
+
+-- Create leaderstats for player
+local function createLeaderstats(player)
+	local userId = player.UserId
+	
+	-- Create leaderstats folder
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+	
+	-- Create Kills IntValue
+	local killsValue = Instance.new("IntValue")
+	killsValue.Name = "Kills"
+	killsValue.Value = playerStats[userId].Kills
+	killsValue.Parent = leaderstats
+	
+	-- Create Wins IntValue
+	local winsValue = Instance.new("IntValue")
+	winsValue.Name = "Wins"
+	winsValue.Value = playerStats[userId].Wins
+	winsValue.Parent = leaderstats
+	
+	-- Cache references
+	playerLeaderstats[userId] = {
+		KillsValue = killsValue,
+		WinsValue = winsValue
+	}
+	
+	debugPrint("Created leaderstats for", player.Name)
 end
 
 -- Load player stats from DataStore
@@ -69,8 +88,8 @@ local function loadStats(player)
 		end
 	end
 	
-	-- Send stats to client
-	updateStatsEvent:FireClient(player, playerStats[userId])
+	-- Create leaderstats UI
+	createLeaderstats(player)
 	
 	return playerStats[userId]
 end
@@ -132,13 +151,12 @@ local function addKill(player)
 	
 	local userId = player.UserId
 	local stats = playerStats[userId]
+	local leaderstats = playerLeaderstats[userId]
 	
-	if stats then
+	if stats and leaderstats then
 		stats.Kills = stats.Kills + 1
+		leaderstats.KillsValue.Value = stats.Kills
 		print("[STATS]", player.Name, "got a kill! Total kills:", stats.Kills)
-		
-		-- Update client
-		updateStatsEvent:FireClient(player, stats)
 		
 		-- Mark for saving
 		saveQueue[userId] = true
@@ -151,13 +169,12 @@ local function addWin(player)
 	
 	local userId = player.UserId
 	local stats = playerStats[userId]
+	local leaderstats = playerLeaderstats[userId]
 	
-	if stats then
+	if stats and leaderstats then
 		stats.Wins = stats.Wins + 1
+		leaderstats.WinsValue.Value = stats.Wins
 		print("[STATS]", player.Name, "got a win! Total wins:", stats.Wins)
-		
-		-- Update client
-		updateStatsEvent:FireClient(player, stats)
 		
 		-- Mark for saving
 		saveQueue[userId] = true
@@ -186,6 +203,7 @@ Players.PlayerRemoving:Connect(function(player)
 	-- Clean up cache after saving
 	task.delay(5, function()
 		playerStats[player.UserId] = nil
+		playerLeaderstats[player.UserId] = nil
 	end)
 end)
 
@@ -242,16 +260,9 @@ game:BindToClose(function()
 	task.wait(3)
 end)
 
--- Handle client requests for stats
-requestStatsEvent.OnServerEvent:Connect(function(player)
-	local stats = playerStats[player.UserId]
-	if stats then
-		updateStatsEvent:FireClient(player, stats)
-	end
-end)
-
 print("========================================")
 print("Stats Manager Ready!")
 print("DataStore:", DATASTORE_NAME)
 print("Auto-save interval:", AUTO_SAVE_INTERVAL, "seconds")
+print("Using Roblox built-in leaderboard")
 print("========================================")
