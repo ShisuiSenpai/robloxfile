@@ -72,32 +72,32 @@ avatarStroke.Thickness = 2
 avatarStroke.Transparency = 0.6
 avatarStroke.Parent = avatarImage
 
--- Text container on the left side (next to avatar)
+-- Text container (next to avatar)
 local textContainer = Instance.new("Frame")
 textContainer.Name = "TextContainer"
-textContainer.Position = UDim2.new(0, 100, 0, 0)
-textContainer.Size = UDim2.new(0, 250, 1, 0)
+textContainer.Position = UDim2.new(0, 100, 0, 10)
+textContainer.Size = UDim2.new(0, 280, 0, 60)
 textContainer.BackgroundTransparency = 1
 textContainer.Parent = mainFrame
 
 -- Player Name Label
 local nameLabel = Instance.new("TextLabel")
 nameLabel.Name = "PlayerName"
-nameLabel.Position = UDim2.new(0, 0, 0, 18)
-nameLabel.Size = UDim2.new(1, 0, 0, 24)
+nameLabel.Position = UDim2.new(0, 0, 0, 0)
+nameLabel.Size = UDim2.new(1, 0, 0, 28)
 nameLabel.BackgroundTransparency = 1
 nameLabel.Font = Enum.Font.GothamBold
 nameLabel.Text = ""
 nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-nameLabel.TextSize = 19
+nameLabel.TextSize = 20
 nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+nameLabel.TextYAlignment = Enum.TextYAlignment.Top
 nameLabel.Parent = textContainer
 
 -- Status Label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
-statusLabel.Position = UDim2.new(0, 0, 0, 46)
+statusLabel.Position = UDim2.new(0, 0, 0, 32)
 statusLabel.Size = UDim2.new(1, 0, 0, 18)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Font = Enum.Font.Gotham
@@ -105,54 +105,56 @@ statusLabel.Text = "is the King of the Pyramid"
 statusLabel.TextColor3 = Color3.fromRGB(180, 200, 255)
 statusLabel.TextSize = 13
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.TextYAlignment = Enum.TextYAlignment.Center
+statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.Parent = textContainer
 
--- Progress Bar Background (on the right side)
-local progressBg = Instance.new("Frame")
-progressBg.Name = "ProgressBackground"
-progressBg.Position = UDim2.new(0, 360, 0, 0)
-progressBg.Size = UDim2.new(0, 128, 1, 0) -- Full height on the right
-progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-progressBg.BackgroundTransparency = 0.3
-progressBg.BorderSizePixel = 0
-progressBg.Parent = mainFrame
-
-local progressBgCorner = Instance.new("UICorner")
-progressBgCorner.CornerRadius = UDim.new(0, 12)
-progressBgCorner.Parent = progressBg
-
--- Progress Bar Fill
-local progressBar = Instance.new("Frame")
-progressBar.Name = "ProgressFill"
-progressBar.Size = UDim2.new(0, 0, 1, 0)
-progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
-progressBar.BorderSizePixel = 0
-progressBar.Parent = progressBg
-
-local progressCorner = Instance.new("UICorner")
-progressCorner.CornerRadius = UDim.new(0, 12)
-progressCorner.Parent = progressBar
-
--- Add gradient to progress bar
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 180, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 120, 255))
-}
-gradient.Parent = progressBar
-
--- Timer Text (larger for wider design)
+-- Timer Text (top right corner)
 local timerText = Instance.new("TextLabel")
 timerText.Name = "TimerText"
-timerText.Size = UDim2.new(1, 0, 1, 0)
+timerText.Position = UDim2.new(1, -70, 0, 10)
+timerText.Size = UDim2.new(0, 60, 0, 30)
 timerText.BackgroundTransparency = 1
 timerText.Font = Enum.Font.GothamBold
 timerText.Text = "5.0s"
 timerText.TextColor3 = Color3.fromRGB(255, 255, 255)
-timerText.TextSize = 18
-timerText.ZIndex = 2
-timerText.Parent = progressBg
+timerText.TextSize = 24
+timerText.TextXAlignment = Enum.TextXAlignment.Right
+timerText.Parent = mainFrame
+
+-- Progress Bar Background (horizontal at bottom)
+local progressBg = Instance.new("Frame")
+progressBg.Name = "ProgressBackground"
+progressBg.Position = UDim2.new(0, 12, 1, -18)
+progressBg.Size = UDim2.new(1, -24, 0, 6) -- Thin horizontal bar
+progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+progressBg.BackgroundTransparency = 0.4
+progressBg.BorderSizePixel = 0
+progressBg.Parent = mainFrame
+
+local progressBgCorner = Instance.new("UICorner")
+progressBgCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded ends
+progressBgCorner.Parent = progressBg
+
+-- Progress Bar Fill (starts from left to right)
+local progressBar = Instance.new("Frame")
+progressBar.Name = "ProgressFill"
+progressBar.Size = UDim2.new(0, 0, 1, 0)
+progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255) -- Nice blue
+progressBar.BorderSizePixel = 0
+progressBar.Parent = progressBg
+
+local progressCorner = Instance.new("UICorner")
+progressCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded ends
+progressCorner.Parent = progressBar
+
+-- Add subtle darkening gradient (left to right - slight darkening)
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 180, 255)), -- Start: Light blue
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(70, 140, 220))   -- End: Slightly darker blue
+}
+gradient.Rotation = 0 -- Horizontal gradient
+gradient.Parent = progressBar
 
 -- Winner Announcement Frame
 local winnerFrame = Instance.new("Frame")
@@ -243,6 +245,7 @@ end
 local function updateProgressBar(timeRemaining, totalTime)
 	local progress = (totalTime - timeRemaining) / totalTime
 	
+	-- Smooth progress animation
 	local progressTween = TweenService:Create(
 		progressBar,
 		TweenInfo.new(0.1, Enum.EasingStyle.Linear),
@@ -253,14 +256,27 @@ local function updateProgressBar(timeRemaining, totalTime)
 	-- Update timer text
 	timerText.Text = string.format("%.1fs", math.max(0, timeRemaining))
 	
-	-- Change color as it gets close to winning
-	if progress > 0.7 then
-		progressBar.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold
-	elseif progress > 0.4 then
-		progressBar.BackgroundColor3 = Color3.fromRGB(150, 200, 255) -- Light blue
-	else
-		progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255) -- Blue
-	end
+	-- Subtle darkening as progress increases (stays blue, just gets slightly darker)
+	local baseBlue = 100
+	local baseBrightness = 180
+	local baseBlue2 = 255
+	
+	-- Calculate darkening factor (0 to 0.3 max darkening)
+	local darkenAmount = progress * 0.25
+	
+	-- Update gradient colors to gradually darken
+	gradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(
+			baseBlue * (1 - darkenAmount),
+			baseBrightness * (1 - darkenAmount),
+			baseBlue2 * (1 - darkenAmount * 0.5)
+		)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(
+			70 * (1 - darkenAmount * 1.2),
+			140 * (1 - darkenAmount * 1.2),
+			220 * (1 - darkenAmount * 0.7)
+		))
+	}
 end
 
 -- Handle king update from server
