@@ -114,43 +114,101 @@ local function createRagdoll(character)
 		
 		if not character.Parent then return end
 		
-		-- Remove all created constraints
+		-- STEP 1: Clean up any leftover push forces
+		for _, descendant in pairs(character:GetDescendants()) do
+			if descendant.Name == "PushForce" or descendant.Name == "PushAttachment" then
+				descendant:Destroy()
+				debugPrint("Removed leftover push force/attachment")
+			end
+		end
+		
+		-- Stop all movement and clear velocities
+		if rootPart and rootPart.Parent then
+			rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+			rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+		end
+		
+		-- Clear velocities from all body parts
+		for _, part in pairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+			end
+		end
+		
+		task.wait(0.05)
+		
+		-- STEP 2: Position check and ground detection
+		if rootPart and rootPart.Parent then
+			local rayOrigin = rootPart.Position + Vector3.new(0, 3, 0)
+			local rayDirection = Vector3.new(0, -50, 0)
+			
+			local raycastParams = RaycastParams.new()
+			raycastParams.FilterDescendantsInstances = {character}
+			raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+			
+			local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+			
+			if rayResult then
+				-- Found ground, position player safely above it
+				local groundPosition = rayResult.Position
+				local safeHeight = groundPosition + Vector3.new(0, 5, 0)
+				
+				debugPrint("Ground found at:", groundPosition.Y, "Moving player to:", safeHeight.Y)
+				
+				-- Position root part upright and above ground
+				rootPart.CFrame = CFrame.new(safeHeight) * CFrame.Angles(0, rootPart.CFrame.Rotation.Y, 0)
+			else
+				-- No ground found, just orient upright
+				debugPrint("No ground detected, orienting upright")
+				rootPart.CFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, rootPart.CFrame.Rotation.Y, 0)
+			end
+		end
+		
+		task.wait(0.05)
+		
+		-- STEP 3: Remove all created constraints
 		for _, constraint in pairs(createdConstraints) do
 			if constraint and constraint.Parent then
 				constraint:Destroy()
 			end
 		end
 		
-		-- Restore original joints
+		-- STEP 4: Restore original joints
 		for _, jointData in pairs(originalJoints) do
 			if jointData.Motor6D and jointData.Motor6D.Parent then
 				jointData.Motor6D.Enabled = true
 			end
 		end
 		
-		-- Reset humanoid state
-		if humanoid and humanoid.Parent then
-			humanoid.RequiresNeck = true
-			humanoid.BreakJointsOnDeath = true
-			humanoid.PlatformStand = false
-			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
-			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-			
-			-- Small upward boost
-			if rootPart and rootPart.Parent then
-				task.wait(0.1)
-				rootPart.AssemblyLinearVelocity = Vector3.new(0, 10, 0)
-			end
-		end
+		task.wait(0.05)
 		
-		-- Reset collision
+		-- STEP 5: Reset collision on limbs
 		for _, part in pairs(character:GetDescendants()) do
 			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 				part.CanCollide = false
 			end
 		end
 		
-		debugPrint("Ragdoll removed successfully")
+		-- STEP 6: Reset humanoid state carefully
+		if humanoid and humanoid.Parent then
+			humanoid.RequiresNeck = true
+			humanoid.BreakJointsOnDeath = true
+			humanoid.PlatformStand = false
+			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+			
+			-- Force to standing/freefall state (better than GettingUp)
+			humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+			
+			task.wait(0.1)
+			
+			-- Give a gentle upward boost to help land properly
+			if rootPart and rootPart.Parent then
+				rootPart.AssemblyLinearVelocity = Vector3.new(0, 8, 0)
+			end
+		end
+		
+		debugPrint("Ragdoll removed successfully with safety checks")
 	end
 end
 
