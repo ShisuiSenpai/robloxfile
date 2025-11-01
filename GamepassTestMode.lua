@@ -1,18 +1,13 @@
 -- Gamepass Test Mode - Server Script
 -- Place this in ServerScriptService
--- Allows testing gamepasses in Studio without buying them
--- REMOVE THIS BEFORE PUBLISHING YOUR GAME!
+-- Allows testing gamepasses in Studio and controlling them in published games
+-- Works for game owners who already own gamepasses!
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
--- Only enable test mode in Studio
-local TEST_MODE_ENABLED = RunService:IsStudio()
-
-if not TEST_MODE_ENABLED then
-	print("[TEST MODE] Not in Studio - test mode disabled")
-	return
-end
+-- ALWAYS enabled (works in Studio AND published games)
+local TEST_MODE_ENABLED = true
 
 print("[TEST MODE] ========================================")
 print("[TEST MODE] GAMEPASS TEST MODE ENABLED")
@@ -25,11 +20,14 @@ print("[TEST MODE] /removepass PUSH_BOOST - Remove 2x Push Boost")
 print("[TEST MODE] /removepass WINS_2X - Remove 2x Wins")
 print("[TEST MODE] /removepass SPEED_BOOST - Remove Speed Boost")
 print("[TEST MODE] /removepass ALL - Remove all gamepasses")
+print("[TEST MODE] /normalplayer - Act as a normal player (no gamepasses)")
+print("[TEST MODE] /resetmode - Go back to using your real gamepasses")
 print("[TEST MODE] /checkpass - Check your current gamepasses")
 print("[TEST MODE] ========================================")
 
 -- Fake gamepass ownership for testing
 local testGamepasses = {} -- [UserId] = {PUSH_BOOST = true/false, etc.}
+local normalPlayerMode = {} -- [UserId] = true/false (if true, all gamepasses return false)
 
 -- Wait for GamepassManager to load
 task.wait(2)
@@ -45,13 +43,19 @@ local originalHasGamepass = _G.GamepassManager.hasGamepass
 _G.GamepassManager.hasGamepass = function(player, gamepassName)
 	if not player then return false end
 	
-	-- Check test mode overrides first
+	-- Check if player is in "normal player mode" (testing without gamepasses)
+	if normalPlayerMode[player.UserId] then
+		print("[TEST MODE] Normal player mode - returning false for", gamepassName)
+		return false
+	end
+	
+	-- Check test mode overrides
 	if testGamepasses[player.UserId] and testGamepasses[player.UserId][gamepassName] ~= nil then
 		print("[TEST MODE] Returning test value for", player.Name, "-", gamepassName, ":", testGamepasses[player.UserId][gamepassName])
 		return testGamepasses[player.UserId][gamepassName]
 	end
 	
-	-- Fall back to original function (will return false in Studio)
+	-- Fall back to original function (real ownership check)
 	return originalHasGamepass(player, gamepassName)
 end
 
@@ -131,16 +135,49 @@ local function handleCommand(player, message)
 			warn("[TEST MODE]", player.Name, "- Invalid gamepass name:", passName)
 		end
 		
+	elseif command == "/normalplayer" then
+		normalPlayerMode[player.UserId] = true
+		testGamepasses[player.UserId] = nil -- Clear any test passes
+		print("[TEST MODE] ========================================")
+		print("[TEST MODE]", player.Name, "- Now acting as NORMAL PLAYER")
+		print("[TEST MODE] All gamepasses disabled (even if you own them)")
+		print("[TEST MODE] Use /resetmode to go back to normal")
+		print("[TEST MODE] ========================================")
+		
+		-- Remove speed boost
+		if player.Character then
+			_G.GamepassManager.applySpeedBoost(player.Character, 1)
+		end
+		
+	elseif command == "/resetmode" then
+		normalPlayerMode[player.UserId] = false
+		testGamepasses[player.UserId] = nil -- Clear any test passes
+		print("[TEST MODE] ========================================")
+		print("[TEST MODE]", player.Name, "- Reset to NORMAL MODE")
+		print("[TEST MODE] Using your real gamepass ownership")
+		print("[TEST MODE] ========================================")
+		
+		-- Reapply speed boost if you own it
+		if player.Character and originalHasGamepass(player, "SPEED_BOOST") then
+			_G.GamepassManager.applySpeedBoost(player.Character, 1.25)
+		end
+		
 	elseif command == "/checkpass" then
 		print("[TEST MODE] ========================================")
-		print("[TEST MODE]", player.Name, "'s Test Gamepasses:")
+		print("[TEST MODE]", player.Name, "'s Gamepass Status:")
 		
-		if testGamepasses[player.UserId] then
+		if normalPlayerMode[player.UserId] then
+			print("[TEST MODE] MODE: Normal Player (all gamepasses disabled)")
+		elseif testGamepasses[player.UserId] then
+			print("[TEST MODE] MODE: Test Mode (custom gamepasses)")
 			print("[TEST MODE] Push Boost (2x):", testGamepasses[player.UserId].PUSH_BOOST or false)
 			print("[TEST MODE] Wins (2x):", testGamepasses[player.UserId].WINS_2X or false)
 			print("[TEST MODE] Speed Boost:", testGamepasses[player.UserId].SPEED_BOOST or false)
 		else
-			print("[TEST MODE] No test gamepasses granted yet")
+			print("[TEST MODE] MODE: Normal (using real ownership)")
+			print("[TEST MODE] Push Boost (2x):", originalHasGamepass(player, "PUSH_BOOST"))
+			print("[TEST MODE] Wins (2x):", originalHasGamepass(player, "WINS_2X"))
+			print("[TEST MODE] Speed Boost:", originalHasGamepass(player, "SPEED_BOOST"))
 		end
 		
 		print("[TEST MODE] ========================================")
@@ -161,5 +198,8 @@ for _, player in pairs(Players:GetPlayers()) do
 	end)
 end
 
-print("[TEST MODE] Commands ready! Type /givepass ALL to test all gamepasses!")
-warn("[TEST MODE] ?? REMEMBER TO REMOVE THIS SCRIPT BEFORE PUBLISHING!")
+print("[TEST MODE] Commands ready!")
+print("[TEST MODE] Type /normalplayer to test without gamepasses!")
+print("[TEST MODE] Type /givepass ALL to test with all gamepasses!")
+print("[TEST MODE] Type /resetmode to use your real gamepass ownership!")
+warn("[TEST MODE] REMOVE THIS SCRIPT WHEN YOU'RE DONE TESTING!")
