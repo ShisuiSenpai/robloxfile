@@ -70,6 +70,55 @@ end
 
 debugPrint("Detection zone created | Size:", detectionZone.Size, "| Position:", detectionZone.Position)
 
+-- Find the crown accessory
+local crownAccessory = nil
+if ReplicatedStorage:FindFirstChild("Assets") then
+	crownAccessory = ReplicatedStorage.Assets:FindFirstChild("Crown")
+	if crownAccessory then
+		debugPrint("Crown accessory found!")
+	else
+		warn("[KING SERVER] Crown accessory not found in Assets folder!")
+		warn("Please add a crown hat/accessory named 'Crown' in ReplicatedStorage > Assets")
+	end
+else
+	warn("[KING SERVER] Assets folder not found in ReplicatedStorage!")
+	warn("Please create a folder named 'Assets' in ReplicatedStorage and add the crown")
+end
+
+-- Function to give crown to player
+local function giveCrown(player)
+	if not crownAccessory then return end
+	
+	local character = player.Character
+	if not character then return end
+	
+	-- Check if player already has the crown
+	if character:FindFirstChild("KingCrown") then
+		debugPrint("Player", player.Name, "already has crown")
+		return
+	end
+	
+	-- Clone and add crown to character
+	local crown = crownAccessory:Clone()
+	crown.Name = "KingCrown" -- Rename so we can find it later
+	crown.Parent = character
+	
+	debugPrint("Gave crown to", player.Name)
+end
+
+-- Function to remove crown from player
+local function removeCrown(player)
+	if not player or not player.Character then return end
+	
+	local character = player.Character
+	local crown = character:FindFirstChild("KingCrown")
+	
+	if crown then
+		crown:Destroy()
+		debugPrint("Removed crown from", player.Name)
+	end
+end
+
 -- Update the current king to all clients
 local function updateKingDisplay(player, timeRemaining)
 	if player then
@@ -88,6 +137,9 @@ local function playerWins(player)
 	debugPrint("========================================")
 	
 	roundInProgress = false
+	
+	-- Remove crown from winner (they won!)
+	removeCrown(player)
 	
 	-- Announce winner to all clients
 	winnerEvent:FireAllClients(player)
@@ -135,6 +187,7 @@ detectionZone.Touched:Connect(function(hit)
 		currentKing = player
 		kingTimer = 0
 		updateKingDisplay(currentKing, TIME_TO_WIN)
+		giveCrown(player) -- Give crown to new king
 	end
 end)
 
@@ -155,6 +208,7 @@ detectionZone.TouchEnded:Connect(function(hit)
 		-- If the current king left, clear everything
 		if currentKing == player then
 			debugPrint("Current king left! Clearing king status")
+			removeCrown(currentKing) -- Remove crown from old king
 			currentKing = nil
 			kingTimer = 0
 			updateKingDisplay(nil, 0)
@@ -168,6 +222,7 @@ detectionZone.TouchEnded:Connect(function(hit)
 						currentKing = otherPlayer
 						kingTimer = 0
 						updateKingDisplay(currentKing, TIME_TO_WIN)
+						giveCrown(currentKing) -- Give crown to new king
 						break
 					end
 				end
@@ -208,6 +263,7 @@ task.spawn(function()
 			else
 				-- King is no longer valid
 				debugPrint("King became invalid (died or left)")
+				removeCrown(currentKing) -- Remove crown
 				currentKing = nil
 				kingTimer = 0
 				updateKingDisplay(nil, 0)
@@ -227,9 +283,21 @@ Players.PlayerAdded:Connect(function(player)
 			
 			if currentKing == player then
 				debugPrint("Current king died:", player.Name)
+				removeCrown(player) -- Remove crown when king dies
 				currentKing = nil
 				kingTimer = 0
 				updateKingDisplay(nil, 0)
+			end
+		end)
+		
+		-- Also handle respawn - remove crown if they respawn while king
+		character.ChildRemoved:Connect(function(child)
+			if child.Name == "KingCrown" and currentKing == player then
+				-- Crown was removed (likely by reset), give it back if still king
+				task.wait(0.1)
+				if currentKing == player and playersOnPart[player] then
+					giveCrown(player)
+				end
 			end
 		end)
 	end)
@@ -241,6 +309,7 @@ Players.PlayerRemoving:Connect(function(player)
 	
 	if currentKing == player then
 		debugPrint("Current king left the game:", player.Name)
+		removeCrown(player) -- Remove crown when leaving
 		currentKing = nil
 		kingTimer = 0
 		updateKingDisplay(nil, 0)
