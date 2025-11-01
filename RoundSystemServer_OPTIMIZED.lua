@@ -279,6 +279,11 @@ local function onPlayerWin(player)
 	gameState = "Intermission"
 	roundStatusEvent:FireAllClients("intermission", INTERMISSION_TIME)
 	
+	-- Reset lava
+	if _G.LavaRisingControl then
+		_G.LavaRisingControl.resetLava()
+	end
+	
 	-- Send all players to lobby
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr.Character then
@@ -350,6 +355,13 @@ function startNewRound()
 	
 	stateLock = false
 	debugPrint("Round started with", #Players:GetPlayers(), "players")
+	
+	-- Start lava rising
+	if _G.LavaRisingControl then
+		task.delay(1, function()
+			_G.LavaRisingControl.startRising()
+		end)
+	end
 end
 
 -- Handle player death
