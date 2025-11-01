@@ -28,12 +28,15 @@ end
 
 print("[LAVA SYSTEM] Starting...")
 
--- Find lava part
+-- Find lava part (works for Part, MeshPart, UnionOperation, etc.)
 local lavaPart = workspace:FindFirstChild(LAVA_PART_NAME)
-if not lavaPart then
-	warn("[LAVA SYSTEM] Could not find part named '" .. LAVA_PART_NAME .. "' in workspace!")
+if not lavaPart or not lavaPart:IsA("BasePart") then
+	warn("[LAVA SYSTEM] Could not find BasePart named '" .. LAVA_PART_NAME .. "' in workspace!")
+	warn("[LAVA SYSTEM] Make sure you have a Part/MeshPart named 'Lava' in Workspace")
 	return
 end
+
+print("[LAVA SYSTEM] Found lava part:", lavaPart.Name, "Type:", lavaPart.ClassName)
 
 -- Store original position
 local originalPosition = lavaPart.Position
@@ -56,35 +59,55 @@ local recentLavaDeaths = {}
 -- Setup lava touch kill with kill attribution
 local function setupLavaKill()
 	lavaPart.Touched:Connect(function(hit)
-		if not lavaActive then return end -- Only kill during active rounds
+		if not lavaActive then 
+			debugPrint("Lava touch but not active")
+			return 
+		end
 		
-		local character = hit.Parent
-		if not character then return end
+		-- More robust character detection
+		local character = hit:FindFirstAncestorOfClass("Model")
+		if not character then 
+			debugPrint("No character found from hit:", hit.Name)
+			return 
+		end
 		
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if not humanoid or humanoid.Health <= 0 then return end
+		if not humanoid or humanoid.Health <= 0 then 
+			debugPrint("No humanoid or already dead")
+			return 
+		end
 		
 		-- Get player
 		local victim = Players:GetPlayerFromCharacter(character)
-		if not victim then return end
+		if not victim then 
+			debugPrint("Not a player character:", character.Name)
+			return 
+		end
 		
 		-- Prevent duplicate kills
-		if recentLavaDeaths[victim.UserId] then return end
+		if recentLavaDeaths[victim.UserId] then 
+			debugPrint("Already processed death for:", victim.Name)
+			return 
+		end
 		recentLavaDeaths[victim.UserId] = true
 		
-		debugPrint("Player killed by lava:", victim.Name)
+		print("[LAVA] Player", victim.Name, "touched lava!")
 		
 		-- Check if they were recently pushed
 		local killer = nil
 		if _G.PushTracker then
 			killer = _G.PushTracker.getRecentPusher(victim.UserId)
 			if killer then
-				debugPrint("Kill attributed to pusher:", killer.Name)
+				print("[LAVA] Kill attributed to pusher:", killer.Name)
 				-- Send killfeed notification
 				killfeedEvent:FireAllClients(killer.Name, victim.Name)
 				-- Clear push data
 				_G.PushTracker.clearPushData(victim.UserId)
+			else
+				print("[LAVA] No recent pusher found for:", victim.Name)
 			end
+		else
+			print("[LAVA] PushTracker not available!")
 		end
 		
 		-- Kill player
@@ -95,6 +118,8 @@ local function setupLavaKill()
 			recentLavaDeaths[victim.UserId] = nil
 		end)
 	end)
+	
+	print("[LAVA] Touch detection setup complete")
 end
 
 -- Smoothly rise lava to target Y position
@@ -259,6 +284,21 @@ local function integrateWithRoundSystem()
 end
 
 integrateWithRoundSystem()
+
+-- Wait for PushTracker to be ready (ensure proper load order)
+task.spawn(function()
+	local attempts = 0
+	while not _G.PushTracker and attempts < 50 do
+		task.wait(0.1)
+		attempts = attempts + 1
+	end
+	
+	if _G.PushTracker then
+		print("[LAVA] PushTracker found! Kill attribution ready")
+	else
+		warn("[LAVA] PushTracker not found after 5 seconds - kills won't be attributed")
+	end
+end)
 
 print("========================================")
 print("Lava Rising System Ready!")

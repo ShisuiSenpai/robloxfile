@@ -116,6 +116,29 @@ updateUIScale()
 local warningTween = nil
 local pulseTween = nil
 
+-- Define hideWarning first
+local function hideWarning()
+	if warningTween then warningTween:Cancel() end
+	
+	-- Stop pulse
+	if pulseTween then
+		pulseTween:Cancel()
+	end
+	
+	-- Slide down
+	warningTween = TweenService:Create(
+		warningFrame,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		{Position = UDim2.new(0.5, 0, 1, 100)}
+	)
+	warningTween:Play()
+	
+	task.spawn(function()
+		warningTween.Completed:Wait()
+		warningFrame.Visible = false
+	end)
+end
+
 local function showWarning(height, maxHeight)
 	warningFrame.Visible = true
 	
@@ -142,35 +165,17 @@ local function showWarning(height, maxHeight)
 		pulseTween:Play()
 	end
 	
-	-- Play warning sound
-	if _G.SoundManager then
-		_G.SoundManager.play("become_king", true) -- Reuse existing sound for now
-	end
+	-- Play warning sound (optional - skip if sound fails)
+	pcall(function()
+		if _G.SoundManager then
+			_G.SoundManager.play("become_king", true)
+		end
+	end)
 	
 	-- Auto-hide after 3 seconds
 	task.delay(3, function()
 		hideWarning()
 	end)
-end
-
-local function hideWarning()
-	if warningTween then warningTween:Cancel() end
-	
-	-- Stop pulse
-	if pulseTween then
-		pulseTween:Cancel()
-	end
-	
-	-- Slide down
-	warningTween = TweenService:Create(
-		warningFrame,
-		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-		{Position = UDim2.new(0.5, 0, 1, 100)}
-	)
-	warningTween:Play()
-	
-	warningTween.Completed:Wait()
-	warningFrame.Visible = false
 end
 
 -- ==================== EVENT HANDLERS ====================

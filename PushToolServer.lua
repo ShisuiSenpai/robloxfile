@@ -321,6 +321,7 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 		pusher = pusher,
 		time = tick()
 	}
+	print("[PUSH] Tracked push:", pusher.Name, "->", targetPlayer.Name, "at", tick())
 	
 	if removeRagdoll then
 		-- Lightweight health protection (no heavy loops)
@@ -369,15 +370,26 @@ end)
 _G.PushTracker = {
 	getRecentPusher = function(victimUserId)
 		local pushData = RECENT_PUSHES[victimUserId]
-		if pushData and (tick() - pushData.time) <= PUSH_ATTRIBUTION_TIME then
-			return pushData.pusher
+		if pushData then
+			local timeSince = tick() - pushData.time
+			print("[PUSH TRACKER] Check for", victimUserId, "- Found push from", pushData.pusher.Name, "at", timeSince, "seconds ago")
+			if timeSince <= PUSH_ATTRIBUTION_TIME then
+				return pushData.pusher
+			else
+				print("[PUSH TRACKER] Push too old (>3s)")
+			end
+		else
+			print("[PUSH TRACKER] No push data found for", victimUserId)
 		end
 		return nil
 	end,
 	clearPushData = function(victimUserId)
 		RECENT_PUSHES[victimUserId] = nil
+		print("[PUSH TRACKER] Cleared push data for", victimUserId)
 	end
 }
+
+print("[PUSH] PushTracker global API ready")
 
 debugPrint("Push server script loaded successfully!")
 print("===========================================")
