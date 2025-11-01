@@ -1,0 +1,321 @@
+-- King of the Hill UI Script
+-- Place this as a LocalScript in StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Wait for RemoteEvents
+local updateKingEvent = ReplicatedStorage:WaitForChild("UpdateKing", 10)
+local roundStatusEvent = ReplicatedStorage:WaitForChild("RoundStatus", 10)
+local winnerEvent = ReplicatedStorage:WaitForChild("Winner", 10)
+
+if not updateKingEvent or not roundStatusEvent or not winnerEvent then
+	warn("[KING UI] Could not find RemoteEvents!")
+	return
+end
+
+print("[KING UI] Loaded successfully")
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KingOfTheHillUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- Main Frame (Container for king display)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "KingDisplay"
+mainFrame.AnchorPoint = Vector2.new(0.5, 0)
+mainFrame.Position = UDim2.new(0.5, 0, 0, -150) -- Start off-screen
+mainFrame.Size = UDim2.new(0, 400, 0, 140)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BackgroundTransparency = 0.15
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Add UICorner for rounded edges
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 16)
+mainCorner.Parent = mainFrame
+
+-- Add subtle shadow/glow effect
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(100, 150, 255)
+mainStroke.Thickness = 2
+mainStroke.Transparency = 0.5
+mainStroke.Parent = mainFrame
+
+-- Player Avatar Image
+local avatarImage = Instance.new("ImageLabel")
+avatarImage.Name = "Avatar"
+avatarImage.Position = UDim2.new(0, 15, 0, 15)
+avatarImage.Size = UDim2.new(0, 70, 0, 70)
+avatarImage.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+avatarImage.BackgroundTransparency = 0.3
+avatarImage.BorderSizePixel = 0
+avatarImage.Image = ""
+avatarImage.Parent = mainFrame
+
+local avatarCorner = Instance.new("UICorner")
+avatarCorner.CornerRadius = UDim.new(0, 12)
+avatarCorner.Parent = avatarImage
+
+local avatarStroke = Instance.new("UIStroke")
+avatarStroke.Color = Color3.fromRGB(100, 150, 255)
+avatarStroke.Thickness = 2
+avatarStroke.Transparency = 0.6
+avatarStroke.Parent = avatarImage
+
+-- Player Name Label
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Name = "PlayerName"
+nameLabel.Position = UDim2.new(0, 95, 0, 20)
+nameLabel.Size = UDim2.new(1, -110, 0, 25)
+nameLabel.BackgroundTransparency = 1
+nameLabel.Font = Enum.Font.GothamBold
+nameLabel.Text = ""
+nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameLabel.TextSize = 20
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.TextYAlignment = Enum.TextYAlignment.Top
+nameLabel.Parent = mainFrame
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Position = UDim2.new(0, 95, 0, 45)
+statusLabel.Size = UDim2.new(1, -110, 0, 20)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.Text = "is the King of the Pyramid"
+statusLabel.TextColor3 = Color3.fromRGB(180, 200, 255)
+statusLabel.TextSize = 14
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.TextYAlignment = Enum.TextYAlignment.Top
+statusLabel.Parent = mainFrame
+
+-- Progress Bar Background
+local progressBg = Instance.new("Frame")
+progressBg.Name = "ProgressBackground"
+progressBg.Position = UDim2.new(0, 15, 1, -35)
+progressBg.Size = UDim2.new(1, -30, 0, 20)
+progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+progressBg.BackgroundTransparency = 0.3
+progressBg.BorderSizePixel = 0
+progressBg.Parent = mainFrame
+
+local progressBgCorner = Instance.new("UICorner")
+progressBgCorner.CornerRadius = UDim.new(0, 10)
+progressBgCorner.Parent = progressBg
+
+-- Progress Bar Fill
+local progressBar = Instance.new("Frame")
+progressBar.Name = "ProgressFill"
+progressBar.Size = UDim2.new(0, 0, 1, 0)
+progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+progressBar.BorderSizePixel = 0
+progressBar.Parent = progressBg
+
+local progressCorner = Instance.new("UICorner")
+progressCorner.CornerRadius = UDim.new(0, 10)
+progressCorner.Parent = progressBar
+
+-- Add gradient to progress bar
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 180, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 120, 255))
+}
+gradient.Parent = progressBar
+
+-- Timer Text
+local timerText = Instance.new("TextLabel")
+timerText.Name = "TimerText"
+timerText.Size = UDim2.new(1, 0, 1, 0)
+timerText.BackgroundTransparency = 1
+timerText.Font = Enum.Font.GothamBold
+timerText.Text = "5.0s"
+timerText.TextColor3 = Color3.fromRGB(255, 255, 255)
+timerText.TextSize = 12
+timerText.ZIndex = 2
+timerText.Parent = progressBg
+
+-- Winner Announcement Frame
+local winnerFrame = Instance.new("Frame")
+winnerFrame.Name = "WinnerAnnouncement"
+winnerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+winnerFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+winnerFrame.Size = UDim2.new(0, 500, 0, 200)
+winnerFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+winnerFrame.BackgroundTransparency = 1
+winnerFrame.BorderSizePixel = 0
+winnerFrame.Visible = false
+winnerFrame.Parent = screenGui
+
+local winnerCorner = Instance.new("UICorner")
+winnerCorner.CornerRadius = UDim.new(0, 20)
+winnerCorner.Parent = winnerFrame
+
+local winnerStroke = Instance.new("UIStroke")
+winnerStroke.Color = Color3.fromRGB(255, 215, 0)
+winnerStroke.Thickness = 3
+winnerStroke.Transparency = 0.5
+winnerStroke.Parent = winnerFrame
+
+-- Winner Text
+local winnerText = Instance.new("TextLabel")
+winnerText.Size = UDim2.new(1, 0, 0, 60)
+winnerText.Position = UDim2.new(0, 0, 0, 30)
+winnerText.BackgroundTransparency = 1
+winnerText.Font = Enum.Font.GothamBold
+winnerText.Text = "VICTORY"
+winnerText.TextColor3 = Color3.fromRGB(255, 215, 0)
+winnerText.TextSize = 48
+winnerText.TextStrokeTransparency = 0.8
+winnerText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+winnerText.Parent = winnerFrame
+
+-- Winner Player Name
+local winnerPlayerName = Instance.new("TextLabel")
+winnerPlayerName.Size = UDim2.new(1, 0, 0, 40)
+winnerPlayerName.Position = UDim2.new(0, 0, 0, 100)
+winnerPlayerName.BackgroundTransparency = 1
+winnerPlayerName.Font = Enum.Font.GothamBold
+winnerPlayerName.Text = ""
+winnerPlayerName.TextColor3 = Color3.fromRGB(255, 255, 255)
+winnerPlayerName.TextSize = 32
+winnerPlayerName.Parent = winnerFrame
+
+-- Winner Subtitle
+local winnerSubtitle = Instance.new("TextLabel")
+winnerSubtitle.Size = UDim2.new(1, 0, 0, 30)
+winnerSubtitle.Position = UDim2.new(0, 0, 0, 145)
+winnerSubtitle.BackgroundTransparency = 1
+winnerSubtitle.Font = Enum.Font.Gotham
+winnerSubtitle.Text = "conquered the pyramid!"
+winnerSubtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+winnerSubtitle.TextSize = 20
+winnerSubtitle.Parent = winnerFrame
+
+-- Animation functions
+local currentTween = nil
+
+local function showKingDisplay()
+	if currentTween then currentTween:Cancel() end
+	currentTween = TweenService:Create(
+		mainFrame,
+		TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Position = UDim2.new(0.5, 0, 0, 20)}
+	)
+	currentTween:Play()
+end
+
+local function hideKingDisplay()
+	if currentTween then currentTween:Cancel() end
+	currentTween = TweenService:Create(
+		mainFrame,
+		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		{Position = UDim2.new(0.5, 0, 0, -150)}
+	)
+	currentTween:Play()
+end
+
+local function updateProgressBar(timeRemaining, totalTime)
+	local progress = (totalTime - timeRemaining) / totalTime
+	
+	local progressTween = TweenService:Create(
+		progressBar,
+		TweenInfo.new(0.1, Enum.EasingStyle.Linear),
+		{Size = UDim2.new(progress, 0, 1, 0)}
+	)
+	progressTween:Play()
+	
+	-- Update timer text
+	timerText.Text = string.format("%.1fs", math.max(0, timeRemaining))
+	
+	-- Change color as it gets close to winning
+	if progress > 0.7 then
+		progressBar.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold
+	elseif progress > 0.4 then
+		progressBar.BackgroundColor3 = Color3.fromRGB(150, 200, 255) -- Light blue
+	else
+		progressBar.BackgroundColor3 = Color3.fromRGB(100, 180, 255) -- Blue
+	end
+end
+
+-- Handle king update from server
+updateKingEvent.OnClientEvent:Connect(function(kingPlayer, timeRemaining, totalTime)
+	if kingPlayer then
+		-- Show the king display
+		nameLabel.Text = kingPlayer.Name
+		
+		-- Get player avatar
+		local userId = kingPlayer.UserId
+		avatarImage.Image = Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+		
+		-- Update progress bar
+		updateProgressBar(timeRemaining, totalTime)
+		
+		-- Show the frame
+		showKingDisplay()
+	else
+		-- Hide the king display
+		hideKingDisplay()
+	end
+end)
+
+-- Handle winner announcement
+winnerEvent.OnClientEvent:Connect(function(winner)
+	if winner then
+		print("[KING UI] Winner announced:", winner.Name)
+		
+		-- Hide king display first
+		hideKingDisplay()
+		
+		-- Set winner text
+		winnerPlayerName.Text = winner.Name
+		
+		-- Show winner announcement
+		winnerFrame.Visible = true
+		winnerFrame.BackgroundTransparency = 1
+		winnerText.TextTransparency = 1
+		winnerPlayerName.TextTransparency = 1
+		winnerSubtitle.TextTransparency = 1
+		
+		-- Fade in animation
+		local fadeIn = TweenService:Create(
+			winnerFrame,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundTransparency = 0.1}
+		)
+		fadeIn:Play()
+		
+		TweenService:Create(winnerText, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+		TweenService:Create(winnerPlayerName, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+		TweenService:Create(winnerSubtitle, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+		
+		-- Hide after 5 seconds
+		task.wait(5)
+		
+		local fadeOut = TweenService:Create(
+			winnerFrame,
+			TweenInfo.new(0.5),
+			{BackgroundTransparency = 1}
+		)
+		fadeOut:Play()
+		
+		TweenService:Create(winnerText, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+		TweenService:Create(winnerPlayerName, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+		TweenService:Create(winnerSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+		
+		fadeOut.Completed:Wait()
+		winnerFrame.Visible = false
+	end
+end)
+
+print("[KING UI] Ready!")
