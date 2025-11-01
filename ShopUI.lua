@@ -54,19 +54,19 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset = false
 screenGui.Parent = playerGui
 
--- Shop Button (bottom-right corner)
+-- Shop Button (left side, middle-ish)
 local shopButton = Instance.new("TextButton")
 shopButton.Name = "ShopButton"
-shopButton.AnchorPoint = Vector2.new(1, 1)
-shopButton.Position = UDim2.new(1, -15, 1, -15)
-shopButton.Size = UDim2.new(0, 70, 0, 70)
+shopButton.AnchorPoint = Vector2.new(0, 0.5)
+shopButton.Position = UDim2.new(0, 15, 0.45, 0)
+shopButton.Size = UDim2.new(0, 90, 0, 90)
 shopButton.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
-shopButton.BackgroundTransparency = 0.1
+shopButton.BackgroundTransparency = 0.05
 shopButton.BorderSizePixel = 0
 shopButton.Font = Enum.Font.GothamBold
-shopButton.Text = "SHOP"
+shopButton.Text = ""
 shopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-shopButton.TextSize = 16
+shopButton.TextSize = 18
 shopButton.AutoButtonColor = false
 shopButton.Parent = screenGui
 
@@ -74,14 +74,43 @@ local buttonScale = Instance.new("UIScale")
 buttonScale.Parent = shopButton
 
 local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0.2, 0)
+buttonCorner.CornerRadius = UDim.new(0.25, 0)
 buttonCorner.Parent = shopButton
 
 local buttonStroke = Instance.new("UIStroke")
 buttonStroke.Color = Color3.fromRGB(200, 220, 255)
-buttonStroke.Thickness = 2
-buttonStroke.Transparency = 0.3
+buttonStroke.Thickness = 3
+buttonStroke.Transparency = 0.2
 buttonStroke.Parent = shopButton
+
+local buttonGradient = Instance.new("UIGradient")
+buttonGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 170, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 130, 235))
+})
+buttonGradient.Rotation = 45
+buttonGradient.Parent = shopButton
+
+-- Shop icon/text
+local shopIcon = Instance.new("TextLabel")
+shopIcon.Size = UDim2.new(1, 0, 0.5, 0)
+shopIcon.Position = UDim2.new(0, 0, 0, 8)
+shopIcon.BackgroundTransparency = 1
+shopIcon.Font = Enum.Font.GothamBold
+shopIcon.Text = "??"
+shopIcon.TextSize = 36
+shopIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+shopIcon.Parent = shopButton
+
+local shopText = Instance.new("TextLabel")
+shopText.Size = UDim2.new(1, 0, 0.35, 0)
+shopText.Position = UDim2.new(0, 0, 0.6, 0)
+shopText.BackgroundTransparency = 1
+shopText.Font = Enum.Font.GothamBold
+shopText.Text = "SHOP"
+shopText.TextSize = 16
+shopText.TextColor3 = Color3.fromRGB(255, 255, 255)
+shopText.Parent = shopButton
 
 -- Shop Frame (main container)
 local shopFrame = Instance.new("Frame")
@@ -108,17 +137,7 @@ shopStroke.Thickness = 2
 shopStroke.Transparency = 0.4
 shopStroke.Parent = shopFrame
 
--- Dim background
-local dimBackground = Instance.new("Frame")
-dimBackground.Name = "DimBackground"
-dimBackground.Size = UDim2.new(1, 0, 1, 0)
-dimBackground.Position = UDim2.new(0, 0, 0, 0)
-dimBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-dimBackground.BackgroundTransparency = 1
-dimBackground.BorderSizePixel = 0
-dimBackground.Visible = false
-dimBackground.ZIndex = 0
-dimBackground.Parent = screenGui
+-- Removed dim background as per user request
 
 -- Shop Header
 local shopHeader = Instance.new("Frame")
@@ -192,7 +211,7 @@ local scrollLayout = Instance.new("UIGridLayout")
 scrollLayout.CellPadding = UDim2.new(0, 15, 0, 15)
 scrollLayout.CellSize = UDim2.new(0, 320, 0, 180)
 scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
-scrollLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+scrollLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 scrollLayout.Parent = scrollFrame
 
 local scrollPadding = Instance.new("UIPadding")
@@ -373,21 +392,11 @@ local function openShop()
 	if shopOpen then return end
 	shopOpen = true
 	
-	-- Show frames
+	-- Show frame
 	shopFrame.Visible = true
-	dimBackground.Visible = true
 	
-	-- Reset scales for animation
+	-- Reset scale for animation
 	shopFrame.Size = UDim2.new(0, 0, 0, 0)
-	dimBackground.BackgroundTransparency = 1
-	
-	-- Animate background dim
-	local dimTween = TweenService:Create(
-		dimBackground,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{BackgroundTransparency = 0.5}
-	)
-	dimTween:Play()
 	
 	-- Animate shop frame opening (bounce effect)
 	local openTween = TweenService:Create(
@@ -397,26 +406,26 @@ local function openShop()
 	)
 	openTween:Play()
 	
-	-- Button pulse
+	-- Button press effect
 	local buttonTween = TweenService:Create(
 		shopButton,
 		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{BackgroundColor3 = Color3.fromRGB(80, 130, 235)}
+		{Size = UDim2.new(0, 85, 0, 85)}
 	)
 	buttonTween:Play()
+	
+	-- Rotate button slightly
+	local rotateTween = TweenService:Create(
+		shopButton,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{Rotation = 5}
+	)
+	rotateTween:Play()
 end
 
 local function closeShop()
 	if not shopOpen then return end
 	shopOpen = false
-	
-	-- Animate background dim out
-	local dimTween = TweenService:Create(
-		dimBackground,
-		TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{BackgroundTransparency = 1}
-	)
-	dimTween:Play()
 	
 	-- Animate shop frame closing
 	local closeTween = TweenService:Create(
@@ -428,14 +437,13 @@ local function closeShop()
 	
 	closeTween.Completed:Connect(function()
 		shopFrame.Visible = false
-		dimBackground.Visible = false
 	end)
 	
 	-- Button reset
 	local buttonTween = TweenService:Create(
 		shopButton,
 		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{BackgroundColor3 = Color3.fromRGB(100, 150, 255)}
+		{Size = UDim2.new(0, 90, 0, 90), Rotation = 0}
 	)
 	buttonTween:Play()
 end
@@ -453,21 +461,23 @@ closeButton.MouseButton1Click:Connect(function()
 	closeShop()
 end)
 
-dimBackground.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		closeShop()
-	end
-end)
-
 -- Shop button hover effect
 shopButton.MouseEnter:Connect(function()
 	if not shopOpen then
 		local hoverTween = TweenService:Create(
 			shopButton,
-			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundColor3 = Color3.fromRGB(120, 170, 255), Size = UDim2.new(0, 75, 0, 75)}
+			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{Size = UDim2.new(0, 95, 0, 95)}
 		)
 		hoverTween:Play()
+		
+		-- Slight rotation on hover
+		local rotateTween = TweenService:Create(
+			shopButton,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Rotation = -3}
+		)
+		rotateTween:Play()
 	end
 end)
 
@@ -476,7 +486,7 @@ shopButton.MouseLeave:Connect(function()
 		local leaveTween = TweenService:Create(
 			shopButton,
 			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundColor3 = Color3.fromRGB(100, 150, 255), Size = UDim2.new(0, 70, 0, 70)}
+			{Size = UDim2.new(0, 90, 0, 90), Rotation = 0}
 		)
 		leaveTween:Play()
 	end
