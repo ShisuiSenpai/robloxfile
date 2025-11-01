@@ -201,6 +201,30 @@ local function onPlayerWin(player)
 	end
 end
 
+-- Freeze player
+local function freezePlayer(player)
+	if not player.Character then return end
+	
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = 0
+		humanoid.JumpPower = 0
+		humanoid.JumpHeight = 0
+	end
+end
+
+-- Unfreeze player
+local function unfreezePlayer(player)
+	if not player.Character then return end
+	
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = 16
+		humanoid.JumpPower = 50
+		humanoid.JumpHeight = 7.2
+	end
+end
+
 -- Start a new round
 function startNewRound()
 	print("========================================")
@@ -212,16 +236,34 @@ function startNewRound()
 	kingTimer = 0
 	playersAlive = {}
 	
-	-- Spawn all players at pyramid spawns
+	-- Spawn all players at pyramid spawns and freeze them
 	for _, player in pairs(Players:GetPlayers()) do
 		if player.Character then
 			spawnPlayerAt(player, pyramidSpawns)
 			playersAlive[player] = true
+			freezePlayer(player)
 		end
 	end
 	
-	-- Notify clients
+	-- Start countdown
+	roundStatusEvent:FireAllClients("countdown", 3)
+	
+	-- Countdown: 3, 2, 1
+	for i = 3, 1, -1 do
+		debugPrint("Countdown:", i)
+		task.wait(1)
+		if i > 1 then
+			roundStatusEvent:FireAllClients("countdown", i - 1)
+		end
+	end
+	
+	-- GO! Unfreeze all players
 	roundStatusEvent:FireAllClients("roundStart", 0)
+	for _, player in pairs(Players:GetPlayers()) do
+		if playersAlive[player] then
+			unfreezePlayer(player)
+		end
+	end
 	
 	debugPrint("Round started with", #Players:GetPlayers(), "players")
 end

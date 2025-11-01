@@ -165,6 +165,29 @@ statusFrame.BorderSizePixel = 0
 statusFrame.Visible = false
 statusFrame.Parent = screenGui
 
+-- ==================== COUNTDOWN DISPLAY ====================
+
+local countdownFrame = Instance.new("Frame")
+countdownFrame.Name = "CountdownDisplay"
+countdownFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+countdownFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+countdownFrame.Size = UDim2.new(0, 200, 0, 200)
+countdownFrame.BackgroundTransparency = 1
+countdownFrame.Visible = false
+countdownFrame.Parent = screenGui
+
+local countdownNumber = Instance.new("TextLabel")
+countdownNumber.Name = "CountdownNumber"
+countdownNumber.Size = UDim2.new(1, 0, 1, 0)
+countdownNumber.BackgroundTransparency = 1
+countdownNumber.Font = Enum.Font.GothamBold
+countdownNumber.Text = "3"
+countdownNumber.TextColor3 = Color3.fromRGB(100, 180, 255)
+countdownNumber.TextSize = 120
+countdownNumber.TextStrokeTransparency = 0.5
+countdownNumber.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+countdownNumber.Parent = countdownFrame
+
 local statusCorner = Instance.new("UICorner")
 statusCorner.CornerRadius = UDim.new(0, 14)
 statusCorner.Parent = statusFrame
@@ -409,6 +432,7 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 		startDotAnimation()
 		showStatusDisplay()
 		hideKingDisplay()
+		countdownFrame.Visible = false
 		
 	elseif status == "intermission" then
 		-- Show intermission with countdown
@@ -418,6 +442,7 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 		statusSubtitle.Text = "Next round in " .. timeOrData .. " seconds"
 		showStatusDisplay()
 		hideKingDisplay()
+		countdownFrame.Visible = false
 		
 		-- Countdown
 		for i = timeOrData, 1, -1 do
@@ -425,12 +450,60 @@ roundStatusEvent.OnClientEvent:Connect(function(status, timeOrData)
 			task.wait(1)
 		end
 		
-	elseif status == "roundStart" then
-		-- Hide status and start game
+	elseif status == "countdown" then
+		-- Show countdown number (3, 2, 1)
 		stopDotAnimation()
-		statusSubtitle.Text = "Round starting!"
-		task.wait(1)
 		hideStatusDisplay()
+		hideKingDisplay()
+		
+		local number = timeOrData
+		countdownNumber.Text = tostring(number)
+		countdownNumber.TextColor3 = Color3.fromRGB(100, 180, 255)
+		countdownNumber.TextSize = 120
+		countdownFrame.Visible = true
+		
+		-- Pulse animation
+		countdownNumber.Size = UDim2.new(0, 0, 0, 0)
+		local pulseTween = TweenService:Create(
+			countdownNumber,
+			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{Size = UDim2.new(1, 0, 1, 0)}
+		)
+		pulseTween:Play()
+		
+	elseif status == "roundStart" then
+		-- Show GO! and hide everything
+		stopDotAnimation()
+		hideStatusDisplay()
+		
+		-- Show GO!
+		countdownNumber.Text = "GO!"
+		countdownNumber.TextColor3 = Color3.fromRGB(100, 255, 150)
+		countdownNumber.TextSize = 100
+		countdownFrame.Visible = true
+		
+		-- Pulse and fade out
+		countdownNumber.Size = UDim2.new(0, 0, 0, 0)
+		local goTween = TweenService:Create(
+			countdownNumber,
+			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{Size = UDim2.new(1.2, 0, 1.2, 0)}
+		)
+		goTween:Play()
+		
+		task.wait(0.5)
+		
+		local fadeOut = TweenService:Create(
+			countdownNumber,
+			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{TextTransparency = 1, TextStrokeTransparency = 1}
+		)
+		fadeOut:Play()
+		
+		fadeOut.Completed:Wait()
+		countdownFrame.Visible = false
+		countdownNumber.TextTransparency = 0
+		countdownNumber.TextStrokeTransparency = 0.5
 	end
 end)
 
