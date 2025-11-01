@@ -27,16 +27,17 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
--- Main Frame (Container for king display) - WIDER DESIGN
+-- Main Frame (Container for king display) - COMPACT DESIGN
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "KingDisplay"
 mainFrame.AnchorPoint = Vector2.new(0.5, 0)
-mainFrame.Position = UDim2.new(0.5, 0, 0, -120) -- Start off-screen
-mainFrame.Size = UDim2.new(0, 500, 0, 100) -- Wider (500x100 instead of 400x140)
+mainFrame.Position = UDim2.new(0.5, 0, 0, -100) -- Start off-screen
+mainFrame.Size = UDim2.new(0, 420, 0, 85) -- More compact (420x85)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BackgroundTransparency = 0.15
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false -- START HIDDEN
+mainFrame.ClipsDescendants = false -- Allow progress bar to extend below
 mainFrame.Parent = screenGui
 
 -- Add UICorner for rounded edges
@@ -51,11 +52,11 @@ mainStroke.Thickness = 2
 mainStroke.Transparency = 0.5
 mainStroke.Parent = mainFrame
 
--- Player Avatar Image (slightly smaller for wider design)
+-- Player Avatar Image (compact size)
 local avatarImage = Instance.new("ImageLabel")
 avatarImage.Name = "Avatar"
-avatarImage.Position = UDim2.new(0, 12, 0, 12)
-avatarImage.Size = UDim2.new(0, 76, 0, 76) -- Fits in the 100px height
+avatarImage.Position = UDim2.new(0, 10, 0, 10)
+avatarImage.Size = UDim2.new(0, 65, 0, 65) -- Smaller avatar
 avatarImage.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 avatarImage.BackgroundTransparency = 0.3
 avatarImage.BorderSizePixel = 0
@@ -75,8 +76,8 @@ avatarStroke.Parent = avatarImage
 -- Text container (next to avatar)
 local textContainer = Instance.new("Frame")
 textContainer.Name = "TextContainer"
-textContainer.Position = UDim2.new(0, 100, 0, 10)
-textContainer.Size = UDim2.new(0, 280, 0, 60)
+textContainer.Position = UDim2.new(0, 85, 0, 8)
+textContainer.Size = UDim2.new(0, 240, 0, 50)
 textContainer.BackgroundTransparency = 1
 textContainer.Parent = mainFrame
 
@@ -84,12 +85,12 @@ textContainer.Parent = mainFrame
 local nameLabel = Instance.new("TextLabel")
 nameLabel.Name = "PlayerName"
 nameLabel.Position = UDim2.new(0, 0, 0, 0)
-nameLabel.Size = UDim2.new(1, 0, 0, 28)
+nameLabel.Size = UDim2.new(1, 0, 0, 24)
 nameLabel.BackgroundTransparency = 1
 nameLabel.Font = Enum.Font.GothamBold
 nameLabel.Text = ""
 nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-nameLabel.TextSize = 20
+nameLabel.TextSize = 18
 nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 nameLabel.TextYAlignment = Enum.TextYAlignment.Top
 nameLabel.Parent = textContainer
@@ -97,13 +98,13 @@ nameLabel.Parent = textContainer
 -- Status Label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
-statusLabel.Position = UDim2.new(0, 0, 0, 32)
-statusLabel.Size = UDim2.new(1, 0, 0, 18)
+statusLabel.Position = UDim2.new(0, 0, 0, 28)
+statusLabel.Size = UDim2.new(1, 0, 0, 16)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.Text = "is the King of the Pyramid"
 statusLabel.TextColor3 = Color3.fromRGB(180, 200, 255)
-statusLabel.TextSize = 13
+statusLabel.TextSize = 12
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.Parent = textContainer
@@ -111,25 +112,26 @@ statusLabel.Parent = textContainer
 -- Timer Text (top right corner)
 local timerText = Instance.new("TextLabel")
 timerText.Name = "TimerText"
-timerText.Position = UDim2.new(1, -70, 0, 10)
-timerText.Size = UDim2.new(0, 60, 0, 30)
+timerText.Position = UDim2.new(1, -60, 0, 8)
+timerText.Size = UDim2.new(0, 50, 0, 26)
 timerText.BackgroundTransparency = 1
 timerText.Font = Enum.Font.GothamBold
 timerText.Text = "5.0s"
 timerText.TextColor3 = Color3.fromRGB(255, 255, 255)
-timerText.TextSize = 24
+timerText.TextSize = 22
 timerText.TextXAlignment = Enum.TextXAlignment.Right
 timerText.Parent = mainFrame
 
--- Progress Bar Background (with padding from edges)
+-- Progress Bar Background (extends slightly below the main frame)
 local progressBg = Instance.new("Frame")
 progressBg.Name = "ProgressBackground"
-progressBg.Position = UDim2.new(0, 10, 1, -14) -- Padded from edges
+progressBg.Position = UDim2.new(0, 10, 1, 2) -- Extends 2px below the frame
 progressBg.Size = UDim2.new(1, -20, 0, 6) -- Inset from sides
 progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 progressBg.BackgroundTransparency = 0.4
 progressBg.BorderSizePixel = 0
 progressBg.ClipsDescendants = true -- Clips progress bar to rounded corners
+progressBg.ZIndex = 2 -- Above main frame
 progressBg.Parent = mainFrame
 
 -- Rounded corners for smooth look
@@ -237,7 +239,7 @@ local function hideKingDisplay()
 	currentTween = TweenService:Create(
 		mainFrame,
 		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-		{Position = UDim2.new(0.5, 0, 0, -120)} -- Updated for new height
+		{Position = UDim2.new(0.5, 0, 0, -100)} -- Updated for new height
 	)
 	currentTween:Play()
 	currentTween.Completed:Connect(function()
