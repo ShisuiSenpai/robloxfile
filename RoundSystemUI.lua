@@ -119,7 +119,7 @@ timerText.Parent = mainFrame
 
 local progressBg = Instance.new("Frame")
 progressBg.Name = "ProgressBackground"
-progressBg.Position = UDim2.new(0, 10, 1, -14)
+progressBg.Position = UDim2.new(0, 10, 1, 2)
 progressBg.Size = UDim2.new(1, -20, 0, 6)
 progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 progressBg.BackgroundTransparency = 0.4
@@ -308,12 +308,13 @@ end
 local function updateProgressBar(timeRemaining, totalTime)
 	local progress = (totalTime - timeRemaining) / totalTime
 	
+	-- Faster, smoother tweening
 	local progressDelta = math.abs(progress - lastProgress)
-	local tweenTime = math.max(0.08, progressDelta * 0.5)
+	local tweenTime = math.min(0.08, progressDelta * 0.3)
 	
 	local progressTween = TweenService:Create(
 		progressBar,
-		TweenInfo.new(tweenTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+		TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 		{Size = UDim2.new(progress, 0, 1, 0)}
 	)
 	progressTween:Play()
@@ -321,8 +322,8 @@ local function updateProgressBar(timeRemaining, totalTime)
 	lastProgress = progress
 	timerText.Text = string.format("%.1fs", math.max(0, timeRemaining))
 	
-	-- Subtle darkening
-	local darkenAmount = progress * 0.2
+	-- Subtle darkening gradient
+	local darkenAmount = progress * 0.15
 	gradient.Color = ColorSequence.new{
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(
 			math.floor(100 * (1 - darkenAmount)),
@@ -330,9 +331,9 @@ local function updateProgressBar(timeRemaining, totalTime)
 			math.floor(255 * (1 - darkenAmount * 0.5))
 		)),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(
-			math.floor(70 * (1 - darkenAmount * 1.1)),
-			math.floor(140 * (1 - darkenAmount * 1.1)),
-			math.floor(220 * (1 - darkenAmount * 0.6))
+			math.floor(70 * (1 - darkenAmount * 1.2)),
+			math.floor(140 * (1 - darkenAmount * 1.2)),
+			math.floor(220 * (1 - darkenAmount * 0.7))
 		))
 	}
 end

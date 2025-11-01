@@ -172,8 +172,8 @@ local function onPlayerWin(player)
 	kingTimer = 0
 	updateKingDisplay(nil, 0)
 	
-	-- Wait a moment for victory screen
-	task.wait(2)
+	-- Wait for victory screen (5 seconds total before new round)
+	task.wait(5)
 	
 	-- Start intermission
 	gameState = "Intermission"
@@ -280,6 +280,13 @@ Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Wait()
 	task.wait(1)
 	spawnPlayerAt(player, lobbySpawns)
+	
+	-- Send current game state to new player
+	if gameState == "WaitingForPlayers" then
+		roundStatusEvent:FireClient(player, "waitingForPlayers", 0)
+	elseif gameState == "Intermission" then
+		roundStatusEvent:FireClient(player, "intermission", INTERMISSION_TIME)
+	end
 	
 	-- Check if we have enough players to start
 	if gameState == "WaitingForPlayers" and #Players:GetPlayers() >= MINIMUM_PLAYERS then
