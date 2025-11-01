@@ -20,9 +20,9 @@ print("[KILLFEED] Loaded successfully")
 
 -- ==================== CONFIGURATION ====================
 
-local MAX_KILLS_DISPLAYED = 5
-local KILL_DISPLAY_TIME = 4 -- Seconds each kill is shown
-local KILL_SPACING = 45 -- Pixels between kills
+local MAX_KILLS_DISPLAYED = 3
+local KILL_DISPLAY_TIME = 5 -- Seconds each kill is shown
+local KILL_SPACING = 42 -- Pixels between kills
 
 -- ==================== UI CREATION ====================
 
@@ -146,6 +146,8 @@ local function updateKillPositions()
 end
 
 local function removeKill(killData)
+	if not killData or not killData.frame or not killData.frame.Parent then return end
+	
 	-- Find and remove from active kills
 	for i, data in ipairs(activeKills) do
 		if data == killData then
@@ -154,10 +156,10 @@ local function removeKill(killData)
 		end
 	end
 	
-	-- Fade out animation
+	-- Quick fade out animation
 	local tween = TweenService:Create(
 		killData.frame,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 		{
 			Position = UDim2.new(0, -400, killData.frame.Position.Y.Scale, killData.frame.Position.Y.Offset),
 			BackgroundTransparency = 1
@@ -168,16 +170,18 @@ local function removeKill(killData)
 	-- Also fade children
 	for _, child in pairs(killData.frame:GetDescendants()) do
 		if child:IsA("TextLabel") then
-			TweenService:Create(child, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+			TweenService:Create(child, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
 		elseif child:IsA("UIStroke") then
-			TweenService:Create(child, TweenInfo.new(0.3), {Transparency = 1}):Play()
+			TweenService:Create(child, TweenInfo.new(0.2), {Transparency = 1}):Play()
 		end
 	end
 	
-	tween.Completed:Wait()
-	killData.frame:Destroy()
-	
-	updateKillPositions()
+	task.delay(0.2, function()
+		if killData.frame and killData.frame.Parent then
+			killData.frame:Destroy()
+		end
+		updateKillPositions()
+	end)
 end
 
 local function addKill(killerName, victimName)
@@ -194,10 +198,14 @@ local function addKill(killerName, victimName)
 	}
 	table.insert(activeKills, 1, killData) -- Insert at beginning
 	
-	-- Remove oldest if too many
-	if #activeKills > MAX_KILLS_DISPLAYED then
+	-- Remove oldest if too many (quickly fade them out)
+	while #activeKills > MAX_KILLS_DISPLAYED do
 		local oldest = activeKills[#activeKills]
-		removeKill(oldest)
+		-- Immediately remove without waiting
+		task.spawn(function()
+			removeKill(oldest)
+		end)
+		table.remove(activeKills, #activeKills) -- Remove from list immediately
 	end
 	
 	-- Update positions (this will animate the new kill in)
@@ -205,8 +213,12 @@ local function addKill(killerName, victimName)
 	
 	-- Schedule removal after display time
 	task.delay(KILL_DISPLAY_TIME, function()
-		if killData.frame and killData.frame.Parent then
-			removeKill(killData)
+		-- Check if still in active kills list
+		for i, data in ipairs(activeKills) do
+			if data == killData and data.frame and data.frame.Parent then
+				removeKill(killData)
+				break
+			end
 		end
 	end)
 end
