@@ -1,14 +1,15 @@
--- Push Tool Server Script (Rewritten with Reliable Push System)
+-- Push Tool Server Script (Optimized for Smoothness)
 -- Place this in ServerScriptService
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 -- Configuration
 local RAGDOLL_DURATION = 2 -- How long the ragdoll effect lasts (seconds)
 local MAX_PUSH_DISTANCE = 15 -- Maximum allowed push distance
 local PUSH_COOLDOWN_PER_PLAYER = {} -- Track cooldowns per player
-local DEBUG = true -- Set to true for debug messages
+local DEBUG = false -- Set to true for debug messages
 
 -- Debug print function
 local function debugPrint(...)
@@ -114,31 +115,24 @@ local function createRagdoll(character)
 		
 		if not character.Parent then return end
 		
-		-- STEP 1: Clean up any leftover push forces
+		-- Clean up any leftover push forces
 		for _, descendant in pairs(character:GetDescendants()) do
 			if descendant.Name == "PushForce" or descendant.Name == "PushAttachment" then
 				descendant:Destroy()
-				debugPrint("Removed leftover push force/attachment")
 			end
 		end
 		
-		-- Stop all movement and clear velocities
+		-- Gradually slow down velocities (smoother than instant stop)
 		if rootPart and rootPart.Parent then
-			rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-			rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+			local currentVel = rootPart.AssemblyLinearVelocity
+			rootPart.AssemblyLinearVelocity = Vector3.new(
+				currentVel.X * 0.3,
+				math.max(currentVel.Y * 0.5, 0),
+				currentVel.Z * 0.3
+			)
 		end
 		
-		-- Clear velocities from all body parts
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-				part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-			end
-		end
-		
-		task.wait(0.05)
-		
-		-- STEP 2: Position check and ground detection
+		-- Ground detection and smooth repositioning
 		if rootPart and rootPart.Parent then
 			local rayOrigin = rootPart.Position + Vector3.new(0, 3, 0)
 			local rayDirection = Vector3.new(0, -50, 0)
@@ -150,69 +144,84 @@ local function createRagdoll(character)
 			local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 			
 			if rayResult then
-				-- Found ground, position player safely above it
+				-- Found ground - smoothly position above it
 				local groundPosition = rayResult.Position
-				local safeHeight = groundPosition + Vector3.new(0, 5, 0)
+				local targetPosition = groundPosition + Vector3.new(0, 4.5, 0)
+				local currentPosition = rootPart.Position
 				
-				debugPrint("Ground found at:", groundPosition.Y, "Moving player to:", safeHeight.Y)
-				
-				-- Position root part upright and above ground
-				rootPart.CFrame = CFrame.new(safeHeight) * CFrame.Angles(0, rootPart.CFrame.Rotation.Y, 0)
-			else
-				-- No ground found, just orient upright
-				debugPrint("No ground detected, orienting upright")
-				rootPart.CFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, rootPart.CFrame.Rotation.Y, 0)
+				-- Only adjust if player is too close to ground or below it
+				if currentPosition.Y < targetPosition.Y then
+					-- Smooth upward adjustment with tween
+					local targetCFrame = CFrame.new(
+						currentPosition.X,
+						targetPosition.Y,
+						currentPosition.Z
+					) * CFrame.Angles(0, math.atan2(rootPart.CFrame.LookVector.X, rootPart.CFrame.LookVector.Z), 0)
+					
+					local tween = TweenService:Create(
+						rootPart,
+						TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{CFrame = targetCFrame}
+					)
+					tween:Play()
+					tween.Completed:Wait()
+				else
+					-- Just orient upright smoothly
+					local targetCFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, math.atan2(rootPart.CFrame.LookVector.X, rootPart.CFrame.LookVector.Z), 0)
+					local tween = TweenService:Create(
+						rootPart,
+						TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{CFrame = targetCFrame}
+					)
+					tween:Play()
+					tween.Completed:Wait()
+				end
 			end
 		end
 		
-		task.wait(0.05)
-		
-		-- STEP 3: Remove all created constraints
+		-- Remove all created constraints
 		for _, constraint in pairs(createdConstraints) do
 			if constraint and constraint.Parent then
 				constraint:Destroy()
 			end
 		end
 		
-		-- STEP 4: Restore original joints
+		-- Restore original joints
 		for _, jointData in pairs(originalJoints) do
 			if jointData.Motor6D and jointData.Motor6D.Parent then
 				jointData.Motor6D.Enabled = true
 			end
 		end
 		
-		task.wait(0.05)
-		
-		-- STEP 5: Reset collision on limbs
+		-- Reset collision on limbs
 		for _, part in pairs(character:GetDescendants()) do
 			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 				part.CanCollide = false
 			end
 		end
 		
-		-- STEP 6: Reset humanoid state carefully
+		-- Reset humanoid state
 		if humanoid and humanoid.Parent then
 			humanoid.RequiresNeck = true
 			humanoid.BreakJointsOnDeath = true
 			humanoid.PlatformStand = false
 			humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 			
-			-- Force to standing/freefall state (better than GettingUp)
+			-- Use Freefall state for smooth transition
 			humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 			
-			task.wait(0.1)
-			
-			-- Give a gentle upward boost to help land properly
+			-- Small upward velocity for natural landing
+			task.wait(0.05)
 			if rootPart and rootPart.Parent then
-				rootPart.AssemblyLinearVelocity = Vector3.new(0, 8, 0)
+				rootPart.AssemblyLinearVelocity = Vector3.new(0, 6, 0)
 			end
 		end
 		
-		debugPrint("Ragdoll removed successfully with safety checks")
+		debugPrint("Ragdoll removed successfully")
 	end
 end
 
--- Apply push force using LinearVelocity constraint
+-- Apply push force using LinearVelocity constraint (INSTANT, NO DELAYS)
 local function applyPushForce(character, direction, force)
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if not rootPart then return end
@@ -225,7 +234,7 @@ local function applyPushForce(character, direction, force)
 	attachment.Name = "PushAttachment"
 	attachment.Parent = rootPart
 	
-	-- Create LinearVelocity constraint (modern physics constraint)
+	-- Create LinearVelocity constraint
 	local linearVelocity = Instance.new("LinearVelocity")
 	linearVelocity.Name = "PushForce"
 	linearVelocity.Attachment0 = attachment
@@ -234,17 +243,16 @@ local function applyPushForce(character, direction, force)
 	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
 	linearVelocity.Parent = rootPart
 	
-	debugPrint("Created LinearVelocity with force:", direction * force)
+	debugPrint("Applied LinearVelocity force:", direction * force)
 	
-	-- Remove the force after a short duration to allow natural physics
-	task.delay(0.3, function()
+	-- Remove force after short duration for natural physics
+	task.delay(0.25, function()
 		if linearVelocity and linearVelocity.Parent then
 			linearVelocity:Destroy()
 		end
 		if attachment and attachment.Parent then
 			attachment:Destroy()
 		end
-		debugPrint("Push force removed, natural physics taking over")
 	end)
 end
 
@@ -253,7 +261,7 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	debugPrint("=== PUSH REQUEST ===")
 	debugPrint("From:", pusher.Name, "To:", targetPlayer and targetPlayer.Name or "nil")
 	
-	-- Check server-side cooldown (anti-exploit)
+	-- Check server-side cooldown
 	local currentTime = tick()
 	if PUSH_COOLDOWN_PER_PLAYER[pusher] and currentTime - PUSH_COOLDOWN_PER_PLAYER[pusher] < 1.5 then
 		debugPrint("Player", pusher.Name, "is on cooldown")
@@ -263,27 +271,18 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	
 	-- Validate players and characters
 	local pusherCharacter = pusher.Character
-	if not pusherCharacter then 
-		debugPrint("Pusher has no character")
-		return 
-	end
+	if not pusherCharacter then return end
 	
 	local targetCharacter = targetPlayer and targetPlayer.Character
-	if not targetCharacter then 
-		debugPrint("Target has no character")
-		return 
-	end
+	if not targetCharacter then return end
 	
 	local pusherRoot = pusherCharacter:FindFirstChild("HumanoidRootPart")
 	local targetRoot = targetCharacter:FindFirstChild("HumanoidRootPart")
 	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
 	
-	if not pusherRoot or not targetRoot or not targetHumanoid then 
-		debugPrint("Missing root parts or humanoid")
-		return 
-	end
+	if not pusherRoot or not targetRoot or not targetHumanoid then return end
 	
-	-- Check distance (anti-exploit)
+	-- Check distance
 	local distance = (targetRoot.Position - pusherRoot.Position).Magnitude
 	debugPrint("Distance:", distance)
 	
@@ -293,12 +292,9 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	end
 	
 	-- Check if target is alive
-	if targetHumanoid.Health <= 0 then 
-		debugPrint("Target is dead")
-		return 
-	end
+	if targetHumanoid.Health <= 0 then return end
 	
-	-- Store original health to prevent damage
+	-- Store original health
 	local originalHealth = targetHumanoid.Health
 	
 	debugPrint("Push accepted! Applying...")
@@ -311,34 +307,32 @@ pushRemote.OnServerEvent:Connect(function(pusher, targetPlayer, direction, force
 	local distanceMultiplier = math.clamp(1.1 - (distance / MAX_PUSH_DISTANCE) * 0.3, 0.8, 1.1)
 	local actualForce = math.clamp((force or 65) * distanceMultiplier, 35, 60)
 	
-	debugPrint("Final push direction:", pushDirection)
 	debugPrint("Final push force:", actualForce)
 	
-	-- Apply the push BEFORE ragdolling for maximum effect
+	-- INSTANT APPLICATION - No delays for smooth feel
+	-- Apply force and ragdoll simultaneously
 	applyPushForce(targetCharacter, pushDirection, actualForce)
-	
-	-- Slight delay then ragdoll
-	task.wait(0.1)
-	
-	-- Create ragdoll
 	local removeRagdoll = createRagdoll(targetCharacter)
 	
 	if removeRagdoll then
-		-- Health protection during ragdoll
-		local healthCheck = task.spawn(function()
-			while task.wait(0.1) do
-				if not targetHumanoid or not targetHumanoid.Parent then break end
+		-- Lightweight health protection (no heavy loops)
+		local healthProtected = true
+		task.spawn(function()
+			while healthProtected and targetHumanoid and targetHumanoid.Parent do
 				if targetHumanoid.Health < originalHealth then
 					targetHumanoid.Health = originalHealth
 				end
+				task.wait(0.2) -- Less frequent checks for better performance
 			end
 		end)
 		
 		-- Wait for ragdoll duration
 		task.wait(RAGDOLL_DURATION)
 		
-		-- Clean up
-		task.cancel(healthCheck)
+		-- Stop health protection
+		healthProtected = false
+		
+		-- Recover from ragdoll
 		removeRagdoll()
 		
 		-- Final health restore
@@ -357,6 +351,5 @@ end)
 
 debugPrint("Push server script loaded successfully!")
 print("===========================================")
-print("Push System Ready!")
-print("Using LinearVelocity constraints for reliable pushing")
+print("Push System Ready! Optimized for smooth performance")
 print("===========================================")
