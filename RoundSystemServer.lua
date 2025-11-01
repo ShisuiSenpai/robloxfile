@@ -83,6 +83,17 @@ if ReplicatedStorage:FindFirstChild("Assets") then
 	end
 end
 
+-- Find push tool
+local pushTool = nil
+if ReplicatedStorage:FindFirstChild("Assets") then
+	pushTool = ReplicatedStorage.Assets:FindFirstChild("Push")
+	if pushTool and pushTool:IsA("Tool") then
+		debugPrint("Push tool found!")
+	else
+		warn("[ROUND SYSTEM] Push tool not found in ReplicatedStorage > Assets > Push")
+	end
+end
+
 -- Helper: Get random spawn from folder
 local function getRandomSpawn(spawnFolder)
 	if not spawnFolder then return nil end
@@ -126,6 +137,56 @@ local function removeCrown(player)
 	if not player or not player.Character then return end
 	local crown = player.Character:FindFirstChild("KingCrown")
 	if crown then crown:Destroy() end
+end
+
+-- Push tool management
+local function givePushTool(player)
+	if not pushTool or not player then return end
+	
+	-- Check if player already has the tool
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack and backpack:FindFirstChild("Push") then
+		debugPrint(player.Name, "already has push tool in backpack")
+		return
+	end
+	
+	-- Check if tool is equipped
+	local character = player.Character
+	if character and character:FindFirstChild("Push") then
+		debugPrint(player.Name, "already has push tool equipped")
+		return
+	end
+	
+	-- Give the tool
+	if backpack then
+		local toolClone = pushTool:Clone()
+		toolClone.Parent = backpack
+		debugPrint("Gave push tool to", player.Name)
+	end
+end
+
+local function removePushTool(player)
+	if not player then return end
+	
+	-- Remove from backpack
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack then
+		local tool = backpack:FindFirstChild("Push")
+		if tool then
+			tool:Destroy()
+			debugPrint("Removed push tool from", player.Name, "backpack")
+		end
+	end
+	
+	-- Remove from character (if equipped)
+	local character = player.Character
+	if character then
+		local tool = character:FindFirstChild("Push")
+		if tool then
+			tool:Destroy()
+			debugPrint("Removed push tool from", player.Name, "character")
+		end
+	end
 end
 
 -- Update king display
@@ -184,11 +245,12 @@ local function onPlayerWin(player)
 	gameState = "Intermission"
 	roundStatusEvent:FireAllClients("intermission", INTERMISSION_TIME)
 	
-	-- Send all players to lobby
+	-- Send all players to lobby and remove tools
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr.Character then
 			spawnPlayerAt(plr, lobbySpawns)
 			playersAlive[plr] = false
+			removePushTool(plr) -- Remove push tool when going to lobby
 		end
 	end
 	
@@ -247,6 +309,7 @@ function startNewRound()
 			spawnPlayerAt(player, pyramidSpawns)
 			playersAlive[player] = true
 			freezePlayer(player)
+			givePushTool(player) -- Give push tool when round starts
 		end
 	end
 	
@@ -290,6 +353,9 @@ local function onPlayerDeath(player)
 		updateKingDisplay(nil, 0)
 	end
 	
+	-- Remove push tool
+	removePushTool(player)
+	
 	-- Send them to lobby
 	task.wait(2) -- Wait for death animation
 	if player.Character then
@@ -312,9 +378,11 @@ local function setupPlayer(player)
 		if gameState == "InProgress" and playersAlive[player] then
 			-- Respawn in pyramid if they're alive in round
 			spawnPlayerAt(player, pyramidSpawns)
+			givePushTool(player) -- Give tool back if respawning in round
 		else
 			-- Otherwise spawn in lobby
 			spawnPlayerAt(player, lobbySpawns)
+			removePushTool(player) -- Make sure no tool in lobby
 		end
 	end)
 end
@@ -323,10 +391,11 @@ end
 Players.PlayerAdded:Connect(function(player)
 	setupPlayer(player)
 	
-	-- Spawn in lobby initially
+	-- Spawn in lobby initially (no tool in lobby)
 	player.CharacterAdded:Wait()
 	task.wait(1)
 	spawnPlayerAt(player, lobbySpawns)
+	removePushTool(player) -- Ensure no tool when first joining
 	
 	-- Send current game state to new player
 	if gameState == "WaitingForPlayers" then
