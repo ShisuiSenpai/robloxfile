@@ -425,6 +425,51 @@ local function onPlayerDeath(player)
 	if player and player.Character then
 		spawnPlayerAt(player, cachedLobbySpawns)
 	end
+	
+	-- Check if all players are dead
+	local aliveCount = 0
+	for _, isAlive in pairs(playersAlive) do
+		if isAlive then
+			aliveCount = aliveCount + 1
+		end
+	end
+	
+	if aliveCount == 0 then
+		print("========================================")
+		print("[ROUND] ALL PLAYERS DIED - No winner!")
+		print("[ROUND] Resetting round...")
+		print("========================================")
+		
+		-- Clear the current king if any
+		if currentKing then
+			removeCrown(currentKing)
+			currentKing = nil
+		end
+		kingTimer = 0
+		updateKingDisplay(nil, 0)
+		
+		-- Reset lava
+		if _G.LavaRisingControl then
+			print("[ROUND] Resetting lava due to all players dead")
+			_G.LavaRisingControl.resetLava()
+		end
+		
+		-- Start intermission
+		gameState = "Intermission"
+		roundStatusEvent:FireAllClients("intermission", INTERMISSION_TIME)
+		playSoundEvent:FireAllClients("intermission")
+		
+		task.wait(INTERMISSION_TIME)
+		
+		-- Check if we still have enough players
+		local playerCount = #Players:GetPlayers()
+		if playerCount >= MINIMUM_PLAYERS then
+			startNewRound()
+		else
+			gameState = "WaitingForPlayers"
+			roundStatusEvent:FireAllClients("waitingForPlayers")
+		end
+	end
 end
 
 -- Setup player
