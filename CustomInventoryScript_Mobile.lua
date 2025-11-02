@@ -124,70 +124,35 @@ end
 
 local function updateHudPosition()
 	local viewPortSize = camera.ViewportSize
-	local guiInset = GuiService:GetGuiInset()
-	
-	-- Calculate safe area (accounting for notches, home indicators, mobile controls)
-	local topInset = guiInset.Y
-	local bottomInset = 0
-	
-	-- Mobile adjustments
-	if isMobile then
-		-- Account for Roblox mobile controls at bottom (jump button, etc)
-		bottomInset = 100 -- Extra space for mobile controls
-		
-		-- Scale UI for mobile
-		local scale = math.min(viewPortSize.X / 1920, viewPortSize.Y / 1080)
-		scale = math.clamp(scale, 0.7, 1.2) -- Clamp for mobile
-		
-		-- Apply scaling to hotbar and inventory
-		if not hotBar:FindFirstChild("MobileScale") then
-			local hotbarScale = Instance.new("UIScale")
-			hotbarScale.Name = "MobileScale"
-			hotbarScale.Scale = scale
-			hotbarScale.Parent = hotBar
-		else
-			hotBar.MobileScale.Scale = scale
-		end
-		
-		if not Inventory:FindFirstChild("MobileScale") then
-			local invScale = Instance.new("UIScale")
-			invScale.Name = "MobileScale"
-			invScale.Scale = scale
-			invScale.Parent = Inventory
-		else
-			Inventory.MobileScale.Scale = scale
-		end
-		
-		-- Position hotbar higher on mobile to avoid controls
-		hotBar.Position = UDim2.new(
-			hotBar.Position.X.Scale,
-			hotBar.Position.X.Offset,
-			1,
-			-bottomInset - 10
-		)
-		
-		-- Make open button more accessible on mobile
-		if CustomInventoryGUI.openButton.Visible then
-			CustomInventoryGUI.openButton.Size = UDim2.fromOffset(80, 80) -- Bigger for touch
-		end
-	else
-		-- Desktop positioning (original)
-		hotBar.Position = UDim2.new(
-			hotBar.Position.X.Scale,
-			hotBar.Position.X.Offset,
-			1,
-			-10
-		)
-	end
-	
-	-- Update slot sizes
 	local slotSize = UDim2.fromOffset(hotBar.AbsoluteSize.Y, hotBar.AbsoluteSize.Y)
 	
+	-- Update slot sizes (keep original logic)
 	if Inventory.Frame and Inventory.Frame:FindFirstChild("Grid") then
 		Inventory.Frame.Grid.CellSize = slotSize
 	end
 	if hotBar:FindFirstChild("Grid") then
 		hotBar.Grid.CellSize = slotSize
+	end
+	
+	-- Mobile-specific adjustments (minimal, just positioning)
+	if isMobile then
+		-- Move hotbar up a bit to avoid mobile controls (jump button)
+		local originalY = hotBar.Position.Y
+		hotBar.Position = UDim2.new(
+			hotBar.Position.X.Scale,
+			hotBar.Position.X.Offset,
+			originalY.Scale,
+			originalY.Offset - 80 -- Move up 80px to clear mobile controls
+		)
+		
+		-- Add safe area padding to inventory (avoid notches)
+		local guiInset = GuiService:GetGuiInset()
+		Inventory.Position = UDim2.new(
+			Inventory.Position.X.Scale,
+			Inventory.Position.X.Offset,
+			Inventory.Position.Y.Scale,
+			Inventory.Position.Y.Offset + guiInset.Y + 10 -- Add top padding for notches
+		)
 	end
 
 	manageInventory()
@@ -274,21 +239,9 @@ if not isMobile then
 end
 
 -- Monitor safe area changes (for device rotation on mobile)
-GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(updateHudPosition)
-
--- Extra mobile optimizations
 if isMobile then
-	-- Make inventory frame respect safe areas
-	Inventory.Position = UDim2.new(0.5, 0, 0, 50) -- Add top padding
-	Inventory.AnchorPoint = Vector2.new(0.5, 0)
-	
-	-- Ensure searchbox is accessible on mobile
-	if Inventory:FindFirstChild("SearchBox") then
-		Inventory.SearchBox.TextSize = 18 -- Bigger text for mobile
-		Inventory.SearchBox.Size = UDim2.new(Inventory.SearchBox.Size.X.Scale, Inventory.SearchBox.Size.X.Offset, 0, 50) -- Taller for touch
-	end
-	
-	print("[INVENTORY] Mobile mode enabled - UI optimized for touch")
+	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(updateHudPosition)
+	print("[INVENTORY] Mobile mode enabled - UI positioned to avoid mobile controls")
 else
 	print("[INVENTORY] Desktop mode - using keyboard controls")
 end
