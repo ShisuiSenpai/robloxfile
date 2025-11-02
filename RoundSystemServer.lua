@@ -107,10 +107,41 @@ local function getRandomSpawn(spawnCache)
 end
 
 -- Helper: Spawn player at location
+-- Track which spawns are currently in use (to avoid duplicate spawns)
+local usedSpawns = {}
+
 local function spawnPlayerAt(player, spawnCache)
 	if not player or not player.Character then return end
 	
-	local spawn = getRandomSpawn(spawnCache)
+	-- For pyramid spawns, ensure unique spawn per player
+	local isPyramidSpawn = (spawnCache == cachedPyramidSpawns)
+	local spawn = nil
+	
+	if isPyramidSpawn then
+		-- Find an unused spawn point
+		local availableSpawns = {}
+		for _, spawnPoint in ipairs(spawnCache) do
+			if not usedSpawns[spawnPoint] then
+				table.insert(availableSpawns, spawnPoint)
+			end
+		end
+		
+		-- If all spawns are used, use any spawn (shouldn't happen with 12 spawns and 12 max players)
+		if #availableSpawns == 0 then
+			warn("[ROUND] All pyramid spawns in use, reusing spawn point")
+			spawn = getRandomSpawn(spawnCache)
+		else
+			-- Pick random spawn from available spawns
+			spawn = availableSpawns[math.random(1, #availableSpawns)]
+			-- Mark this spawn as used
+			usedSpawns[spawn] = player
+			debugPrint("Assigned unique spawn to", player.Name, "- Remaining spawns:", #availableSpawns - 1)
+		end
+	else
+		-- For lobby spawns, just use random (doesn't matter if they overlap)
+		spawn = getRandomSpawn(spawnCache)
+	end
+	
 	if not spawn then
 		warn("[ROUND SYSTEM] No spawn found!")
 		return
@@ -359,6 +390,9 @@ function startNewRound()
 	lastTimeRemaining = -1
 	playersAlive = {}
 	
+	-- Clear used spawns for new round
+	usedSpawns = {}
+	
 	-- Ensure lava is reset before starting (double-check)
 	if _G.LavaRisingControl then
 		_G.LavaRisingControl.resetLava()
@@ -420,6 +454,13 @@ local function onPlayerDeath(player)
 	end
 	
 	removePushTool(player)
+	
+	-- Clear this player's spawn usage (they're going to lobby now)
+	for spawn, usedByPlayer in pairs(usedSpawns) do
+		if usedByPlayer == player then
+			usedSpawns[spawn] = nil
+		end
+	end
 	
 	task.wait(2)
 	if player and player.Character then
