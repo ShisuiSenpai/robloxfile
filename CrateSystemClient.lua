@@ -336,9 +336,11 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 		table.insert(items, item)
 	end
 
-	-- Calculate the target position (center the chosen sword at its position)
+	-- Calculate the target position (center the chosen sword at container center: 400px)
+	-- With center anchor, item position is: index * (width + spacing) + (width / 2)
 	local itemWidth = UI_SETTINGS.ItemWidth + UI_SETTINGS.ItemSpacing
-	local targetPosition = -(chosenIndex - 1) * itemWidth + 400 - (UI_SETTINGS.ItemWidth / 2)
+	local chosenItemPos = (chosenIndex - 1) * itemWidth + (UI_SETTINGS.ItemWidth / 2)
+	local targetPosition = 400 - chosenItemPos
 
 	-- Animate the scroll with easing
 	local tweenInfo = TweenInfo.new(
@@ -347,8 +349,8 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 		Enum.EasingDirection.Out
 	)
 
-	-- Start position (slightly to the left)
-	scrollFrame.Position = UDim2.new(0, 400, 0, 0)
+	-- Start position (offset to show first few items, accounting for center anchor)
+	scrollFrame.Position = UDim2.new(0, 400 - (UI_SETTINGS.ItemWidth / 2), 0, 0)
 
 	-- Create and play tween
 	local tween = TweenService:Create(scrollFrame, tweenInfo, {
@@ -367,10 +369,15 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 
 			for _, item in pairs(items) do
 				if item and item.Parent then
-				-- Calculate distance from center (AbsolutePosition is already center due to AnchorPoint)
-				local itemCenterX = item.AbsolutePosition.X
-				local screenCenterX = item.Parent.Parent.AbsolutePosition.X + containerCenter
-				local distance = math.abs(itemCenterX - screenCenterX)
+				-- Calculate distance from center
+				-- Get item's position relative to scrollFrame
+				local itemLocalX = item.Position.X.Offset
+				-- Get scrollFrame's current position
+				local scrollX = scrollFrame.Position.X.Offset
+				-- Item's visual position on screen = scrollFrame offset + item's local position
+				local itemScreenX = scrollX + itemLocalX
+				-- Center is at 400px
+				local distance = math.abs(itemScreenX - containerCenter)
 
 				-- Calculate scale and brightness based on distance (closer = bigger/brighter)
 				local maxDistance = UI_SETTINGS.ItemWidth * 1.5
