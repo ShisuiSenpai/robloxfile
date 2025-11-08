@@ -437,18 +437,11 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 					local topTransparency = 0.4 - ((1 - normalizedDistance) * 0.2) -- 0.4 to 0.2
 					local bottomTransparency = 0.3 - ((1 - normalizedDistance) * 0.2) -- 0.3 to 0.1
 					
-					local transparencyTween = TweenService:Create(
-						gradient,
-						TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-						{
-							Transparency = NumberSequence.new({
-								NumberSequenceKeypoint.new(0, topTransparency),
-								NumberSequenceKeypoint.new(1, bottomTransparency)
-							})
-						}
-					)
-					transparencyTween:Play()
-					table.insert(activeTweens[item], transparencyTween)
+					-- Set transparency directly (can't tween NumberSequence)
+					gradient.Transparency = NumberSequence.new({
+						NumberSequenceKeypoint.new(0, topTransparency),
+						NumberSequenceKeypoint.new(1, bottomTransparency)
+					})
 				end
 
 				-- Apply brightness to viewport lighting smoothly
