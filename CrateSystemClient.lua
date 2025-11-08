@@ -53,10 +53,6 @@ local UI_SETTINGS = {
 	ModelRotation = 20, -- Rotation angle for the model (degrees)
 
 	-- Highlight effect settings (CS:GO style)
-	HighlightScale = 1.15, -- Zoom when centered (1.0 = no zoom, 1.15 = 15% bigger)
-	NeighborShrinkFactor = 0.08, -- How much neighbors shrink (0.08 = 8% smaller at peak)
-	CameraZoomFactor = 0.12, -- How much camera zooms in on highlighted items (0.12 = 12% closer)
-
 	-- Brightness settings (1.0 = normal brightness)
 	CenteredBrightness = 1.1, -- How bright items are when under the indicator (1.0 = normal)
 	DefaultBrightness = 0.5, -- How bright items are by default (0.7 = slightly dimmed)
@@ -214,11 +210,7 @@ local function setupViewportCamera(viewport, model)
 		model.CFrame = modelCFrame * CFrame.Angles(0, math.rad(45), 0)
 	end
 
-	-- Store initial camera data for dynamic zoom effects
-	viewport:SetAttribute("InitialDistance", distance)
-	viewport:SetAttribute("ModelPosX", modelCFrame.Position.X)
-	viewport:SetAttribute("ModelPosY", modelCFrame.Position.Y)
-	viewport:SetAttribute("ModelPosZ", modelCFrame.Position.Z)
+	-- Camera setup complete (no dynamic zoom)
 end
 
 -- Function to create sword item UI element with ViewportFrame
@@ -379,46 +371,21 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 				-- Center is at 400px
 				local distance = math.abs(itemScreenX - containerCenter)
 
-				-- Calculate scale and brightness based on distance (closer = bigger/brighter)
+				-- Calculate brightness based on distance (closer = brighter)
 				local maxDistance = UI_SETTINGS.ItemWidth * 1.5
 				local normalizedDistance = math.clamp(distance / maxDistance, 0, 1)
-
-				-- Create smooth depth effect: neighbors shrink when near a highlight
-				-- Use a bell curve that peaks for neighbors (not center, not far)
-				local neighborCurve = math.sin(normalizedDistance * math.pi) -- Peaks at 0.5, zero at 0 and 1
-				local neighborShrink = neighborCurve * UI_SETTINGS.NeighborShrinkFactor
-
-				-- Interpolate scale with smooth depth effect
-				local highlightBoost = (UI_SETTINGS.HighlightScale - 1) * (1 - normalizedDistance)
-				local targetScale = 1 + highlightBoost - neighborShrink
 
 				-- Interpolate brightness (DefaultBrightness to CenteredBrightness)
 				local targetBrightness = UI_SETTINGS.DefaultBrightness + 
 					(UI_SETTINGS.CenteredBrightness - UI_SETTINGS.DefaultBrightness) * (1 - normalizedDistance)
 
-				-- Get original index for position calculation (add half width for center anchor)
-				local originalIndex = item:GetAttribute("OriginalIndex") or 0
-				local basePositionX = originalIndex * (UI_SETTINGS.ItemWidth + UI_SETTINGS.ItemSpacing) + (UI_SETTINGS.ItemWidth / 2)
-
-					-- Cancel previous tween for this item if it exists
-					if activeTweens[item] then
-						for _, tween in pairs(activeTweens[item]) do
-							tween:Cancel()
-						end
+				-- Cancel previous tween for this item if it exists
+				if activeTweens[item] then
+					for _, tween in pairs(activeTweens[item]) do
+						tween:Cancel()
 					end
-					activeTweens[item] = {}
-
-				-- Create ultra-smooth tween for size (flows like water)
-				local sizeTween = TweenService:Create(
-					item,
-					TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-					{
-						Size = UDim2.new(0, UI_SETTINGS.ItemWidth * targetScale, 1, -20),
-						Position = UDim2.new(0, basePositionX, 0.5, 0)
-					}
-				)
-				sizeTween:Play()
-				table.insert(activeTweens[item], sizeTween)
+				end
+				activeTweens[item] = {}
 
 				-- Create smooth tween for background color
 				local targetColor = Color3.new(
@@ -445,34 +412,6 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 						200 / 255 * targetBrightness,
 						200 / 255 * targetBrightness
 					)
-
-					-- Dynamic camera zoom effect (highlighted items get closer camera)
-					local camera = viewport:FindFirstChildOfClass("Camera")
-					local initialDistance = viewport:GetAttribute("InitialDistance")
-					if camera and initialDistance then
-						local modelPos = Vector3.new(
-							viewport:GetAttribute("ModelPosX") or 0,
-							viewport:GetAttribute("ModelPosY") or 0,
-							viewport:GetAttribute("ModelPosZ") or 0
-						)
-
-						-- Calculate zoom based on highlight (closer when highlighted)
-						local zoomMultiplier = 1 - ((1 - normalizedDistance) * UI_SETTINGS.CameraZoomFactor)
-						local newDistance = initialDistance * zoomMultiplier
-
-						-- Update camera position smoothly
-						local cameraAngle = CFrame.Angles(math.rad(-15), math.rad(UI_SETTINGS.ModelRotation), 0)
-						local targetCFrame = CFrame.new(modelPos) * cameraAngle * CFrame.new(0, 0, newDistance)
-						targetCFrame = CFrame.new(targetCFrame.Position, modelPos)
-
-						local cameraTween = TweenService:Create(
-							camera,
-							TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-							{ CFrame = targetCFrame }
-						)
-						cameraTween:Play()
-						table.insert(activeTweens[item], cameraTween)
-					end
 
 					local lightTween = TweenService:Create(
 						viewport,
