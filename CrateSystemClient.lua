@@ -53,9 +53,9 @@ local UI_SETTINGS = {
 	ModelRotation = 20, -- Rotation angle for the model (degrees)
 
 	-- Highlight effect settings (CS:GO style)
-	HighlightScale = 1.2, -- Zoom when centered (1.0 = no zoom, 1.1 = 10% bigger, 1.2 = 20% bigger)
-	NeighborShrinkFactor = 0.12, -- How much neighbors shrink (0.12 = 12% smaller)
-	CameraZoomFactor = 0.15, -- How much camera zooms in on highlighted items (0.15 = 15% closer)
+	HighlightScale = 1.15, -- Zoom when centered (1.0 = no zoom, 1.15 = 15% bigger)
+	NeighborShrinkFactor = 0.08, -- How much neighbors shrink (0.08 = 8% smaller at peak)
+	CameraZoomFactor = 0.12, -- How much camera zooms in on highlighted items (0.12 = 12% closer)
 
 	-- Brightness settings (1.0 = normal brightness)
 	CenteredBrightness = 1.1, -- How bright items are when under the indicator (1.0 = normal)
@@ -226,9 +226,9 @@ local function createSwordItem(swordName, index)
 	local itemFrame = Instance.new("Frame")
 	itemFrame.Name = "Item_" .. index
 	itemFrame.Size = UDim2.new(0, UI_SETTINGS.ItemWidth, 1, -20)
-	-- Position from center with center anchor point for perfect scaling
-	local basePositionX = index * (UI_SETTINGS.ItemWidth + UI_SETTINGS.ItemSpacing) + (UI_SETTINGS.ItemWidth / 2)
-	itemFrame.Position = UDim2.new(0, basePositionX, 0.5, 0)
+	-- Center anchor requires offsetting position by half width
+	local posX = index * (UI_SETTINGS.ItemWidth + UI_SETTINGS.ItemSpacing) + (UI_SETTINGS.ItemWidth / 2)
+	itemFrame.Position = UDim2.new(0, posX, 0.5, 0)
 	itemFrame.BackgroundColor3 = UI_SETTINGS.ItemBackgroundColor
 	itemFrame.BackgroundTransparency = UI_SETTINGS.ItemBackgroundTransparency
 	itemFrame.BorderSizePixel = 0
@@ -367,7 +367,7 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 
 			for _, item in pairs(items) do
 				if item and item.Parent then
-				-- Calculate distance from center (item already positioned at center due to AnchorPoint)
+				-- Calculate distance from center (AbsolutePosition is already center due to AnchorPoint)
 				local itemCenterX = item.AbsolutePosition.X
 				local screenCenterX = item.Parent.Parent.AbsolutePosition.X + containerCenter
 				local distance = math.abs(itemCenterX - screenCenterX)
@@ -376,21 +376,20 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 				local maxDistance = UI_SETTINGS.ItemWidth * 1.5
 				local normalizedDistance = math.clamp(distance / maxDistance, 0, 1)
 
-				-- Create smooth depth effect: neighbors shrink more noticeably
-				-- Use a smooth exponential curve for natural water-like flow
-				local depthCurve = (1 - normalizedDistance) ^ 3 -- Cubic curve for smooth falloff
-				local depthShrink = depthCurve * UI_SETTINGS.NeighborShrinkFactor
-				local depthFactor = 1 - (normalizedDistance * depthShrink)
+				-- Create smooth depth effect: neighbors shrink when near a highlight
+				-- Use a bell curve that peaks for neighbors (not center, not far)
+				local neighborCurve = math.sin(normalizedDistance * math.pi) -- Peaks at 0.5, zero at 0 and 1
+				local neighborShrink = neighborCurve * UI_SETTINGS.NeighborShrinkFactor
 
 				-- Interpolate scale with smooth depth effect
 				local highlightBoost = (UI_SETTINGS.HighlightScale - 1) * (1 - normalizedDistance)
-				local targetScale = (1 + highlightBoost) * depthFactor
+				local targetScale = 1 + highlightBoost - neighborShrink
 
 				-- Interpolate brightness (DefaultBrightness to CenteredBrightness)
 				local targetBrightness = UI_SETTINGS.DefaultBrightness + 
 					(UI_SETTINGS.CenteredBrightness - UI_SETTINGS.DefaultBrightness) * (1 - normalizedDistance)
 
-				-- Get original index for position calculation (center-based positioning)
+				-- Get original index for position calculation (add half width for center anchor)
 				local originalIndex = item:GetAttribute("OriginalIndex") or 0
 				local basePositionX = originalIndex * (UI_SETTINGS.ItemWidth + UI_SETTINGS.ItemSpacing) + (UI_SETTINGS.ItemWidth / 2)
 
