@@ -24,13 +24,13 @@ local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local toolSwordsFolder = ReplicatedStorage:WaitForChild("ToolSwords")
 local holsteredModelsFolder = ReplicatedStorage:WaitForChild("HolsteredModels")
 
--- Load assets folder for VFX and Sounds
+-- Load assets folder for VFX
 local assetsFolder = ReplicatedStorage:WaitForChild("Assets")
 local explosionVFXFolder = assetsFolder:WaitForChild("ExplosionVFX")
-local soundsFolder = assetsFolder:WaitForChild("Sounds")
 
--- Load sword config
+-- Load config modules
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
+local SoundConfig = require(modulesFolder:WaitForChild("SoundConfig"))
 
 -- ========================================
 -- UI SETTINGS
@@ -157,6 +157,24 @@ local function playRarityVFX(rarity)
 		end
 	end
 	
+	-- Play explosion sound for this rarity
+	local explosionSoundConfig = SoundConfig.ExplosionSounds[rarity]
+	if explosionSoundConfig then
+		local explosionSound = SoundConfig.CreateSound(explosionSoundConfig, torso)
+		if explosionSound then
+			explosionSound:Play()
+			
+			-- Cleanup sound after it finishes
+			task.delay(explosionSound.TimeLength + 0.5, function()
+				if explosionSound then
+					explosionSound:Destroy()
+				end
+			end)
+		end
+	else
+		warn("Explosion sound not configured for rarity: " .. rarity)
+	end
+	
 	-- Cleanup after VFX finishes (wait for longest particle lifetime)
 	task.delay(3, function()
 		if vfxClone then
@@ -164,7 +182,7 @@ local function playRarityVFX(rarity)
 		end
 	end)
 	
-	print("Playing VFX for rarity: " .. rarity)
+	print("Playing VFX and sound for rarity: " .. rarity)
 end
 
 -- ========================================
@@ -447,17 +465,13 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 	-- SPINNING CLICK SOUND SYSTEM
 	-- ========================================
 	
-	-- Load click sound
-	local clickSound = soundsFolder:FindFirstChild("SpinClick")
-	if clickSound and clickSound:IsA("Sound") then
-		-- Clone sound to player's character for 3D spatial audio (optional)
-		local character = player.Character
-		local soundEmitter = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
-		
-		if soundEmitter then
-			clickSound = clickSound:Clone()
-			clickSound.Parent = soundEmitter
-		end
+	-- Create click sound from SoundConfig
+	local character = player.Character
+	local soundEmitter = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
+	
+	local clickSound = nil
+	if soundEmitter then
+		clickSound = SoundConfig.CreateSound(SoundConfig.CrateSounds.SpinClick, soundEmitter)
 	end
 	
 	-- Track which items have already triggered a click (to avoid double-clicks)
@@ -635,6 +649,22 @@ local function openCrate(chosenSword, allSwords)
 
 	-- Disable player movement
 	setPlayerMovement(false)
+	
+	-- Play crate open sound
+	local character = player.Character
+	local soundEmitter = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
+	if soundEmitter then
+		local crateOpenSound = SoundConfig.CreateSound(SoundConfig.CrateSounds.CrateOpen, soundEmitter)
+		if crateOpenSound then
+			crateOpenSound:Play()
+			-- Cleanup after sound finishes
+			task.delay(crateOpenSound.TimeLength + 0.5, function()
+				if crateOpenSound then
+					crateOpenSound:Destroy()
+				end
+			end)
+		end
+	end
 
 	-- Create UI
 	local gui, scrollFrame = createCrateUI(chosenSword, allSwords)
