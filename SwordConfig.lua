@@ -13,12 +13,58 @@
 local SwordConfig = {}
 
 -- ========================================
+-- RARITY SYSTEM
+-- ========================================
+
+SwordConfig.Rarities = {
+	["Common"] = {
+		Color = Color3.fromRGB(150, 150, 150), -- Gray
+		Chance = 55,
+		DisplayName = "Common",
+		SortOrder = 1,
+	},
+	["Uncommon"] = {
+		Color = Color3.fromRGB(80, 200, 80), -- Green
+		Chance = 25,
+		DisplayName = "Uncommon",
+		SortOrder = 2,
+	},
+	["Rare"] = {
+		Color = Color3.fromRGB(80, 140, 255), -- Blue
+		Chance = 12,
+		DisplayName = "Rare",
+		SortOrder = 3,
+	},
+	["Legendary"] = {
+		Color = Color3.fromRGB(255, 70, 70), -- Red
+		Chance = 7,
+		DisplayName = "Legendary",
+		SortOrder = 4,
+	},
+	["Godly"] = {
+		Color = Color3.fromRGB(255, 220, 60), -- Yellow/Gold
+		Chance = 1,
+		DisplayName = "Godly",
+		SortOrder = 5,
+	},
+	["???"] = {
+		Color = Color3.fromRGB(180, 100, 255), -- Purple
+		Chance = 0.1,
+		DisplayName = "???",
+		SortOrder = 6,
+	},
+}
+
+-- ========================================
 -- SWORD DEFINITIONS
 -- ========================================
 
 SwordConfig.Swords = {
 	-- SWORD 1: Normal Sword
 	["NormalSword"] = {
+		-- Rarity
+		Rarity = "Common",
+		
 		-- Model names in ReplicatedStorage
 		HolsteredModelName = "HolsteredSwordNormal",
 		SwordPartName = "NormalSword", -- The part inside the holstered model
@@ -47,6 +93,9 @@ SwordConfig.Swords = {
 
 	-- SWORD 2: Ice Sword
 	["IceSword"] = {
+		-- Rarity
+		Rarity = "Rare",
+		
 		HolsteredModelName = "HolsteredSwordIce",
 		SwordPartName = "IceSword", -- The part inside the holstered model
 		ToolName = "IceSword",
@@ -71,6 +120,9 @@ SwordConfig.Swords = {
 
 	-- SWORD 3: Purple Sword
 	["PurpleSword"] = {
+		-- Rarity
+		Rarity = "Legendary",
+		
 		HolsteredModelName = "HolsteredSwordPurple",
 		SwordPartName = "PurpleSword",
 		ToolName = "PurpleSword",
@@ -95,6 +147,9 @@ SwordConfig.Swords = {
 
 	-- SWORD 4: Steel Sword
 	["SteelSword"] = {
+		-- Rarity
+		Rarity = "Uncommon",
+		
 		HolsteredModelName = "HolsteredSwordSteel",
 		SwordPartName = "SteelSword",
 		ToolName = "SteelSword",
@@ -118,6 +173,9 @@ SwordConfig.Swords = {
 	},
 	
 	["Tomahawk"] = {
+		-- Rarity
+		Rarity = "Godly",
+		
 		HolsteredModelName = "HolsteredTomahawk",
 		SwordPartName = "Tomahawk",
 		ToolName = "Tomahawk",

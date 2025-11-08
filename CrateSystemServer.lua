@@ -49,10 +49,40 @@ end
 -- CRATE OPENING LOGIC
 -- ========================================
 
--- Function to choose a random sword
+-- Function to choose a random sword based on rarity weights
 local function chooseRandomSword()
-	local randomIndex = math.random(1, #availableSwords)
-	return availableSwords[randomIndex]
+	-- Build a weighted pool based on rarities
+	local weightedPool = {}
+	local totalWeight = 0
+	
+	for swordName, swordConfig in pairs(SwordConfig.Swords) do
+		local rarity = swordConfig.Rarity or "Common"
+		local rarityData = SwordConfig.Rarities[rarity]
+		
+		if rarityData then
+			local weight = rarityData.Chance
+			totalWeight = totalWeight + weight
+			
+			table.insert(weightedPool, {
+				name = swordName,
+				weight = weight,
+				cumulativeWeight = totalWeight
+			})
+		end
+	end
+	
+	-- Pick a random value between 0 and totalWeight
+	local roll = math.random() * totalWeight
+	
+	-- Find which sword the roll landed on
+	for _, entry in ipairs(weightedPool) do
+		if roll <= entry.cumulativeWeight then
+			return entry.name
+		end
+	end
+	
+	-- Fallback (should never happen)
+	return availableSwords[1]
 end
 
 -- Function to switch player's sword (integrates with MultiSwordSystem)

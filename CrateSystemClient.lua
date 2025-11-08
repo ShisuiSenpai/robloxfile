@@ -24,6 +24,9 @@ local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local toolSwordsFolder = ReplicatedStorage:WaitForChild("ToolSwords")
 local holsteredModelsFolder = ReplicatedStorage:WaitForChild("HolsteredModels")
 
+-- Load sword config
+local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
+
 -- ========================================
 -- UI SETTINGS
 -- ========================================
@@ -229,10 +232,35 @@ local function createSwordItem(swordName, index)
 	-- Store original index for positioning
 	itemFrame:SetAttribute("OriginalIndex", index)
 
+	-- Get rarity info
+	local swordConfig = SwordConfig.Swords[swordName]
+	local rarity = swordConfig and swordConfig.Rarity or "Common"
+	local rarityData = SwordConfig.Rarities[rarity]
+	local rarityColor = rarityData and rarityData.Color or Color3.fromRGB(150, 150, 150)
+	
+	-- Store rarity for later reference
+	itemFrame:SetAttribute("Rarity", rarity)
+	itemFrame:SetAttribute("RarityColorR", rarityColor.R)
+	itemFrame:SetAttribute("RarityColorG", rarityColor.G)
+	itemFrame:SetAttribute("RarityColorB", rarityColor.B)
+	
 	-- Corner radius
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = itemFrame
+	
+	-- Add gradient for smooth rarity color effect (top to bottom, darker to lighter)
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, rarityColor), -- Top: full rarity color
+		ColorSequenceKeypoint.new(1, Color3.new(rarityColor.R * 0.4, rarityColor.G * 0.4, rarityColor.B * 0.4)) -- Bottom: darker
+	})
+	gradient.Rotation = 90 -- Vertical gradient
+	gradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.7), -- Top: more transparent
+		NumberSequenceKeypoint.new(1, 0.5)  -- Bottom: less transparent
+	})
+	gradient.Parent = itemFrame
 
 	-- ViewportFrame for 3D model
 	local viewport = Instance.new("ViewportFrame")
@@ -270,19 +298,34 @@ local function createSwordItem(swordName, index)
 		warn("VF Model not found: " .. modelName)
 	end
 
-	-- Sword name text (below the viewport)
+	-- Background frame for name (semi-transparent black for readability)
+	local nameBackground = Instance.new("Frame")
+	nameBackground.Name = "NameBackground"
+	nameBackground.Size = UDim2.new(1, 0, 0, 35)
+	nameBackground.Position = UDim2.new(0, 0, 1, -35)
+	nameBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	nameBackground.BackgroundTransparency = 0.4
+	nameBackground.BorderSizePixel = 0
+	nameBackground.Parent = itemFrame
+	
+	-- Corner radius for name background (only bottom corners)
+	local nameCorner = Instance.new("UICorner")
+	nameCorner.CornerRadius = UDim.new(0, 8)
+	nameCorner.Parent = nameBackground
+	
+	-- Sword name text (on top of background)
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "NameLabel"
-	nameLabel.Size = UDim2.new(1, -20, 0, 30)
-	nameLabel.Position = UDim2.new(0, 10, 1, -40)
+	nameLabel.Size = UDim2.new(1, -10, 1, 0)
+	nameLabel.Position = UDim2.new(0, 5, 0, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = formatSwordName(swordName)
-	nameLabel.TextColor3 = UI_SETTINGS.TextColor
-	nameLabel.TextSize = 18
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- Pure white for contrast
+	nameLabel.TextSize = 16
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextWrapped = true
-	nameLabel.TextYAlignment = Enum.TextYAlignment.Bottom
-	nameLabel.Parent = itemFrame
+	nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+	nameLabel.Parent = nameBackground
 
 	return itemFrame
 end
@@ -387,22 +430,26 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 				end
 				activeTweens[item] = {}
 
-				-- Create smooth tween for background color
-				local targetColor = Color3.new(
-					UI_SETTINGS.ItemBackgroundColor.R * targetBrightness,
-					UI_SETTINGS.ItemBackgroundColor.G * targetBrightness,
-					UI_SETTINGS.ItemBackgroundColor.B * targetBrightness
-				)
-
-				local colorTween = TweenService:Create(
-					item,
-					TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-					{
-						BackgroundColor3 = targetColor
-					}
-				)
-				colorTween:Play()
-				table.insert(activeTweens[item], colorTween)
+				-- Update gradient transparency based on highlight
+				local gradient = item:FindFirstChildOfClass("UIGradient")
+				if gradient then
+					-- Calculate target transparency (more opaque when highlighted)
+					local topTransparency = 0.7 - ((1 - normalizedDistance) * 0.3) -- 0.7 to 0.4
+					local bottomTransparency = 0.5 - ((1 - normalizedDistance) * 0.3) -- 0.5 to 0.2
+					
+					local transparencyTween = TweenService:Create(
+						gradient,
+						TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{
+							Transparency = NumberSequence.new({
+								NumberSequenceKeypoint.new(0, topTransparency),
+								NumberSequenceKeypoint.new(1, bottomTransparency)
+							})
+						}
+					)
+					transparencyTween:Play()
+					table.insert(activeTweens[item], transparencyTween)
+				end
 
 				-- Apply brightness to viewport lighting smoothly
 				local viewport = item:FindFirstChild("Viewport")
@@ -470,9 +517,14 @@ local function openCrate(chosenSword, allSwords)
 	-- Animate
 	local wonSword = animateCrateOpening(scrollFrame, chosenSword, allSwords)
 
-	-- Update title to show result
-	titleLabel.Text = "YOU GOT: " .. formatSwordName(wonSword):upper()
-	titleLabel.TextColor3 = UI_SETTINGS.AccentColor
+	-- Update title to show result with rarity
+	local wonSwordConfig = SwordConfig.Swords[wonSword]
+	local wonRarity = wonSwordConfig and wonSwordConfig.Rarity or "Common"
+	local wonRarityData = SwordConfig.Rarities[wonRarity]
+	local wonRarityColor = wonRarityData and wonRarityData.Color or Color3.fromRGB(150, 150, 150)
+	
+	titleLabel.Text = "YOU GOT: " .. formatSwordName(wonSword):upper() .. " (" .. wonRarity:upper() .. ")"
+	titleLabel.TextColor3 = wonRarityColor
 
 	-- Wait a moment
 	task.wait(2)
