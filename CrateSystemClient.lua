@@ -160,19 +160,7 @@ local function createCrateUI(chosenSword, allSwords)
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.Parent = container
 
-	-- Title text
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "Title"
-	titleLabel.Size = UDim2.new(0, 400, 0, 50)
-	titleLabel.Position = UDim2.new(0.5, -200, 0.5, -250)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "OPENING CRATE"
-	titleLabel.TextColor3 = UI_SETTINGS.TextColor
-	titleLabel.TextSize = 32
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.Parent = overlay
-
-	return screenGui, scrollFrame, titleLabel
+	return screenGui, scrollFrame
 end
 
 -- Function to setup ViewportFrame camera
@@ -504,23 +492,14 @@ local function openCrate(chosenSword, allSwords)
 	setPlayerMovement(false)
 
 	-- Create UI
-	local gui, scrollFrame, titleLabel = createCrateUI(chosenSword, allSwords)
+	local gui, scrollFrame = createCrateUI(chosenSword, allSwords)
 	currentGui = gui
 
 	-- Animate
 	local wonSword = animateCrateOpening(scrollFrame, chosenSword, allSwords)
 
-	-- Update title to show result with rarity
-	local wonSwordConfig = SwordConfig.Swords[wonSword]
-	local wonRarity = wonSwordConfig and wonSwordConfig.Rarity or "Common"
-	local wonRarityData = SwordConfig.Rarities[wonRarity]
-	local wonRarityColor = wonRarityData and wonRarityData.Color or Color3.fromRGB(150, 150, 150)
-	
-	titleLabel.Text = "YOU GOT: " .. formatSwordName(wonSword):upper() .. " (" .. wonRarity:upper() .. ")"
-	titleLabel.TextColor3 = wonRarityColor
-
-	-- Wait a moment
-	task.wait(2)
+	-- Wait a moment to show result
+	task.wait(1)
 
 	-- Cleanup UI
 	if currentGui then
