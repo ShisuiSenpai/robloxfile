@@ -478,6 +478,9 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 	-- Track which items have already triggered a click (to avoid double-clicks)
 	local clickedItems = {}
 	
+	-- Track start time for pitch calculation
+	local startTime = tick()
+	
 	-- Start click sound system
 	local isSoundPlaying = true
 	task.spawn(function()
@@ -531,9 +534,6 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 			task.wait(0.01) -- Check very frequently for smooth sound timing
 		end
 	end)
-	
-	-- Track start time for pitch calculation
-	local startTime = tick()
 
 	-- Start highlight effect loop with smooth transitions
 	local isAnimating = true
