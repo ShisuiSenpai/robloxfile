@@ -164,8 +164,9 @@ local function playRarityVFX(rarity)
 		if explosionSound then
 			explosionSound:Play()
 			
-			-- Cleanup sound after it finishes
-			task.delay(explosionSound.TimeLength + 0.5, function()
+			-- Auto-cleanup when sound naturally finishes
+			explosionSound.Ended:Connect(function()
+				task.wait(0.1)
 				if explosionSound then
 					explosionSound:Destroy()
 				end
@@ -650,15 +651,17 @@ local function openCrate(chosenSword, allSwords)
 	-- Disable player movement
 	setPlayerMovement(false)
 	
-	-- Play crate open sound
+	-- Play crate open sound (plays independently, no interruption)
 	local character = player.Character
 	local soundEmitter = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
 	if soundEmitter then
 		local crateOpenSound = SoundConfig.CreateSound(SoundConfig.CrateSounds.CrateOpen, soundEmitter)
 		if crateOpenSound then
 			crateOpenSound:Play()
-			-- Cleanup after sound finishes
-			task.delay(crateOpenSound.TimeLength + 0.5, function()
+			
+			-- Auto-cleanup when sound naturally finishes
+			crateOpenSound.Ended:Connect(function()
+				task.wait(0.1)
 				if crateOpenSound then
 					crateOpenSound:Destroy()
 				end
