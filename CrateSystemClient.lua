@@ -364,6 +364,20 @@ local function createSwordItem(swordName, index)
 		warningLabel.Parent = viewport
 		warn("VF Model not found: " .. modelName)
 	end
+	
+	-- Percentage label in top-right corner (shows rarity drop chance)
+	local percentLabel = Instance.new("TextLabel")
+	percentLabel.Name = "PercentLabel"
+	percentLabel.Size = UDim2.new(0, 40, 0, 20)
+	percentLabel.Position = UDim2.new(1, -45, 0, 5) -- Top-right corner with 5px padding
+	percentLabel.BackgroundTransparency = 1
+	percentLabel.Text = rarityData.Chance .. "%"
+	percentLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	percentLabel.TextSize = 12
+	percentLabel.Font = Enum.Font.GothamBold
+	percentLabel.TextStrokeTransparency = 0.5 -- Subtle outline for readability
+	percentLabel.TextXAlignment = Enum.TextXAlignment.Right
+	percentLabel.Parent = itemFrame
 
 	-- Background frame for name (semi-transparent black for readability)
 	local nameBackground = Instance.new("Frame")
