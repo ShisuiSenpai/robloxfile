@@ -24,9 +24,10 @@ local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local toolSwordsFolder = ReplicatedStorage:WaitForChild("ToolSwords")
 local holsteredModelsFolder = ReplicatedStorage:WaitForChild("HolsteredModels")
 
--- Load assets folder for VFX
+-- Load assets folder for VFX and Sounds
 local assetsFolder = ReplicatedStorage:WaitForChild("Assets")
 local explosionVFXFolder = assetsFolder:WaitForChild("ExplosionVFX")
+local soundsFolder = assetsFolder:WaitForChild("Sounds")
 
 -- Load sword config
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
@@ -441,6 +442,83 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 
 	-- Store active tweens for each item
 	local activeTweens = {}
+	
+	-- ========================================
+	-- SPINNING CLICK SOUND SYSTEM
+	-- ========================================
+	
+	-- Load click sound
+	local clickSound = soundsFolder:FindFirstChild("SpinClick")
+	if clickSound and clickSound:IsA("Sound") then
+		-- Clone sound to player's character for 3D spatial audio (optional)
+		local character = player.Character
+		local soundEmitter = character and (character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart)
+		
+		if soundEmitter then
+			clickSound = clickSound:Clone()
+			clickSound.Parent = soundEmitter
+		end
+	end
+	
+	-- Track which items have already triggered a click (to avoid double-clicks)
+	local clickedItems = {}
+	
+	-- Start click sound system
+	local isSoundPlaying = true
+	task.spawn(function()
+		local containerCenter = 400
+		local lastClosestItem = nil
+		
+		while isSoundPlaying do
+			-- Find the item closest to center
+			local closestItem = nil
+			local closestDistance = math.huge
+			
+			for _, item in pairs(items) do
+				if item and item.Parent then
+					-- Calculate distance from center
+					local itemLocalX = item.Position.X.Offset
+					local scrollX = scrollFrame.Position.X.Offset
+					local itemScreenX = scrollX + itemLocalX
+					local distance = math.abs(itemScreenX - containerCenter)
+					
+					if distance < closestDistance then
+						closestDistance = distance
+						closestItem = item
+					end
+				end
+			end
+			
+			-- If we switched to a new closest item, play click sound
+			if closestItem and closestItem ~= lastClosestItem then
+				if not clickedItems[closestItem] then
+					-- Play click sound
+					if clickSound then
+						-- Calculate pitch based on animation progress (starts fast, slows down)
+						local elapsedTime = tick() - (startTime or tick())
+						local progress = math.clamp(elapsedTime / UI_SETTINGS.SpinDuration, 0, 1)
+						
+						-- Pitch variation: starts at 1.1, goes down to 0.9 (natural slowdown feel)
+						local pitchMultiplier = 1.1 - (progress * 0.2)
+						
+						-- Play sound
+						clickSound.PlaybackSpeed = pitchMultiplier
+						clickSound:Play()
+					end
+					
+					-- Mark as clicked
+					clickedItems[closestItem] = true
+				end
+				
+				lastClosestItem = closestItem
+			end
+			
+			task.wait(0.01) -- Check very frequently for smooth sound timing
+		end
+	end)
+	
+	-- Track start time for pitch calculation
+	local startTime = tick()
 
 	-- Start highlight effect loop with smooth transitions
 	local isAnimating = true
@@ -529,8 +607,16 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 	-- Wait for animation to complete
 	tween.Completed:Wait()
 
-	-- Stop highlight effect
+	-- Stop highlight effect and sound system
 	isAnimating = false
+	isSoundPlaying = false
+	
+	-- Cleanup sound
+	if clickSound and clickSound.Parent then
+		task.delay(0.5, function()
+			clickSound:Destroy()
+		end)
+	end
 
 	-- Wait a bit more to show result
 	task.wait(1)
