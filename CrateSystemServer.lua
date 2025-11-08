@@ -104,8 +104,20 @@ end
 -- EVENT HANDLERS
 -- ========================================
 
+-- Track players currently opening crates (prevent spam)
+local playersOpening = {}
+
 -- When player interacts with chest
 proximityPrompt.Triggered:Connect(function(player)
+	-- Check if player is already opening a crate
+	if playersOpening[player.UserId] then
+		warn(player.Name .. " tried to open crate while already opening one")
+		return
+	end
+	
+	-- Mark player as opening
+	playersOpening[player.UserId] = true
+	
 	-- Choose a random sword
 	local chosenSword = chooseRandomSword()
 
@@ -113,6 +125,11 @@ proximityPrompt.Triggered:Connect(function(player)
 	openCrateEvent:FireClient(player, chosenSword, availableSwords)
 
 	print(player.Name .. " is opening a crate! Chosen sword: " .. chosenSword)
+	
+	-- Clear opening flag after animation completes (6 seconds = safe estimate)
+	task.delay(6, function()
+		playersOpening[player.UserId] = nil
+	end)
 end)
 
 -- Listen for when client wants to switch to the sword they won
@@ -127,6 +144,11 @@ switchSwordEvent.OnServerEvent:Connect(function(player, swordName)
 	switchSwordEvent:FireClient(player, swordName)
 
 	print("Switched " .. player.Name .. " to " .. swordName)
+end)
+
+-- Cleanup when player leaves
+Players.PlayerRemoving:Connect(function(player)
+	playersOpening[player.UserId] = nil
 end)
 
 print("Crate System Server loaded!")

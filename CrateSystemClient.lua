@@ -645,7 +645,11 @@ end
 
 -- Function to open the crate
 local function openCrate(chosenSword, allSwords)
-	if isOpening then return end
+	-- Prevent opening multiple crates at once
+	if isOpening then 
+		warn("Cannot open crate - already opening one!")
+		return 
+	end
 	isOpening = true
 
 	-- Disable player movement
@@ -698,6 +702,7 @@ local function openCrate(chosenSword, allSwords)
 	-- Fire event to switch sword (will be caught by MultiSwordSystem)
 	switchSwordEvent:FireServer(wonSword)
 
+	-- Allow opening crates again
 	isOpening = false
 end
 
