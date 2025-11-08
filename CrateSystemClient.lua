@@ -24,6 +24,10 @@ local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local toolSwordsFolder = ReplicatedStorage:WaitForChild("ToolSwords")
 local holsteredModelsFolder = ReplicatedStorage:WaitForChild("HolsteredModels")
 
+-- Load assets folder for VFX
+local assetsFolder = ReplicatedStorage:WaitForChild("Assets")
+local explosionVFXFolder = assetsFolder:WaitForChild("ExplosionVFX")
+
 -- Load sword config
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
 
@@ -105,6 +109,61 @@ local function formatSwordName(swordName)
 	local formatted = swordName:gsub("Sword$", "")
 	formatted = formatted:gsub("(%u)", " %1"):gsub("^%s+", "")
 	return formatted
+end
+
+-- Function to play VFX effect on player's torso based on rarity
+local function playRarityVFX(rarity)
+	-- Get player's character and torso
+	local character = player.Character
+	if not character then 
+		warn("Character not found for VFX")
+		return 
+	end
+	
+	-- Find torso (works for both R6 and R15)
+	local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+	if not torso then
+		warn("Torso not found for VFX")
+		return
+	end
+	
+	-- Find the VFX template for this rarity
+	local vfxTemplate = explosionVFXFolder:FindFirstChild(rarity)
+	if not vfxTemplate then
+		warn("VFX not found for rarity: " .. rarity)
+		return
+	end
+	
+	-- Clone the VFX attachment
+	local vfxClone = vfxTemplate:Clone()
+	vfxClone.Parent = torso
+	
+	-- Play all particle emitters and beams in the attachment
+	for _, effect in pairs(vfxClone:GetDescendants()) do
+		if effect:IsA("ParticleEmitter") then
+			effect:Emit(effect:GetAttribute("EmitCount") or 20)
+		elseif effect:IsA("Beam") then
+			effect.Enabled = true
+		end
+	end
+	
+	-- Also enable any direct particle emitters in the attachment itself
+	for _, effect in pairs(vfxClone:GetChildren()) do
+		if effect:IsA("ParticleEmitter") then
+			effect:Emit(effect:GetAttribute("EmitCount") or 20)
+		elseif effect:IsA("Beam") then
+			effect.Enabled = true
+		end
+	end
+	
+	-- Cleanup after VFX finishes (wait for longest particle lifetime)
+	task.delay(3, function()
+		if vfxClone then
+			vfxClone:Destroy()
+		end
+	end)
+	
+	print("Playing VFX for rarity: " .. rarity)
 end
 
 -- ========================================
@@ -497,6 +556,13 @@ local function openCrate(chosenSword, allSwords)
 
 	-- Animate
 	local wonSword = animateCrateOpening(scrollFrame, chosenSword, allSwords)
+
+	-- Get the rarity of the won sword
+	local wonSwordConfig = SwordConfig.Swords[wonSword]
+	local wonRarity = wonSwordConfig and wonSwordConfig.Rarity or "Common"
+	
+	-- Play VFX effect on player's torso
+	playRarityVFX(wonRarity)
 
 	-- Wait a moment to show result
 	task.wait(1)
