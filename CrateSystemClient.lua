@@ -135,6 +135,25 @@ local function playRarityVFX(rarity)
 		return
 	end
 	
+	-- Play explosion sound IMMEDIATELY (synced with VFX start)
+	local explosionSoundConfig = SoundConfig.ExplosionSounds[rarity]
+	if explosionSoundConfig then
+		local explosionSound = SoundConfig.CreateSound(explosionSoundConfig, torso)
+		if explosionSound then
+			explosionSound:Play()
+			
+			-- Auto-cleanup when sound naturally finishes
+			explosionSound.Ended:Connect(function()
+				task.wait(0.1)
+				if explosionSound then
+					explosionSound:Destroy()
+				end
+			end)
+		end
+	else
+		warn("Explosion sound not configured for rarity: " .. rarity)
+	end
+	
 	-- Clone the VFX attachment
 	local vfxClone = vfxTemplate:Clone()
 	vfxClone.Parent = torso
@@ -155,25 +174,6 @@ local function playRarityVFX(rarity)
 		elseif effect:IsA("Beam") then
 			effect.Enabled = true
 		end
-	end
-	
-	-- Play explosion sound for this rarity
-	local explosionSoundConfig = SoundConfig.ExplosionSounds[rarity]
-	if explosionSoundConfig then
-		local explosionSound = SoundConfig.CreateSound(explosionSoundConfig, torso)
-		if explosionSound then
-			explosionSound:Play()
-			
-			-- Auto-cleanup when sound naturally finishes
-			explosionSound.Ended:Connect(function()
-				task.wait(0.1)
-				if explosionSound then
-					explosionSound:Destroy()
-				end
-			end)
-		end
-	else
-		warn("Explosion sound not configured for rarity: " .. rarity)
 	end
 	
 	-- Cleanup after VFX finishes (wait for longest particle lifetime)
@@ -633,8 +633,8 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 		end)
 	end
 
-	-- Wait a bit more to show result
-	task.wait(1)
+	-- Brief pause to see final result
+	task.wait(0.3)
 
 	return chosenSword
 end
@@ -683,8 +683,8 @@ local function openCrate(chosenSword, allSwords)
 	-- Play VFX effect on player's torso
 	playRarityVFX(wonRarity)
 
-	-- Wait a moment to show result
-	task.wait(1)
+	-- Brief wait for VFX/sound to start, then close UI
+	task.wait(0.5)
 
 	-- Cleanup UI
 	if currentGui then

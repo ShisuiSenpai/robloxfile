@@ -35,37 +35,37 @@ SoundConfig.CrateSounds = {
 SoundConfig.ExplosionSounds = {
 	["Common"] = {
 		SoundId = "rbxassetid://0", -- REPLACE WITH YOUR SOUND ID
-		Volume = 0.4,
+		Volume = 0.6, -- LOUDER (was 0.4)
 		Pitch = 1.0,
 	},
 	
 	["Uncommon"] = {
 		SoundId = "rbxassetid://0", -- REPLACE WITH YOUR SOUND ID
-		Volume = 0.5,
+		Volume = 0.7, -- LOUDER (was 0.5)
 		Pitch = 1.0,
 	},
 	
 	["Rare"] = {
 		SoundId = "rbxassetid://0", -- REPLACE WITH YOUR SOUND ID
-		Volume = 0.6,
+		Volume = 0.8, -- LOUDER (was 0.6)
 		Pitch = 1.0,
 	},
 	
 	["Legendary"] = {
 		SoundId = "rbxassetid://0", -- REPLACE WITH YOUR SOUND ID
-		Volume = 0.7,
+		Volume = 0.9, -- LOUDER (was 0.7)
 		Pitch = 1.0,
 	},
 	
 	["Godly"] = {
 		SoundId = "rbxassetid://0", -- REPLACE WITH YOUR SOUND ID
-		Volume = 0.8,
+		Volume = 1.0, -- LOUDER (was 0.8, now MAX)
 		Pitch = 1.0,
 	},
 	
 	["???"] = {
 		SoundId = "rbxassetid://0", -- REPLACE WITH YOUR SOUND ID (glitchy/secret sound)
-		Volume = 0.9,
+		Volume = 1.0, -- LOUDER (was 0.9, now MAX)
 		Pitch = 1.0,
 	},
 }
