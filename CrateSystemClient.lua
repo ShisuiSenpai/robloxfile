@@ -257,8 +257,8 @@ local function createSwordItem(swordName, index)
 	})
 	gradient.Rotation = 90 -- Vertical gradient
 	gradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.7), -- Top: more transparent
-		NumberSequenceKeypoint.new(1, 0.5)  -- Bottom: less transparent
+		NumberSequenceKeypoint.new(0, 0.4), -- Top: more transparent (ADJUST HERE for rarity color visibility)
+		NumberSequenceKeypoint.new(1, 0.3)  -- Bottom: less transparent (ADJUST HERE for rarity color visibility)
 	})
 	gradient.Parent = itemFrame
 
@@ -304,7 +304,7 @@ local function createSwordItem(swordName, index)
 	nameBackground.Size = UDim2.new(1, 0, 0, 35)
 	nameBackground.Position = UDim2.new(0, 0, 1, -35)
 	nameBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	nameBackground.BackgroundTransparency = 0.4
+	nameBackground.BackgroundTransparency = 0.6 -- ADJUST HERE for name background transparency (0 = solid, 1 = invisible)
 	nameBackground.BorderSizePixel = 0
 	nameBackground.Parent = itemFrame
 	
@@ -434,8 +434,8 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 				local gradient = item:FindFirstChildOfClass("UIGradient")
 				if gradient then
 					-- Calculate target transparency (more opaque when highlighted)
-					local topTransparency = 0.7 - ((1 - normalizedDistance) * 0.3) -- 0.7 to 0.4
-					local bottomTransparency = 0.5 - ((1 - normalizedDistance) * 0.3) -- 0.5 to 0.2
+					local topTransparency = 0.4 - ((1 - normalizedDistance) * 0.2) -- 0.4 to 0.2
+					local bottomTransparency = 0.3 - ((1 - normalizedDistance) * 0.2) -- 0.3 to 0.1
 					
 					local transparencyTween = TweenService:Create(
 						gradient,
