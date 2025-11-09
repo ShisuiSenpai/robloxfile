@@ -233,23 +233,37 @@ local function createCrateUI(chosenSword, allSwords)
 			clonedSwordUI.Parent = overlay
 		end
 		
-		-- Find all UI elements and ensure they're centered
+		-- Find all UI elements
 		local slash1 = clonedSwordUI:FindFirstChild("slash")
 		swordNameLabel = clonedSwordUI:FindFirstChild("SwordName")
 		local slash2 = clonedSwordUI:FindFirstChild("slash2")
 		
-		-- Center all elements horizontally
-		for _, element in pairs({slash1, swordNameLabel, slash2}) do
-			if element and element:IsA("GuiObject") then
-				element.AnchorPoint = Vector2.new(0.5, element.AnchorPoint.Y)
-				element.Position = UDim2.new(0.5, 0, element.Position.Y.Scale, element.Position.Y.Offset)
-			end
+		-- Scale down and position at top for mobile compatibility
+		local yOffset = 60 -- Distance from top (mobile safe area)
+		
+		-- Setup slash1 (top line)
+		if slash1 and slash1:IsA("GuiObject") then
+			slash1.AnchorPoint = Vector2.new(0.5, 0)
+			slash1.Position = UDim2.new(0.5, 0, 0, yOffset)
+			slash1.Size = UDim2.new(0, math.min(slash1.Size.X.Offset * 0.7, 80), 0, 2) -- Smaller and thinner
 		end
 		
-		-- Set initial text and center alignment
-		if swordNameLabel then
+		-- Setup SwordName (main text)
+		if swordNameLabel and swordNameLabel:IsA("GuiObject") then
+			swordNameLabel.AnchorPoint = Vector2.new(0.5, 0)
+			swordNameLabel.Position = UDim2.new(0.5, 0, 0, yOffset + 8)
+			swordNameLabel.Size = UDim2.new(0, 150, 0, 25) -- Compact size
 			swordNameLabel.Text = "..."
 			swordNameLabel.TextXAlignment = Enum.TextXAlignment.Center
+			swordNameLabel.TextSize = 16 -- Smaller text for mobile
+			swordNameLabel.Font = Enum.Font.GothamBold
+		end
+		
+		-- Setup slash2 (bottom line)
+		if slash2 and slash2:IsA("GuiObject") then
+			slash2.AnchorPoint = Vector2.new(0.5, 0)
+			slash2.Position = UDim2.new(0.5, 0, 0, yOffset + 35)
+			slash2.Size = UDim2.new(0, math.min(slash2.Size.X.Offset * 0.7, 80), 0, 2) -- Smaller and thinner
 		end
 	else
 		warn("SelectedSwordUI not found in StarterGui")
