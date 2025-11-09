@@ -94,7 +94,8 @@ local function switchPlayerSword(player, swordName)
 		return false
 	end
 
-	-- Tell the client's MultiSwordSystem to switch to this sword
+	-- Tell the client to switch swords (client will request from server)
+	-- The client's crate system listener will call switchSword() which uses the server
 	switchSwordEvent:FireClient(player, swordName)
 
 	return true
