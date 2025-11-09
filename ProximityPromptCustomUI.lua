@@ -136,12 +136,12 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	titlePadding.PaddingRight = UDim.new(0, UI_SETTINGS.TitlePadding)
 	titlePadding.Parent = titleSection
 	
-	-- Title text ("Relic")
+	-- Title text ("Relic | ¥ 250")
 	local titleText = Instance.new("TextLabel")
 	titleText.Name = "TitleText"
 	titleText.Size = UDim2.new(1, 0, 1, 0)
 	titleText.BackgroundTransparency = 1
-	titleText.Text = prompt.ObjectText
+	titleText.Text = prompt.ObjectText .. " | ¥ 250"
 	titleText.TextColor3 = UI_SETTINGS.TextColor
 	titleText.TextSize = UI_SETTINGS.TitleTextSize
 	titleText.Font = Enum.Font.GothamBold
