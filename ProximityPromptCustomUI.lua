@@ -19,25 +19,31 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local UI_SETTINGS = {
 	-- Colors (Simple black and white)
-	BackgroundColor = Color3.fromRGB(0, 0, 0), -- Black background
+	BackgroundColor = Color3.fromRGB(10, 10, 10), -- Very dark background
 	TextColor = Color3.fromRGB(255, 255, 255), -- White text
-	KeyBackgroundColor = Color3.fromRGB(40, 40, 40), -- Dark gray for key button
+	KeyBackgroundColor = Color3.fromRGB(50, 50, 50), -- Gray for key button
+	BorderColor = Color3.fromRGB(200, 200, 200), -- Light gray border
 	
 	-- Transparency
-	BackgroundTransparency = 0.4, -- Semi-transparent
-	KeyBackgroundTransparency = 0.3,
+	BackgroundTransparency = 0.15, -- Much less transparent (more solid)
+	KeyBackgroundTransparency = 0.2,
+	BorderTransparency = 0.4,
 	
 	-- Sizes
-	ContainerSize = UDim2.new(0, 200, 0, 65), -- Smaller, cleaner size
-	CornerRadius = 8, -- Subtle rounded corners
+	ContainerSize = UDim2.new(0, 180, 0, 70), -- Compact size
+	CornerRadius = 10, -- Nice rounded corners
 	
 	-- Animation
-	FadeInTime = 0.2, -- Quick fade in
+	FadeInTime = 0.25, -- Smooth fade in
 	
 	-- Text
-	TitleTextSize = 16, -- "Relic" text size
-	ActionTextSize = 14, -- "Open" text size
-	KeyTextSize = 14, -- "E" text size
+	TitleTextSize = 15, -- "Relic" text size
+	ActionTextSize = 13, -- "Open" text size
+	KeyTextSize = 13, -- "E" text size
+	
+	-- Spacing
+	Padding = 12, -- Internal padding
+	Spacing = 6, -- Space between elements
 }
 
 -- ========================================
@@ -45,21 +51,18 @@ local UI_SETTINGS = {
 -- ========================================
 
 -- Get the input key as a string (e.g., "E", "ButtonX")
-local function getKeyString(keycode)
-	local inputString = UserInputService:GetStringForKeyCode(keycode)
-	
-	-- Handle gamepad buttons
-	if inputString == "" then
-		inputString = string.gsub(tostring(keycode), "Enum.KeyCode.", "")
+local function getKeyString(inputType)
+	-- Handle ProximityPromptInputType enum
+	if inputType == Enum.ProximityPromptInputType.Keyboard then
+		return "E"
+	elseif inputType == Enum.ProximityPromptInputType.Gamepad then
+		return "X" -- Xbox button
+	elseif inputType == Enum.ProximityPromptInputType.Touch then
+		return "TAP"
 	end
 	
-	-- Shorten common inputs
-	if inputString == "ButtonX" then return "X" end
-	if inputString == "ButtonA" then return "A" end
-	if inputString == "ButtonB" then return "B" end
-	if inputString == "ButtonY" then return "Y" end
-	
-	return inputString
+	-- Fallback
+	return "E"
 end
 
 -- ========================================
@@ -79,7 +82,7 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	local container = Instance.new("BillboardGui")
 	container.Name = "PromptContainer"
 	container.Adornee = prompt.Parent
-	container.Size = UDim2.new(0, 220, 0, 80)
+	container.Size = UDim2.new(0, 200, 0, 90)
 	container.StudsOffset = Vector3.new(0, 2.5, 0) -- Height above the part
 	container.AlwaysOnTop = true -- Always visible
 	container.Parent = screenGui
@@ -100,60 +103,77 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	corner.CornerRadius = UDim.new(0, UI_SETTINGS.CornerRadius)
 	corner.Parent = background
 	
-	-- Subtle white border
+	-- Border
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(255, 255, 255)
-	stroke.Thickness = 1
-	stroke.Transparency = 0.7
+	stroke.Color = UI_SETTINGS.BorderColor
+	stroke.Thickness = 1.5
+	stroke.Transparency = UI_SETTINGS.BorderTransparency
 	stroke.Parent = background
+	
+	-- Padding
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, UI_SETTINGS.Padding)
+	padding.PaddingBottom = UDim.new(0, UI_SETTINGS.Padding)
+	padding.PaddingLeft = UDim.new(0, UI_SETTINGS.Padding)
+	padding.PaddingRight = UDim.new(0, UI_SETTINGS.Padding)
+	padding.Parent = background
+	
+	-- Layout for vertical stacking
+	local mainLayout = Instance.new("UIListLayout")
+	mainLayout.FillDirection = Enum.FillDirection.Vertical
+	mainLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	mainLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	mainLayout.Padding = UDim.new(0, UI_SETTINGS.Spacing)
+	mainLayout.Parent = background
 	
 	-- Title text ("Relic")
 	local titleText = Instance.new("TextLabel")
 	titleText.Name = "TitleText"
-	titleText.Size = UDim2.new(1, -20, 0, 22)
-	titleText.Position = UDim2.new(0, 10, 0, 8)
+	titleText.Size = UDim2.new(1, 0, 0, 20)
 	titleText.BackgroundTransparency = 1
 	titleText.Text = prompt.ObjectText
 	titleText.TextColor3 = UI_SETTINGS.TextColor
 	titleText.TextSize = UI_SETTINGS.TitleTextSize
-	titleText.Font = Enum.Font.GothamMedium
+	titleText.Font = Enum.Font.GothamBold
 	titleText.TextXAlignment = Enum.TextXAlignment.Center
+	titleText.LayoutOrder = 1
 	titleText.Parent = background
 	
-	-- Bottom section with key + action
-	local bottomContainer = Instance.new("Frame")
-	bottomContainer.Name = "BottomContainer"
-	bottomContainer.Size = UDim2.new(1, 0, 0, 25)
-	bottomContainer.Position = UDim2.new(0, 0, 1, -32)
-	bottomContainer.BackgroundTransparency = 1
-	bottomContainer.Parent = background
+	-- Bottom section (key + action)
+	local actionContainer = Instance.new("Frame")
+	actionContainer.Name = "ActionContainer"
+	actionContainer.Size = UDim2.new(1, 0, 0, 26)
+	actionContainer.BackgroundTransparency = 1
+	actionContainer.LayoutOrder = 2
+	actionContainer.Parent = background
 	
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
-	layout.Parent = bottomContainer
+	local actionLayout = Instance.new("UIListLayout")
+	actionLayout.FillDirection = Enum.FillDirection.Horizontal
+	actionLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	actionLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	actionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	actionLayout.Padding = UDim.new(0, 8)
+	actionLayout.Parent = actionContainer
 	
 	-- Key button (E)
 	local keyButton = Instance.new("Frame")
 	keyButton.Name = "KeyButton"
-	keyButton.Size = UDim2.new(0, 28, 0, 24)
+	keyButton.Size = UDim2.new(0, 30, 0, 26)
 	keyButton.BackgroundColor3 = UI_SETTINGS.KeyBackgroundColor
 	keyButton.BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency
 	keyButton.BorderSizePixel = 0
 	keyButton.LayoutOrder = 1
-	keyButton.Parent = bottomContainer
+	keyButton.Parent = actionContainer
 	
 	local keyCorner = Instance.new("UICorner")
-	keyCorner.CornerRadius = UDim.new(0, 4)
+	keyCorner.CornerRadius = UDim.new(0, 5)
 	keyCorner.Parent = keyButton
 	
 	local keyStroke = Instance.new("UIStroke")
-	keyStroke.Color = Color3.fromRGB(255, 255, 255)
-	keyStroke.Thickness = 1
-	keyStroke.Transparency = 0.6
+	keyStroke.Color = UI_SETTINGS.BorderColor
+	keyStroke.Thickness = 1.5
+	keyStroke.Transparency = UI_SETTINGS.BorderTransparency
 	keyStroke.Parent = keyButton
 	
 	local keyLabel = Instance.new("TextLabel")
@@ -168,15 +188,16 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	-- Action text ("Open")
 	local actionText = Instance.new("TextLabel")
 	actionText.Name = "ActionText"
-	actionText.Size = UDim2.new(0, 80, 0, 24)
+	actionText.AutomaticSize = Enum.AutomaticSize.X
+	actionText.Size = UDim2.new(0, 0, 0, 26)
 	actionText.BackgroundTransparency = 1
 	actionText.Text = prompt.ActionText
 	actionText.TextColor3 = UI_SETTINGS.TextColor
 	actionText.TextSize = UI_SETTINGS.ActionTextSize
-	actionText.Font = Enum.Font.Gotham
+	actionText.Font = Enum.Font.GothamMedium
 	actionText.TextXAlignment = Enum.TextXAlignment.Left
 	actionText.LayoutOrder = 2
-	actionText.Parent = bottomContainer
+	actionText.Parent = actionContainer
 	
 	-- Fade in animation
 	background.BackgroundTransparency = 1
@@ -187,25 +208,15 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	keyLabel.TextTransparency = 1
 	actionText.TextTransparency = 1
 	
-	local fadeIn = TweenService:Create(
-		background,
-		TweenInfo.new(UI_SETTINGS.FadeInTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{BackgroundTransparency = UI_SETTINGS.BackgroundTransparency}
-	)
-	local strokeFade = TweenService:Create(stroke, TweenInfo.new(UI_SETTINGS.FadeInTime), {Transparency = 0.7})
-	local titleFade = TweenService:Create(titleText, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
-	local keyBgFade = TweenService:Create(keyButton, TweenInfo.new(UI_SETTINGS.FadeInTime), {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency})
-	local keyStrokeFade = TweenService:Create(keyStroke, TweenInfo.new(UI_SETTINGS.FadeInTime), {Transparency = 0.6})
-	local keyTextFade = TweenService:Create(keyLabel, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
-	local actionFade = TweenService:Create(actionText, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
+	local tweenInfo = TweenInfo.new(UI_SETTINGS.FadeInTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	
-	fadeIn:Play()
-	strokeFade:Play()
-	titleFade:Play()
-	keyBgFade:Play()
-	keyStrokeFade:Play()
-	keyTextFade:Play()
-	actionFade:Play()
+	TweenService:Create(background, tweenInfo, {BackgroundTransparency = UI_SETTINGS.BackgroundTransparency}):Play()
+	TweenService:Create(stroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
+	TweenService:Create(titleText, tweenInfo, {TextTransparency = 0}):Play()
+	TweenService:Create(keyButton, tweenInfo, {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency}):Play()
+	TweenService:Create(keyStroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
+	TweenService:Create(keyLabel, tweenInfo, {TextTransparency = 0}):Play()
+	TweenService:Create(actionText, tweenInfo, {TextTransparency = 0}):Play()
 	
 	return screenGui
 end
