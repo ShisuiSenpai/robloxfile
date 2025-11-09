@@ -13,6 +13,9 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Detect if player is on mobile device
+local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+
 -- Wait for RemoteEvents
 local crateRemotes = ReplicatedStorage:WaitForChild("CrateRemotes")
 local openCrateEvent = crateRemotes:WaitForChild("OpenCrate")
@@ -49,16 +52,19 @@ local UI_SETTINGS = {
 	TextColor = Color3.fromRGB(220, 220, 230),
 	AccentColor = Color3.fromRGB(100, 100, 255),
 
-	-- Animation settings
-	ItemWidth = 220, -- Slightly wider for 3D models
-	ItemSpacing = 20,
+	-- Animation settings (adjusted for mobile)
+	ItemWidth = isMobile and 180 or 220, -- Smaller on mobile
+	ItemSpacing = isMobile and 15 or 20, -- Tighter spacing on mobile
 	SpinDuration = 5, -- How long the spin takes in seconds (higher = slower)
 	SpinRepeats = 3, -- How many times to loop through all items
 
-	-- ViewportFrame settings
-	ViewportSize = 180, -- Size of the 3D model display
+	-- ViewportFrame settings (adjusted for mobile)
+	ViewportSize = isMobile and 140 or 180, -- Smaller 3D models on mobile
 	CameraDistance = 0.9, -- How far the camera is from the model (lower = closer)
 	ModelRotation = 20, -- Rotation angle for the model (degrees)
+	
+	-- Container settings (adjusted for mobile)
+	ContainerHeight = isMobile and 200 or 250, -- Shorter container on mobile
 
 	-- Highlight effect settings (CS:GO style)
 	-- Brightness settings (1.0 = normal brightness)
@@ -238,11 +244,14 @@ local function createCrateUI(chosenSword, allSwords)
 		swordNameLabel = clonedSwordUI:FindFirstChild("SwordName")
 		local slash2 = clonedSwordUI:FindFirstChild("slash2")
 		
-		-- Center all elements horizontally
+		-- Center all elements horizontally and move up on screen
+		local yAdjustment = isMobile and -80 or -40 -- Move higher on mobile
 		for _, element in pairs({slash1, swordNameLabel, slash2}) do
 			if element and element:IsA("GuiObject") then
 				element.AnchorPoint = Vector2.new(0.5, element.AnchorPoint.Y)
-				element.Position = UDim2.new(0.5, 0, element.Position.Y.Scale, element.Position.Y.Offset)
+				-- Center horizontally and shift up vertically
+				local newYOffset = element.Position.Y.Offset + yAdjustment
+				element.Position = UDim2.new(0.5, 0, element.Position.Y.Scale, newYOffset)
 			end
 		end
 		
@@ -255,11 +264,13 @@ local function createCrateUI(chosenSword, allSwords)
 		warn("SelectedSwordUI not found in StarterGui")
 	end
 
-	-- Container for the spinning items
+	-- Container for the spinning items (adjusted for mobile)
 	local container = Instance.new("Frame")
 	container.Name = "Container"
-	container.Size = UDim2.new(0, 800, 0, 250) -- Taller to fit 3D models
-	container.Position = UDim2.new(0.5, -400, 0.5, -125)
+	local containerHeight = UI_SETTINGS.ContainerHeight
+	local containerYPos = isMobile and 0.55 or 0.5 -- Slightly lower on mobile for SelectedSwordUI space
+	container.Size = UDim2.new(0, 800, 0, containerHeight)
+	container.Position = UDim2.new(0.5, -400, containerYPos, -containerHeight/2)
 	container.BackgroundTransparency = 1
 	container.ClipsDescendants = true
 	container.Parent = overlay
