@@ -244,8 +244,8 @@ local function createCrateUI(chosenSword, allSwords)
 		swordNameLabel = clonedSwordUI:FindFirstChild("SwordName")
 		local slash2 = clonedSwordUI:FindFirstChild("slash2")
 		
-		-- Center all elements horizontally and move up on screen
-		local yAdjustment = isMobile and -80 or -40 -- Move higher on mobile
+		-- Center all elements horizontally and move slightly higher
+		local yAdjustment = isMobile and -30 or -20 -- Just a bit higher on mobile
 		for _, element in pairs({slash1, swordNameLabel, slash2}) do
 			if element and element:IsA("GuiObject") then
 				element.AnchorPoint = Vector2.new(0.5, element.AnchorPoint.Y)
