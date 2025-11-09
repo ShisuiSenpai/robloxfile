@@ -33,6 +33,11 @@ local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
 local toolSwordsFolder = ReplicatedStorage:WaitForChild("ToolSwords")
 local holsteredModelsFolder = ReplicatedStorage:WaitForChild("HolsteredModels")
 
+-- Load VFX assets
+local assetsFolder = ReplicatedStorage:WaitForChild("Assets")
+local swordVFXFolder = assetsFolder:WaitForChild("SwordVFX")
+local slashVFXTemplate = swordVFXFolder:WaitForChild("SlashAttach")
+
 -- Disable the hotbar/inventory UI
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
@@ -230,6 +235,51 @@ local function switchSword(swordName)
 end
 
 -- ========================================
+-- VFX SYSTEM
+-- ========================================
+
+-- Function to play slash VFX on the sword
+local function playSlashVFX(swordTool)
+	if not swordTool then return end
+	
+	-- Find the Handle (middle of the sword)
+	local handle = swordTool:FindFirstChild("Handle")
+	if not handle then 
+		warn("No Handle found in sword tool for VFX")
+		return 
+	end
+	
+	-- Clone the slash VFX attachment
+	local slashVFX = slashVFXTemplate:Clone()
+	slashVFX.Parent = handle
+	
+	-- Position at center of handle
+	slashVFX.Position = Vector3.new(0, 0, 0)
+	
+	-- Emit all particle emitters and enable beams
+	for _, descendant in pairs(slashVFX:GetDescendants()) do
+		if descendant:IsA("ParticleEmitter") then
+			descendant:Emit(descendant:GetAttribute("EmitCount") or 20)
+		elseif descendant:IsA("Beam") then
+			descendant.Enabled = true
+		end
+	end
+	
+	-- Auto-cleanup after VFX duration
+	task.delay(2, function()
+		if slashVFX then
+			-- Disable beams before destroying
+			for _, descendant in pairs(slashVFX:GetDescendants()) do
+				if descendant:IsA("Beam") then
+					descendant.Enabled = false
+				end
+			end
+			slashVFX:Destroy()
+		end
+	end)
+end
+
+-- ========================================
 -- ATTACK SYSTEM
 -- ========================================
 
@@ -277,6 +327,9 @@ local function performAttack()
 			animTrack:Play()
 		end
 	end
+
+	-- Play slash VFX on the sword
+	playSlashVFX(attackSword)
 
 	-- Wait for attack duration
 	task.wait(attackConfig.AttackDuration)
