@@ -211,6 +211,35 @@ local function createCrateUI(chosenSword, allSwords)
 
 	-- Make sure it covers the topbar area
 	screenGui.IgnoreGuiInset = true
+	
+	-- Clone and setup selected sword UI (shows current sword under indicator)
+	local selectedSwordUI = game:GetService("StarterGui"):FindFirstChild("SelectedSwordUI")
+	local swordNameLabel = nil
+	
+	if selectedSwordUI then
+		local clonedUI = selectedSwordUI:Clone()
+		clonedUI.Parent = overlay
+		
+		-- Position at top center (mobile compatible)
+		clonedUI.Enabled = true
+		clonedUI.ResetOnSpawn = false
+		
+		-- Find the SwordName label to update dynamically
+		swordNameLabel = clonedUI:FindFirstChild("SwordName")
+		
+		-- Set initial text
+		if swordNameLabel then
+			swordNameLabel.Text = "..."
+		end
+		
+		-- Ensure "Sword: " label is correct
+		local swordLabel = clonedUI:FindFirstChild("SwordLabel")
+		if swordLabel then
+			swordLabel.Text = "Sword: "
+		end
+	else
+		warn("SelectedSwordUI not found in StarterGui")
+	end
 
 	-- Container for the spinning items
 	local container = Instance.new("Frame")
@@ -239,7 +268,7 @@ local function createCrateUI(chosenSword, allSwords)
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.Parent = container
 
-	return screenGui, scrollFrame
+	return screenGui, scrollFrame, swordNameLabel
 end
 
 -- Function to setup ViewportFrame camera
@@ -449,7 +478,7 @@ end
 -- ========================================
 
 -- Function to animate the crate opening
-local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
+local function animateCrateOpening(scrollFrame, chosenSword, allSwords, swordNameLabel)
 	-- Create extended list of swords (repeat many times to ensure seamless looping)
 	local swordList = {}
 
@@ -554,8 +583,17 @@ local function animateCrateOpening(scrollFrame, chosenSword, allSwords)
 				end
 			end
 			
-			-- If we switched to a new closest item, play click sound
+			-- If we switched to a new closest item, update UI and play click sound
 			if closestItem and closestItem ~= lastClosestItem then
+				-- Update sword name UI with the sword under the indicator
+				if swordNameLabel and closestItem.Name then
+					local itemIndex = tonumber(closestItem.Name:match("Item_(%d+)"))
+					if itemIndex and swordList[itemIndex + 1] then
+						local swordName = swordList[itemIndex + 1]
+						swordNameLabel.Text = formatSwordName(swordName)
+					end
+				end
+				
 				if not clickedItems[closestItem] then
 					-- Play click sound
 					if clickSound then
@@ -721,11 +759,11 @@ local function openCrate(chosenSword, allSwords)
 	end
 
 	-- Create UI
-	local gui, scrollFrame = createCrateUI(chosenSword, allSwords)
+	local gui, scrollFrame, swordNameLabel = createCrateUI(chosenSword, allSwords)
 	currentGui = gui
 
 	-- Animate
-	local wonSword = animateCrateOpening(scrollFrame, chosenSword, allSwords)
+	local wonSword = animateCrateOpening(scrollFrame, chosenSword, allSwords, swordNameLabel)
 
 	-- Get the rarity of the won sword
 	local wonSwordConfig = SwordConfig.Swords[wonSword]
