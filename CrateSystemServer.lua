@@ -13,6 +13,22 @@ local crateTemple = workspace:WaitForChild("CrateTemple")
 local openCratePart = crateTemple:WaitForChild("OpenCratePart")
 local proximityPrompt = openCratePart:WaitForChild("OpenSwordBox")
 
+-- ========================================
+-- PROXIMITY PROMPT STYLING
+-- ========================================
+
+-- Configure the ProximityPrompt to look modern and always visible
+proximityPrompt.ObjectText = "Relic" -- Main label
+proximityPrompt.ActionText = "Open" -- Action text
+proximityPrompt.RequiresLineOfSight = false -- Always visible when in range (no obstruction check)
+proximityPrompt.MaxActivationDistance = 10 -- Distance in studs (adjust as needed)
+proximityPrompt.HoldDuration = 0 -- Instant activation (set to 0.5+ for hold duration)
+proximityPrompt.Style = Enum.ProximityPromptStyle.Custom -- Use custom styling
+proximityPrompt.Enabled = true
+
+-- Visual settings (modern look)
+proximityPrompt.UIOffset = Vector2.new(0, 1) -- Offset above the part (adjust Y for height)
+
 -- Get or create RemoteEvents
 local crateRemotes = ReplicatedStorage:FindFirstChild("CrateRemotes")
 if not crateRemotes then
