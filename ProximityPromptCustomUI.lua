@@ -165,14 +165,19 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	actionLayout.Padding = UDim.new(0, 8)
 	actionLayout.Parent = actionContainer
 	
-	-- Key button (E)
-	local keyButton = Instance.new("Frame")
+	-- Key button (E) - Now clickable!
+	local keyButton = Instance.new("TextButton")
 	keyButton.Name = "KeyButton"
 	keyButton.Size = UDim2.new(0, 30, 0, 26)
 	keyButton.BackgroundColor3 = UI_SETTINGS.KeyBackgroundColor
 	keyButton.BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency
 	keyButton.BorderSizePixel = 0
 	keyButton.LayoutOrder = 1
+	keyButton.Text = getKeyString(inputType)
+	keyButton.TextColor3 = UI_SETTINGS.TextColor
+	keyButton.TextSize = UI_SETTINGS.KeyTextSize
+	keyButton.Font = Enum.Font.GothamBold
+	keyButton.AutoButtonColor = false -- Disable default button color change
 	keyButton.Parent = actionContainer
 	
 	local keyCorner = Instance.new("UICorner")
@@ -185,14 +190,26 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	keyStroke.Transparency = UI_SETTINGS.BorderTransparency
 	keyStroke.Parent = keyButton
 	
-	local keyLabel = Instance.new("TextLabel")
-	keyLabel.Size = UDim2.new(1, 0, 1, 0)
-	keyLabel.BackgroundTransparency = 1
-	keyLabel.Text = getKeyString(inputType)
-	keyLabel.TextColor3 = UI_SETTINGS.TextColor
-	keyLabel.TextSize = UI_SETTINGS.KeyTextSize
-	keyLabel.Font = Enum.Font.GothamBold
-	keyLabel.Parent = keyButton
+	-- Click handler to trigger proximity prompt
+	keyButton.MouseButton1Click:Connect(function()
+		-- Trigger the proximity prompt
+		prompt:InputHoldBegin()
+		if prompt.HoldDuration > 0 then
+			task.wait(prompt.HoldDuration)
+		end
+		prompt:InputHoldEnd()
+	end)
+	
+	-- Hover effect
+	keyButton.MouseEnter:Connect(function()
+		TweenService:Create(keyButton, TweenInfo.new(0.15), {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency - 0.1}):Play()
+		TweenService:Create(keyStroke, TweenInfo.new(0.15), {Transparency = UI_SETTINGS.BorderTransparency - 0.2}):Play()
+	end)
+	
+	keyButton.MouseLeave:Connect(function()
+		TweenService:Create(keyButton, TweenInfo.new(0.15), {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency}):Play()
+		TweenService:Create(keyStroke, TweenInfo.new(0.15), {Transparency = UI_SETTINGS.BorderTransparency}):Play()
+	end)
 	
 	-- Action text ("Open")
 	local actionText = Instance.new("TextLabel")
@@ -214,8 +231,8 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	titleSection.BackgroundTransparency = 1
 	titleText.TextTransparency = 1
 	keyButton.BackgroundTransparency = 1
+	keyButton.TextTransparency = 1
 	keyStroke.Transparency = 1
-	keyLabel.TextTransparency = 1
 	actionText.TextTransparency = 1
 	
 	local tweenInfo = TweenInfo.new(UI_SETTINGS.FadeInTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -224,9 +241,8 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	TweenService:Create(stroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
 	TweenService:Create(titleSection, tweenInfo, {BackgroundTransparency = UI_SETTINGS.TitleBackgroundTransparency}):Play()
 	TweenService:Create(titleText, tweenInfo, {TextTransparency = 0}):Play()
-	TweenService:Create(keyButton, tweenInfo, {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency}):Play()
+	TweenService:Create(keyButton, tweenInfo, {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency, TextTransparency = 0}):Play()
 	TweenService:Create(keyStroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
-	TweenService:Create(keyLabel, tweenInfo, {TextTransparency = 0}):Play()
 	TweenService:Create(actionText, tweenInfo, {TextTransparency = 0}):Play()
 	
 	return screenGui
