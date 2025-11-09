@@ -169,7 +169,19 @@ switchSwordEvent.OnServerEvent:Connect(function(player, swordName)
 end)
 
 -- Handle button click from custom UI
-openCrateButtonEvent.OnServerEvent:Connect(function(player)
+openCrateButtonEvent.OnServerEvent:Connect(function(player, cratePart)
+	-- Validate the crate part exists
+	if not cratePart or not cratePart:IsA("BasePart") then
+		warn(player.Name .. " sent invalid crate part")
+		return
+	end
+	
+	-- Verify it's the correct crate part
+	if cratePart ~= openCratePart then
+		warn(player.Name .. " tried to open wrong crate")
+		return
+	end
+	
 	-- Check if player is already opening a crate
 	if playersOpening[player.UserId] then
 		warn(player.Name .. " tried to open crate while already opening one")

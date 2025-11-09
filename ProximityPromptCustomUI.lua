@@ -197,9 +197,9 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	
 	-- Click handler to open crate
 	keyButton.MouseButton1Click:Connect(function()
-		-- Fire the server to open the crate
-		openCrateButtonEvent:FireServer()
-		print("🎁 Crate button clicked!")
+		-- Fire the server to open the crate, pass the prompt so server knows which crate
+		openCrateButtonEvent:FireServer(prompt.Parent)
+		print("🎁 Crate button clicked for:", prompt.Parent.Name)
 	end)
 	
 	-- Hover effect
