@@ -123,6 +123,11 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	titleSection.BorderSizePixel = 0
 	titleSection.Parent = background
 	
+	-- Rounded corners for title section (only top corners)
+	local titleCorner = Instance.new("UICorner")
+	titleCorner.CornerRadius = UDim.new(0, UI_SETTINGS.CornerRadius)
+	titleCorner.Parent = titleSection
+	
 	-- Title padding
 	local titlePadding = Instance.new("UIPadding")
 	titlePadding.PaddingTop = UDim.new(0, UI_SETTINGS.TitlePadding)
