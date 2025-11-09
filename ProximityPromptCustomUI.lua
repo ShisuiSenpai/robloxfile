@@ -244,30 +244,54 @@ end
 -- PROXIMITY PROMPT SERVICE SETUP
 -- ========================================
 
--- Disable default UI
+-- Track active custom UIs
+local activePrompts = {}
+
+-- Create custom UI when prompt is shown
 ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
-	-- Only customize prompts with Style = Custom
-	if prompt.Style ~= Enum.ProximityPromptStyle.Custom then return end
+	print("🔔 PromptShown event fired for:", prompt.Parent.Name, "Style:", prompt.Style)
 	
-	-- Hide default UI
-	prompt.Enabled = false
+	-- Only customize prompts with Style = Custom
+	if prompt.Style ~= Enum.ProximityPromptStyle.Custom then 
+		print("⚠️ Prompt style is not Custom, skipping")
+		return 
+	end
+	
+	-- Don't create duplicate UIs
+	if activePrompts[prompt] then 
+		print("⚠️ UI already exists for this prompt")
+		return 
+	end
+	
+	print("✅ Creating custom UI for:", prompt.ObjectText)
 	
 	-- Create custom UI
 	local customUI = createCustomUI(prompt, inputType)
+	activePrompts[prompt] = customUI
 	
 	-- Cleanup when prompt is hidden
 	local connection
 	connection = ProximityPromptService.PromptHidden:Connect(function(hiddenPrompt)
 		if hiddenPrompt == prompt then
-			customUI:Destroy()
+			print("🚫 Prompt hidden, cleaning up UI for:", prompt.ObjectText)
+			if activePrompts[prompt] then
+				activePrompts[prompt]:Destroy()
+				activePrompts[prompt] = nil
+			end
 			connection:Disconnect()
 		end
 	end)
 end)
 
--- Re-enable prompt when hidden (for next use)
-ProximityPromptService.PromptHidden:Connect(function(prompt)
-	prompt.Enabled = true
+-- Also handle prompt button hold progress (optional - for hold duration)
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+	if prompt.Style ~= Enum.ProximityPromptStyle.Custom then return end
+	-- You can add a progress bar animation here if needed
+end)
+
+ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt)
+	if prompt.Style ~= Enum.ProximityPromptStyle.Custom then return end
+	-- Reset progress bar if you added one
 end)
 
 print("✨ Custom Proximity Prompt UI Loaded!")
