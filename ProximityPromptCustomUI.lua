@@ -18,27 +18,26 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- ========================================
 
 local UI_SETTINGS = {
-	-- Colors
-	BackgroundColor = Color3.fromRGB(20, 20, 25), -- Dark background
-	AccentColor = Color3.fromRGB(138, 43, 226), -- Purple accent (hologram vibe)
+	-- Colors (Simple black and white)
+	BackgroundColor = Color3.fromRGB(0, 0, 0), -- Black background
 	TextColor = Color3.fromRGB(255, 255, 255), -- White text
+	KeyBackgroundColor = Color3.fromRGB(40, 40, 40), -- Dark gray for key button
 	
 	-- Transparency
-	BackgroundTransparency = 0.3, -- Semi-transparent background
-	GlowTransparency = 0.5, -- Glow effect transparency
+	BackgroundTransparency = 0.4, -- Semi-transparent
+	KeyBackgroundTransparency = 0.3,
 	
 	-- Sizes
-	ContainerSize = UDim2.new(0, 280, 0, 80), -- Main container size
-	CornerRadius = 12, -- Rounded corners
+	ContainerSize = UDim2.new(0, 200, 0, 65), -- Smaller, cleaner size
+	CornerRadius = 8, -- Subtle rounded corners
 	
 	-- Animation
-	FadeInTime = 0.3, -- Fade in duration
-	PulseSpeed = 1.5, -- Pulse animation speed (seconds)
+	FadeInTime = 0.2, -- Quick fade in
 	
 	-- Text
-	ObjectTextSize = 20, -- "Relic" text size
-	ActionTextSize = 16, -- "Open" text size
-	KeyTextSize = 18, -- "[E]" text size
+	TitleTextSize = 16, -- "Relic" text size
+	ActionTextSize = 14, -- "Open" text size
+	KeyTextSize = 14, -- "E" text size
 }
 
 -- ========================================
@@ -80,12 +79,12 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	local container = Instance.new("BillboardGui")
 	container.Name = "PromptContainer"
 	container.Adornee = prompt.Parent
-	container.Size = UDim2.new(0, 300, 0, 120)
-	container.StudsOffset = Vector3.new(0, 3, 0) -- Height above the part
-	container.AlwaysOnTop = false -- Hologram effect (can be occluded)
+	container.Size = UDim2.new(0, 220, 0, 80)
+	container.StudsOffset = Vector3.new(0, 2.5, 0) -- Height above the part
+	container.AlwaysOnTop = true -- Always visible
 	container.Parent = screenGui
 	
-	-- Background frame with blur effect
+	-- Background frame
 	local background = Instance.new("Frame")
 	background.Name = "Background"
 	background.Size = UI_SETTINGS.ContainerSize
@@ -101,99 +100,91 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	corner.CornerRadius = UDim.new(0, UI_SETTINGS.CornerRadius)
 	corner.Parent = background
 	
-	-- Glow effect (accent border)
-	local glow = Instance.new("UIStroke")
-	glow.Name = "Glow"
-	glow.Color = UI_SETTINGS.AccentColor
-	glow.Thickness = 2
-	glow.Transparency = UI_SETTINGS.GlowTransparency
-	glow.Parent = background
+	-- Subtle white border
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Thickness = 1
+	stroke.Transparency = 0.7
+	stroke.Parent = background
 	
-	-- Gradient overlay for depth
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 200, 200)),
-	})
-	gradient.Rotation = 90
-	gradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.9),
-		NumberSequenceKeypoint.new(1, 0.95),
-	})
-	gradient.Parent = background
+	-- Title text ("Relic")
+	local titleText = Instance.new("TextLabel")
+	titleText.Name = "TitleText"
+	titleText.Size = UDim2.new(1, -20, 0, 22)
+	titleText.Position = UDim2.new(0, 10, 0, 8)
+	titleText.BackgroundTransparency = 1
+	titleText.Text = prompt.ObjectText
+	titleText.TextColor3 = UI_SETTINGS.TextColor
+	titleText.TextSize = UI_SETTINGS.TitleTextSize
+	titleText.Font = Enum.Font.GothamMedium
+	titleText.TextXAlignment = Enum.TextXAlignment.Center
+	titleText.Parent = background
 	
-	-- Object text ("Relic")
-	local objectText = Instance.new("TextLabel")
-	objectText.Name = "ObjectText"
-	objectText.Size = UDim2.new(1, -20, 0, 30)
-	objectText.Position = UDim2.new(0, 10, 0, 10)
-	objectText.BackgroundTransparency = 1
-	objectText.Text = prompt.ObjectText
-	objectText.TextColor3 = UI_SETTINGS.TextColor
-	objectText.TextSize = UI_SETTINGS.ObjectTextSize
-	objectText.Font = Enum.Font.GothamBold
-	objectText.TextXAlignment = Enum.TextXAlignment.Left
-	objectText.Parent = background
+	-- Bottom section with key + action
+	local bottomContainer = Instance.new("Frame")
+	bottomContainer.Name = "BottomContainer"
+	bottomContainer.Size = UDim2.new(1, 0, 0, 25)
+	bottomContainer.Position = UDim2.new(0, 0, 1, -32)
+	bottomContainer.BackgroundTransparency = 1
+	bottomContainer.Parent = background
 	
-	-- Accent line separator
-	local separator = Instance.new("Frame")
-	separator.Name = "Separator"
-	separator.Size = UDim2.new(1, -20, 0, 2)
-	separator.Position = UDim2.new(0, 10, 0, 45)
-	separator.BackgroundColor3 = UI_SETTINGS.AccentColor
-	separator.BackgroundTransparency = 0.3
-	separator.BorderSizePixel = 0
-	separator.Parent = background
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 8)
+	layout.Parent = bottomContainer
 	
-	local sepCorner = Instance.new("UICorner")
-	sepCorner.CornerRadius = UDim.new(1, 0)
-	sepCorner.Parent = separator
-	
-	-- Action container (holds key and action text)
-	local actionContainer = Instance.new("Frame")
-	actionContainer.Name = "ActionContainer"
-	actionContainer.Size = UDim2.new(1, -20, 0, 25)
-	actionContainer.Position = UDim2.new(0, 10, 1, -35)
-	actionContainer.BackgroundTransparency = 1
-	actionContainer.Parent = background
-	
-	-- Key display ([E])
-	local keyText = Instance.new("TextLabel")
-	keyText.Name = "KeyText"
-	keyText.Size = UDim2.new(0, 35, 1, 0)
-	keyText.Position = UDim2.new(0, 0, 0, 0)
-	keyText.BackgroundColor3 = UI_SETTINGS.AccentColor
-	keyText.BackgroundTransparency = 0.2
-	keyText.Text = "[" .. getKeyString(inputType) .. "]"
-	keyText.TextColor3 = UI_SETTINGS.TextColor
-	keyText.TextSize = UI_SETTINGS.KeyTextSize
-	keyText.Font = Enum.Font.GothamBold
-	keyText.Parent = actionContainer
+	-- Key button (E)
+	local keyButton = Instance.new("Frame")
+	keyButton.Name = "KeyButton"
+	keyButton.Size = UDim2.new(0, 28, 0, 24)
+	keyButton.BackgroundColor3 = UI_SETTINGS.KeyBackgroundColor
+	keyButton.BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency
+	keyButton.BorderSizePixel = 0
+	keyButton.LayoutOrder = 1
+	keyButton.Parent = bottomContainer
 	
 	local keyCorner = Instance.new("UICorner")
-	keyCorner.CornerRadius = UDim.new(0, 6)
-	keyCorner.Parent = keyText
+	keyCorner.CornerRadius = UDim.new(0, 4)
+	keyCorner.Parent = keyButton
+	
+	local keyStroke = Instance.new("UIStroke")
+	keyStroke.Color = Color3.fromRGB(255, 255, 255)
+	keyStroke.Thickness = 1
+	keyStroke.Transparency = 0.6
+	keyStroke.Parent = keyButton
+	
+	local keyLabel = Instance.new("TextLabel")
+	keyLabel.Size = UDim2.new(1, 0, 1, 0)
+	keyLabel.BackgroundTransparency = 1
+	keyLabel.Text = getKeyString(inputType)
+	keyLabel.TextColor3 = UI_SETTINGS.TextColor
+	keyLabel.TextSize = UI_SETTINGS.KeyTextSize
+	keyLabel.Font = Enum.Font.GothamBold
+	keyLabel.Parent = keyButton
 	
 	-- Action text ("Open")
 	local actionText = Instance.new("TextLabel")
 	actionText.Name = "ActionText"
-	actionText.Size = UDim2.new(1, -45, 1, 0)
-	actionText.Position = UDim2.new(0, 45, 0, 0)
+	actionText.Size = UDim2.new(0, 80, 0, 24)
 	actionText.BackgroundTransparency = 1
 	actionText.Text = prompt.ActionText
 	actionText.TextColor3 = UI_SETTINGS.TextColor
 	actionText.TextSize = UI_SETTINGS.ActionTextSize
 	actionText.Font = Enum.Font.Gotham
 	actionText.TextXAlignment = Enum.TextXAlignment.Left
-	actionText.Parent = actionContainer
+	actionText.LayoutOrder = 2
+	actionText.Parent = bottomContainer
 	
 	-- Fade in animation
 	background.BackgroundTransparency = 1
-	glow.Transparency = 1
-	objectText.TextTransparency = 1
-	separator.BackgroundTransparency = 1
-	keyText.BackgroundTransparency = 1
-	keyText.TextTransparency = 1
+	stroke.Transparency = 1
+	titleText.TextTransparency = 1
+	keyButton.BackgroundTransparency = 1
+	keyStroke.Transparency = 1
+	keyLabel.TextTransparency = 1
 	actionText.TextTransparency = 1
 	
 	local fadeIn = TweenService:Create(
@@ -201,41 +192,20 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 		TweenInfo.new(UI_SETTINGS.FadeInTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{BackgroundTransparency = UI_SETTINGS.BackgroundTransparency}
 	)
-	local glowFadeIn = TweenService:Create(glow, TweenInfo.new(UI_SETTINGS.FadeInTime), {Transparency = UI_SETTINGS.GlowTransparency})
-	local textFadeIn = TweenService:Create(objectText, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
-	local sepFadeIn = TweenService:Create(separator, TweenInfo.new(UI_SETTINGS.FadeInTime), {BackgroundTransparency = 0.3})
-	local keyBgFadeIn = TweenService:Create(keyText, TweenInfo.new(UI_SETTINGS.FadeInTime), {BackgroundTransparency = 0.2, TextTransparency = 0})
-	local actionFadeIn = TweenService:Create(actionText, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
+	local strokeFade = TweenService:Create(stroke, TweenInfo.new(UI_SETTINGS.FadeInTime), {Transparency = 0.7})
+	local titleFade = TweenService:Create(titleText, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
+	local keyBgFade = TweenService:Create(keyButton, TweenInfo.new(UI_SETTINGS.FadeInTime), {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency})
+	local keyStrokeFade = TweenService:Create(keyStroke, TweenInfo.new(UI_SETTINGS.FadeInTime), {Transparency = 0.6})
+	local keyTextFade = TweenService:Create(keyLabel, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
+	local actionFade = TweenService:Create(actionText, TweenInfo.new(UI_SETTINGS.FadeInTime), {TextTransparency = 0})
 	
 	fadeIn:Play()
-	glowFadeIn:Play()
-	textFadeIn:Play()
-	sepFadeIn:Play()
-	keyBgFadeIn:Play()
-	actionFadeIn:Play()
-	
-	-- Pulse animation (glow effect)
-	task.spawn(function()
-		while screenGui.Parent do
-			local pulseOut = TweenService:Create(
-				glow,
-				TweenInfo.new(UI_SETTINGS.PulseSpeed, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{Transparency = 0.2}
-			)
-			pulseOut:Play()
-			pulseOut.Completed:Wait()
-			
-			if not screenGui.Parent then break end
-			
-			local pulseIn = TweenService:Create(
-				glow,
-				TweenInfo.new(UI_SETTINGS.PulseSpeed, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{Transparency = UI_SETTINGS.GlowTransparency}
-			)
-			pulseIn:Play()
-			pulseIn.Completed:Wait()
-		end
-	end)
+	strokeFade:Play()
+	titleFade:Play()
+	keyBgFade:Play()
+	keyStrokeFade:Play()
+	keyTextFade:Play()
+	actionFade:Play()
 	
 	return screenGui
 end
@@ -249,21 +219,15 @@ local activePrompts = {}
 
 -- Create custom UI when prompt is shown
 ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
-	print("🔔 PromptShown event fired for:", prompt.Parent.Name, "Style:", prompt.Style)
-	
 	-- Only customize prompts with Style = Custom
 	if prompt.Style ~= Enum.ProximityPromptStyle.Custom then 
-		print("⚠️ Prompt style is not Custom, skipping")
 		return 
 	end
 	
 	-- Don't create duplicate UIs
 	if activePrompts[prompt] then 
-		print("⚠️ UI already exists for this prompt")
 		return 
 	end
-	
-	print("✅ Creating custom UI for:", prompt.ObjectText)
 	
 	-- Create custom UI
 	local customUI = createCustomUI(prompt, inputType)
@@ -273,7 +237,6 @@ ProximityPromptService.PromptShown:Connect(function(prompt, inputType)
 	local connection
 	connection = ProximityPromptService.PromptHidden:Connect(function(hiddenPrompt)
 		if hiddenPrompt == prompt then
-			print("🚫 Prompt hidden, cleaning up UI for:", prompt.ObjectText)
 			if activePrompts[prompt] then
 				activePrompts[prompt]:Destroy()
 				activePrompts[prompt] = nil
@@ -293,5 +256,3 @@ ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt)
 	if prompt.Style ~= Enum.ProximityPromptStyle.Custom then return end
 	-- Reset progress bar if you added one
 end)
-
-print("✨ Custom Proximity Prompt UI Loaded!")
