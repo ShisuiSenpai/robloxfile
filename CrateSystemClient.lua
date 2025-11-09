@@ -234,29 +234,22 @@ local function createCrateUI(chosenSword, allSwords)
 		end
 		
 		-- Find all UI elements and ensure they're centered
-		local swordLabel = clonedSwordUI:FindFirstChild("SwordLabel")
 		local slash1 = clonedSwordUI:FindFirstChild("slash")
 		swordNameLabel = clonedSwordUI:FindFirstChild("SwordName")
 		local slash2 = clonedSwordUI:FindFirstChild("slash2")
 		
 		-- Center all elements horizontally
-		for _, element in pairs({swordLabel, slash1, swordNameLabel, slash2}) do
+		for _, element in pairs({slash1, swordNameLabel, slash2}) do
 			if element and element:IsA("GuiObject") then
 				element.AnchorPoint = Vector2.new(0.5, element.AnchorPoint.Y)
 				element.Position = UDim2.new(0.5, 0, element.Position.Y.Scale, element.Position.Y.Offset)
 			end
 		end
 		
-		-- Set initial text
+		-- Set initial text and center alignment
 		if swordNameLabel then
 			swordNameLabel.Text = "..."
 			swordNameLabel.TextXAlignment = Enum.TextXAlignment.Center
-		end
-		
-		-- Ensure "Sword: " label is correct and centered
-		if swordLabel then
-			swordLabel.Text = "Sword: "
-			swordLabel.TextXAlignment = Enum.TextXAlignment.Center
 		end
 	else
 		warn("SelectedSwordUI not found in StarterGui")
