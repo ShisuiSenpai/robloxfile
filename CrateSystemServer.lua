@@ -49,6 +49,13 @@ if not switchSwordEvent then
 	switchSwordEvent.Parent = crateRemotes
 end
 
+local openCrateButtonEvent = crateRemotes:FindFirstChild("OpenCrateButton")
+if not openCrateButtonEvent then
+	openCrateButtonEvent = Instance.new("RemoteEvent")
+	openCrateButtonEvent.Name = "OpenCrateButton"
+	openCrateButtonEvent.Parent = crateRemotes
+end
+
 -- Load sword config from Modules folder
 local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
@@ -159,6 +166,31 @@ switchSwordEvent.OnServerEvent:Connect(function(player, swordName)
 	switchSwordEvent:FireClient(player, swordName)
 
 	print("Switched " .. player.Name .. " to " .. swordName)
+end)
+
+-- Handle button click from custom UI
+openCrateButtonEvent.OnServerEvent:Connect(function(player)
+	-- Check if player is already opening a crate
+	if playersOpening[player.UserId] then
+		warn(player.Name .. " tried to open crate while already opening one")
+		return
+	end
+	
+	-- Mark player as opening
+	playersOpening[player.UserId] = true
+	
+	-- Choose a random sword
+	local chosenSword = chooseRandomSword()
+
+	-- Send to client to show animation
+	openCrateEvent:FireClient(player, chosenSword, availableSwords)
+
+	print(player.Name .. " is opening a crate (via button)! Chosen sword: " .. chosenSword)
+	
+	-- Clear opening flag after animation completes (6 seconds = safe estimate)
+	task.delay(6, function()
+		playersOpening[player.UserId] = nil
+	end)
 end)
 
 -- Cleanup when player leaves

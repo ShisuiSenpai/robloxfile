@@ -13,6 +13,10 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Get RemoteEvent for button clicks
+local crateRemotes = ReplicatedStorage:WaitForChild("CrateRemotes", 10)
+local openCrateButtonEvent = crateRemotes:WaitForChild("OpenCrateButton")
+
 -- ========================================
 -- UI SETTINGS (CUSTOMIZE HERE)
 -- ========================================
@@ -190,14 +194,11 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	keyStroke.Transparency = UI_SETTINGS.BorderTransparency
 	keyStroke.Parent = keyButton
 	
-	-- Click handler to trigger proximity prompt
+	-- Click handler to open crate
 	keyButton.MouseButton1Click:Connect(function()
-		-- Trigger the proximity prompt
-		prompt:InputHoldBegin()
-		if prompt.HoldDuration > 0 then
-			task.wait(prompt.HoldDuration)
-		end
-		prompt:InputHoldEnd()
+		-- Fire the server to open the crate
+		openCrateButtonEvent:FireServer()
+		print("🎁 Crate button clicked!")
 	end)
 	
 	-- Hover effect
