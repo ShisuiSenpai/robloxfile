@@ -215,27 +215,48 @@ local function createCrateUI(chosenSword, allSwords)
 	-- Clone and setup selected sword UI (shows current sword under indicator)
 	local selectedSwordUI = game:GetService("StarterGui"):FindFirstChild("SelectedSwordUI")
 	local swordNameLabel = nil
+	local clonedSwordUI = nil
 	
 	if selectedSwordUI then
-		local clonedUI = selectedSwordUI:Clone()
-		clonedUI.Parent = overlay
+		clonedSwordUI = selectedSwordUI:Clone()
 		
-		-- Position at top center (mobile compatible)
-		clonedUI.Enabled = true
-		clonedUI.ResetOnSpawn = false
+		-- Ensure it's a ScreenGui and configure properly
+		if clonedSwordUI:IsA("ScreenGui") then
+			clonedSwordUI.Parent = playerGui -- Parent to PlayerGui instead of overlay for proper rendering
+			clonedSwordUI.Enabled = true
+			clonedSwordUI.ResetOnSpawn = false
+			clonedSwordUI.IgnoreGuiInset = true
+			clonedSwordUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			clonedSwordUI.DisplayOrder = 10 -- Above crate UI
+		else
+			-- If it's not a ScreenGui, parent to overlay
+			clonedSwordUI.Parent = overlay
+		end
 		
-		-- Find the SwordName label to update dynamically
-		swordNameLabel = clonedUI:FindFirstChild("SwordName")
+		-- Find all UI elements and ensure they're centered
+		local swordLabel = clonedSwordUI:FindFirstChild("SwordLabel")
+		local slash1 = clonedSwordUI:FindFirstChild("slash")
+		swordNameLabel = clonedSwordUI:FindFirstChild("SwordName")
+		local slash2 = clonedSwordUI:FindFirstChild("slash2")
+		
+		-- Center all elements horizontally
+		for _, element in pairs({swordLabel, slash1, swordNameLabel, slash2}) do
+			if element and element:IsA("GuiObject") then
+				element.AnchorPoint = Vector2.new(0.5, element.AnchorPoint.Y)
+				element.Position = UDim2.new(0.5, 0, element.Position.Y.Scale, element.Position.Y.Offset)
+			end
+		end
 		
 		-- Set initial text
 		if swordNameLabel then
 			swordNameLabel.Text = "..."
+			swordNameLabel.TextXAlignment = Enum.TextXAlignment.Center
 		end
 		
-		-- Ensure "Sword: " label is correct
-		local swordLabel = clonedUI:FindFirstChild("SwordLabel")
+		-- Ensure "Sword: " label is correct and centered
 		if swordLabel then
 			swordLabel.Text = "Sword: "
+			swordLabel.TextXAlignment = Enum.TextXAlignment.Center
 		end
 	else
 		warn("SelectedSwordUI not found in StarterGui")
@@ -268,7 +289,7 @@ local function createCrateUI(chosenSword, allSwords)
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.Parent = container
 
-	return screenGui, scrollFrame, swordNameLabel
+	return screenGui, scrollFrame, swordNameLabel, clonedSwordUI
 end
 
 -- Function to setup ViewportFrame camera
@@ -759,7 +780,7 @@ local function openCrate(chosenSword, allSwords)
 	end
 
 	-- Create UI
-	local gui, scrollFrame, swordNameLabel = createCrateUI(chosenSword, allSwords)
+	local gui, scrollFrame, swordNameLabel, clonedSwordUI = createCrateUI(chosenSword, allSwords)
 	currentGui = gui
 
 	-- Animate
@@ -779,6 +800,11 @@ local function openCrate(chosenSword, allSwords)
 	if currentGui then
 		currentGui:Destroy()
 		currentGui = nil
+	end
+	
+	-- Cleanup cloned sword UI
+	if clonedSwordUI then
+		clonedSwordUI:Destroy()
 	end
 
 	-- Re-enable player movement
