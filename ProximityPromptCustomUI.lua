@@ -19,18 +19,20 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local UI_SETTINGS = {
 	-- Colors (Simple black and white)
-	BackgroundColor = Color3.fromRGB(10, 10, 10), -- Very dark background
+	BackgroundColor = Color3.fromRGB(10, 10, 10), -- Dark background
+	TitleBackgroundColor = Color3.fromRGB(5, 5, 5), -- Darker for title section
 	TextColor = Color3.fromRGB(255, 255, 255), -- White text
 	KeyBackgroundColor = Color3.fromRGB(50, 50, 50), -- Gray for key button
 	BorderColor = Color3.fromRGB(200, 200, 200), -- Light gray border
 	
 	-- Transparency
-	BackgroundTransparency = 0.15, -- Much less transparent (more solid)
-	KeyBackgroundTransparency = 0.2,
+	BackgroundTransparency = 0.8, -- More transparent (as requested)
+	TitleBackgroundTransparency = 0.6, -- Less transparent for title section
+	KeyBackgroundTransparency = 0.3,
 	BorderTransparency = 0.4,
 	
 	-- Sizes
-	ContainerSize = UDim2.new(0, 180, 0, 70), -- Compact size
+	ContainerSize = UDim2.new(0, 200, 0, 80), -- Slightly taller for spacing
 	CornerRadius = 10, -- Nice rounded corners
 	
 	-- Animation
@@ -42,8 +44,9 @@ local UI_SETTINGS = {
 	KeyTextSize = 13, -- "E" text size
 	
 	-- Spacing
-	Padding = 12, -- Internal padding
-	Spacing = 6, -- Space between elements
+	Padding = 14, -- More internal padding
+	Spacing = 10, -- More space between elements
+	TitlePadding = 10, -- Padding inside title section
 }
 
 -- ========================================
@@ -110,42 +113,48 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	stroke.Transparency = UI_SETTINGS.BorderTransparency
 	stroke.Parent = background
 	
-	-- Padding
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, UI_SETTINGS.Padding)
-	padding.PaddingBottom = UDim.new(0, UI_SETTINGS.Padding)
-	padding.PaddingLeft = UDim.new(0, UI_SETTINGS.Padding)
-	padding.PaddingRight = UDim.new(0, UI_SETTINGS.Padding)
-	padding.Parent = background
+	-- Title section with darker background
+	local titleSection = Instance.new("Frame")
+	titleSection.Name = "TitleSection"
+	titleSection.Size = UDim2.new(1, 0, 0, 36)
+	titleSection.Position = UDim2.new(0, 0, 0, 0)
+	titleSection.BackgroundColor3 = UI_SETTINGS.TitleBackgroundColor
+	titleSection.BackgroundTransparency = UI_SETTINGS.TitleBackgroundTransparency
+	titleSection.BorderSizePixel = 0
+	titleSection.Parent = background
 	
-	-- Layout for vertical stacking
-	local mainLayout = Instance.new("UIListLayout")
-	mainLayout.FillDirection = Enum.FillDirection.Vertical
-	mainLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	mainLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	mainLayout.Padding = UDim.new(0, UI_SETTINGS.Spacing)
-	mainLayout.Parent = background
+	-- Rounded corners for title section (only top corners)
+	local titleCorner = Instance.new("UICorner")
+	titleCorner.CornerRadius = UDim.new(0, UI_SETTINGS.CornerRadius)
+	titleCorner.Parent = titleSection
+	
+	-- Title padding
+	local titlePadding = Instance.new("UIPadding")
+	titlePadding.PaddingTop = UDim.new(0, UI_SETTINGS.TitlePadding)
+	titlePadding.PaddingBottom = UDim.new(0, UI_SETTINGS.TitlePadding)
+	titlePadding.PaddingLeft = UDim.new(0, UI_SETTINGS.TitlePadding)
+	titlePadding.PaddingRight = UDim.new(0, UI_SETTINGS.TitlePadding)
+	titlePadding.Parent = titleSection
 	
 	-- Title text ("Relic")
 	local titleText = Instance.new("TextLabel")
 	titleText.Name = "TitleText"
-	titleText.Size = UDim2.new(1, 0, 0, 20)
+	titleText.Size = UDim2.new(1, 0, 1, 0)
 	titleText.BackgroundTransparency = 1
 	titleText.Text = prompt.ObjectText
 	titleText.TextColor3 = UI_SETTINGS.TextColor
 	titleText.TextSize = UI_SETTINGS.TitleTextSize
 	titleText.Font = Enum.Font.GothamBold
 	titleText.TextXAlignment = Enum.TextXAlignment.Center
-	titleText.LayoutOrder = 1
-	titleText.Parent = background
+	titleText.TextYAlignment = Enum.TextYAlignment.Center
+	titleText.Parent = titleSection
 	
 	-- Bottom section (key + action)
 	local actionContainer = Instance.new("Frame")
 	actionContainer.Name = "ActionContainer"
-	actionContainer.Size = UDim2.new(1, 0, 0, 26)
+	actionContainer.Size = UDim2.new(1, -28, 0, 26) -- Account for padding
+	actionContainer.Position = UDim2.new(0, 14, 0, 46) -- Position below title with spacing
 	actionContainer.BackgroundTransparency = 1
-	actionContainer.LayoutOrder = 2
 	actionContainer.Parent = background
 	
 	local actionLayout = Instance.new("UIListLayout")
@@ -202,6 +211,7 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	-- Fade in animation
 	background.BackgroundTransparency = 1
 	stroke.Transparency = 1
+	titleSection.BackgroundTransparency = 1
 	titleText.TextTransparency = 1
 	keyButton.BackgroundTransparency = 1
 	keyStroke.Transparency = 1
@@ -212,6 +222,7 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	
 	TweenService:Create(background, tweenInfo, {BackgroundTransparency = UI_SETTINGS.BackgroundTransparency}):Play()
 	TweenService:Create(stroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
+	TweenService:Create(titleSection, tweenInfo, {BackgroundTransparency = UI_SETTINGS.TitleBackgroundTransparency}):Play()
 	TweenService:Create(titleText, tweenInfo, {TextTransparency = 0}):Play()
 	TweenService:Create(keyButton, tweenInfo, {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency}):Play()
 	TweenService:Create(keyStroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
