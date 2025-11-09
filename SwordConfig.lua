@@ -60,17 +60,13 @@ SwordConfig.Rarities = {
 -- ========================================
 
 SwordConfig.Swords = {
-	-- SWORD 1: Normal Sword
-	["NormalSword"] = {
-		-- Rarity
+	-- COMMON SWORDS (55% total)
+	["Nightward"] = {
 		Rarity = "Common",
-		
-		-- Model names in ReplicatedStorage
-		HolsteredModelName = "HolsteredSwordNormal",
-		SwordPartName = "NormalSword", -- The part inside the holstered model
-		ToolName = "NormalSword",
+		HolsteredModelName = "HolsteredNightward",
+		SwordPartName = "Nightward",
+		ToolName = "Nightward",
 
-		-- Holster settings
 		Holster = {
 			AttachmentPart = "Torso",
 			PositionOffset = Vector3.new(1, -1.2, 0.7),
@@ -78,81 +74,95 @@ SwordConfig.Swords = {
 			TransparencyValue = 0,
 		},
 
-		-- Attack settings
 		Attack = {
 			AttackDuration = 0.3,
 			AttackCooldown = 0.4,
-			AnimationId = "rbxassetid://0", -- Replace with your animation
+			AnimationId = "rbxassetid://102835293832677",
 			Damage = 10,
 			AttackRange = 10,
 		},
 
-		-- Keybind to equip this sword (optional)
-		Keybind = Enum.KeyCode.One, -- Press "1" to equip
+		Keybind = Enum.KeyCode.One,
 	},
 
-	-- SWORD 2: Ice Sword
-	["IceSword"] = {
-		-- Rarity
-		Rarity = "Rare",
-		
-		HolsteredModelName = "HolsteredSwordIce",
-		SwordPartName = "IceSword", -- The part inside the holstered model
-		ToolName = "IceSword",
+	["Hollow"] = {
+		Rarity = "Common",
+		HolsteredModelName = "HolsteredHollow",
+		SwordPartName = "Hollow",
+		ToolName = "Hollow",
 
 		Holster = {
 			AttachmentPart = "Torso",
-			PositionOffset = Vector3.new(1, -1.2, 0.7), -- SAME as NormalSword
-			RotationOffset = Vector3.new(0, 90, 110), -- SAME as NormalSword
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
 			TransparencyValue = 0,
 		},
 
 		Attack = {
-			AttackDuration = 0.5,
+			AttackDuration = 0.3,
+			AttackCooldown = 0.4,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 10,
+			AttackRange = 10,
+		},
+
+		Keybind = Enum.KeyCode.Two,
+	},
+
+	["Dravos"] = {
+		Rarity = "Common",
+		HolsteredModelName = "HolsteredDravos",
+		SwordPartName = "Dravos",
+		ToolName = "Dravos",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.3,
+			AttackCooldown = 0.4,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 10,
+			AttackRange = 10,
+		},
+
+		Keybind = Enum.KeyCode.Three,
+	},
+
+	-- UNCOMMON SWORDS (25% total)
+	["Asterion"] = {
+		Rarity = "Uncommon",
+		HolsteredModelName = "HolsteredAsterion",
+		SwordPartName = "Asterion",
+		ToolName = "Asterion",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.35,
 			AttackCooldown = 0.4,
 			AnimationId = "rbxassetid://102835293832677",
 			Damage = 12,
 			AttackRange = 10,
 		},
 
-		Keybind = Enum.KeyCode.Two, -- Press "2" to equip
+		Keybind = Enum.KeyCode.Four,
 	},
 
-	-- SWORD 3: Purple Sword
-	["PurpleSword"] = {
-		-- Rarity
-		Rarity = "Legendary",
-		
-		HolsteredModelName = "HolsteredSwordPurple",
-		SwordPartName = "PurpleSword",
-		ToolName = "PurpleSword",
-
-		Holster = {
-			AttachmentPart = "Torso",
-			PositionOffset = Vector3.new(1, -1.2, 0.7),
-			RotationOffset = Vector3.new(0, 90, 110),
-			TransparencyValue = 0,
-		},
-
-		Attack = {
-			AttackDuration = 0.5,
-			AttackCooldown = 0.4,
-			AnimationId = "rbxassetid://102835293832677",
-			Damage = 10,
-			AttackRange = 10,
-		},
-
-		Keybind = Enum.KeyCode.Three, -- Press "3" to equip
-	},
-
-	-- SWORD 4: Steel Sword
-	["SteelSword"] = {
-		-- Rarity
+	["Duskcarver"] = {
 		Rarity = "Uncommon",
-		
-		HolsteredModelName = "HolsteredSwordSteel",
-		SwordPartName = "SteelSword",
-		ToolName = "SteelSword",
+		HolsteredModelName = "HolsteredDuskcarver",
+		SwordPartName = "Duskcarver",
+		ToolName = "Duskcarver",
 
 		Holster = {
 			AttachmentPart = "Torso",
@@ -162,28 +172,27 @@ SwordConfig.Swords = {
 		},
 
 		Attack = {
-			AttackDuration = 0.5,
+			AttackDuration = 0.35,
 			AttackCooldown = 0.4,
 			AnimationId = "rbxassetid://102835293832677",
-			Damage = 10,
+			Damage = 12,
 			AttackRange = 10,
 		},
 
-		Keybind = Enum.KeyCode.Four, -- Press "4" to equip
+		Keybind = Enum.KeyCode.Five,
 	},
-	
-	["Tomahawk"] = {
-		-- Rarity
-		Rarity = "Godly",
-		
-		HolsteredModelName = "HolsteredTomahawk",
-		SwordPartName = "Tomahawk",
-		ToolName = "Tomahawk",
+
+	-- RARE SWORDS (12% total)
+	["Soulbreaker"] = {
+		Rarity = "Rare",
+		HolsteredModelName = "HolsteredSoulbreaker",
+		SwordPartName = "Soulbreaker",
+		ToolName = "Soulbreaker",
 
 		Holster = {
-			AttachmentPart = "UpperTorso",          -- Back holster (upper back)
-			PositionOffset = Vector3.new(.2, -.5, .7),  -- Centered, shoulder level, behind
-			RotationOffset = Vector3.new(0, 0, -57),     -- Horizontal across back
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
 			TransparencyValue = 0,
 		},
 
@@ -191,11 +200,158 @@ SwordConfig.Swords = {
 			AttackDuration = 0.4,
 			AttackCooldown = 0.4,
 			AnimationId = "rbxassetid://102835293832677",
-			Damage = 15,  -- Tomahawks hit harder!
+			Damage = 14,
 			AttackRange = 10,
 		},
 
-		Keybind = Enum.KeyCode.Five,  -- Press "5"
+		Keybind = Enum.KeyCode.Six,
+	},
+
+	["Nyxcaller"] = {
+		Rarity = "Rare",
+		HolsteredModelName = "HolsteredNyxcaller",
+		SwordPartName = "Nyxcaller",
+		ToolName = "Nyxcaller",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.4,
+			AttackCooldown = 0.4,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 14,
+			AttackRange = 10,
+		},
+
+		Keybind = Enum.KeyCode.Seven,
+	},
+
+	-- LEGENDARY SWORDS (7% total)
+	["Wolfreign"] = {
+		Rarity = "Legendary",
+		HolsteredModelName = "HolsteredWolfreign",
+		SwordPartName = "Wolfreign",
+		ToolName = "Wolfreign",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.45,
+			AttackCooldown = 0.4,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 16,
+			AttackRange = 10,
+		},
+
+		Keybind = Enum.KeyCode.Eight,
+	},
+
+	["WynterEdge"] = {
+		Rarity = "Legendary",
+		HolsteredModelName = "HolsteredWynterEdge",
+		SwordPartName = "WynterEdge",
+		ToolName = "WynterEdge",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.45,
+			AttackCooldown = 0.4,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 16,
+			AttackRange = 10,
+		},
+
+		Keybind = Enum.KeyCode.Nine,
+	},
+
+	-- GODLY SWORDS (1% total)
+	["Seraphine"] = {
+		Rarity = "Godly",
+		HolsteredModelName = "HolsteredSwordSeraphine", -- Note: has "Sword" prefix
+		SwordPartName = "Seraphine",
+		ToolName = "Seraphine",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.5,
+			AttackCooldown = 0.3,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 18,
+			AttackRange = 12,
+		},
+
+		Keybind = Enum.KeyCode.Zero,
+	},
+
+	["Moonwake"] = {
+		Rarity = "Godly",
+		HolsteredModelName = "HolsteredMoonwake",
+		SwordPartName = "Moonwake",
+		ToolName = "Moonwake",
+
+		Holster = {
+			AttachmentPart = "Torso",
+			PositionOffset = Vector3.new(1, -1.2, 0.7),
+			RotationOffset = Vector3.new(0, 90, 110),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.5,
+			AttackCooldown = 0.3,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 18,
+			AttackRange = 12,
+		},
+
+		Keybind = nil, -- No keybind (too many swords)
+	},
+
+	-- ??? TIER (0.1% - Ultra rare!)
+	["Dawnstar"] = {
+		Rarity = "???",
+		HolsteredModelName = "HolsteredDawnstar",
+		SwordPartName = "Dawnstar",
+		ToolName = "Dawnstar",
+
+		Holster = {
+			AttachmentPart = "UpperTorso", -- Back holster (was Tomahawk)
+			PositionOffset = Vector3.new(.2, -.5, .7),
+			RotationOffset = Vector3.new(0, 0, -57),
+			TransparencyValue = 0,
+		},
+
+		Attack = {
+			AttackDuration = 0.4,
+			AttackCooldown = 0.3,
+			AnimationId = "rbxassetid://102835293832677",
+			Damage = 20, -- Strongest sword!
+			AttackRange = 12,
+		},
+
+		Keybind = nil, -- No keybind (secret sword)
 	},
 
 	--[[
@@ -231,7 +387,7 @@ SwordConfig.Swords = {
 -- ========================================
 
 -- Which sword the player starts with (must match a key in SwordConfig.Swords)
-SwordConfig.DefaultSword = "NormalSword"
+SwordConfig.DefaultSword = "Nightward"
 
 -- Should multiple swords be visible at once? (all holstered on body)
 SwordConfig.ShowAllSwords = false -- Set to true to show all swords holstered
