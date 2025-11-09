@@ -316,6 +316,36 @@ local function createSwordItem(swordName, index)
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = itemFrame
 	
+	-- Image overlay (subtle background texture)
+	local imageOverlay = Instance.new("ImageLabel")
+	imageOverlay.Name = "ImageOverlay"
+	imageOverlay.Size = UDim2.new(1, 0, 1, 0)
+	imageOverlay.Position = UDim2.new(0, 0, 0, 0)
+	imageOverlay.BackgroundTransparency = 1
+	imageOverlay.Image = "rbxassetid://0" -- REPLACE WITH YOUR IMAGE ID
+	imageOverlay.ImageTransparency = 0.75 -- Subtle transparency (ADJUST: 0 = solid, 1 = invisible)
+	imageOverlay.ScaleType = Enum.ScaleType.Crop -- Fits image nicely
+	imageOverlay.ZIndex = 1 -- Behind other elements
+	imageOverlay.Parent = itemFrame
+	
+	-- Corner radius for overlay to match frame
+	local overlayCorner = Instance.new("UICorner")
+	overlayCorner.CornerRadius = UDim.new(0, 8)
+	overlayCorner.Parent = imageOverlay
+	
+	-- Gradient effect on overlay for extra depth
+	local overlayGradient = Instance.new("UIGradient")
+	overlayGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Top: lighter
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 150))  -- Bottom: darker
+	})
+	overlayGradient.Rotation = 90 -- Vertical gradient
+	overlayGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.3), -- Top: more visible
+		NumberSequenceKeypoint.new(1, 0.6)  -- Bottom: more transparent (fades out)
+	})
+	overlayGradient.Parent = imageOverlay
+	
 	-- Add gradient for smooth rarity color effect (top to bottom, darker to lighter)
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
@@ -338,6 +368,7 @@ local function createSwordItem(swordName, index)
 	viewport.BorderSizePixel = 0
 	viewport.Ambient = Color3.fromRGB(200, 200, 200)
 	viewport.LightColor = Color3.fromRGB(255, 255, 255)
+	viewport.ZIndex = 2 -- Above overlay
 	viewport.Parent = itemFrame
 
 	-- Try to load the 3D model
@@ -377,6 +408,7 @@ local function createSwordItem(swordName, index)
 	percentLabel.Font = Enum.Font.GothamBold
 	percentLabel.TextStrokeTransparency = 0.5 -- Subtle outline for readability
 	percentLabel.TextXAlignment = Enum.TextXAlignment.Right
+	percentLabel.ZIndex = 3 -- Above overlay
 	percentLabel.Parent = itemFrame
 
 	-- Background frame for name (semi-transparent black for readability)
@@ -387,6 +419,7 @@ local function createSwordItem(swordName, index)
 	nameBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	nameBackground.BackgroundTransparency = 0.6 -- ADJUST HERE for name background transparency (0 = solid, 1 = invisible)
 	nameBackground.BorderSizePixel = 0
+	nameBackground.ZIndex = 3 -- Above overlay
 	nameBackground.Parent = itemFrame
 	
 	-- Corner radius for name background (only bottom corners)
