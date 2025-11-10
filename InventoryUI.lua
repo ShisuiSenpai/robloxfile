@@ -566,11 +566,111 @@ local function toggleInventory()
 	end
 
 	isInventoryOpen = not isInventoryOpen
-	inventoryGui.Enabled = isInventoryOpen
-
-	-- Update equipped states when opening
+	
 	if isInventoryOpen then
+		-- Opening animation
+		inventoryGui.Enabled = true
+		
+		-- Get overlay and its children for animation
+		local overlay = inventoryGui:FindFirstChild("Overlay")
+		if overlay then
+			-- Set initial transparency for fade in
+			overlay.BackgroundTransparency = 1
+			
+			local titleBar = overlay:FindFirstChild("TitleBar")
+			local container = overlay:FindFirstChild("Container")
+			
+			if titleBar then
+				titleBar.BackgroundTransparency = 1
+				local titleText = titleBar:FindFirstChild("TitleText")
+				local closeHint = titleBar:FindFirstChild("CloseHint")
+				if titleText then titleText.TextTransparency = 1 end
+				if closeHint then closeHint.TextTransparency = 1 end
+			end
+			
+			if container then
+				container.BackgroundTransparency = 1
+				container.ScrollBarImageTransparency = 1
+				
+				-- Hide all cards initially
+				for _, card in pairs(container:GetChildren()) do
+					if card:IsA("TextButton") and card.Name:match("^Card_") then
+						card.BackgroundTransparency = 1
+						for _, child in pairs(card:GetDescendants()) do
+							if child:IsA("TextLabel") then
+								child.TextTransparency = 1
+							elseif child:IsA("ImageLabel") then
+								child.ImageTransparency = 1
+							elseif child:IsA("ViewportFrame") then
+								child.BackgroundTransparency = 1
+								child.ImageTransparency = 1
+							end
+						end
+					end
+				end
+			end
+			
+			-- Smooth fade in animation
+			local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			
+			-- Fade in overlay background
+			TweenService:Create(overlay, tweenInfo, {
+				BackgroundTransparency = UI_SETTINGS.BackgroundTransparency
+			}):Play()
+			
+			-- Fade in title bar
+			if titleBar then
+				TweenService:Create(titleBar, tweenInfo, {
+					BackgroundTransparency = 0.3
+				}):Play()
+				
+				local titleText = titleBar:FindFirstChild("TitleText")
+				local closeHint = titleBar:FindFirstChild("CloseHint")
+				if titleText then
+					TweenService:Create(titleText, tweenInfo, {TextTransparency = 0}):Play()
+				end
+				if closeHint then
+					TweenService:Create(closeHint, tweenInfo, {TextTransparency = 0}):Play()
+				end
+			end
+			
+			-- Fade in container
+			if container then
+				TweenService:Create(container, tweenInfo, {
+					ScrollBarImageTransparency = 0.3
+				}):Play()
+				
+				-- Fade in cards with slight delay for stagger effect
+				for i, card in pairs(container:GetChildren()) do
+					if card:IsA("TextButton") and card.Name:match("^Card_") then
+						local cardDelay = i * 0.03 -- Slight stagger
+						task.delay(cardDelay, function()
+							TweenService:Create(card, tweenInfo, {
+								BackgroundTransparency = UI_SETTINGS.CardBackgroundTransparency
+							}):Play()
+							
+							for _, child in pairs(card:GetDescendants()) do
+								if child:IsA("TextLabel") then
+									TweenService:Create(child, tweenInfo, {TextTransparency = 0}):Play()
+								elseif child:IsA("ImageLabel") then
+									TweenService:Create(child, tweenInfo, {ImageTransparency = 0.85}):Play()
+								elseif child:IsA("ViewportFrame") then
+									TweenService:Create(child, tweenInfo, {
+										BackgroundTransparency = 1,
+										ImageTransparency = 0
+									}):Play()
+								end
+							end
+						end)
+					end
+				end
+			end
+		end
+		
 		updateEquippedStates()
+	else
+		-- Closing (instant)
+		inventoryGui.Enabled = false
 	end
 end
 
@@ -609,11 +709,11 @@ local function createInventoryButton()
 	button.Position = UDim2.new(0, 10, 0.5, 0) -- Left middle
 	button.AnchorPoint = Vector2.new(0, 0.5) -- Center vertically
 	button.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-	button.BackgroundTransparency = 0.3
+	button.BackgroundTransparency = 0.1
 	button.BorderSizePixel = 0
 	button.AutoButtonColor = false
 	button.Text = "Inventory"
-	button.TextColor3 = Color3.fromRGB(220, 220, 230)
+	button.TextColor3 = Color3.fromRGB(244, 244, 255)
 	button.TextSize = 13
 	button.Font = Enum.Font.GothamBold
 	button.TextWrapped = true
@@ -626,28 +726,28 @@ local function createInventoryButton()
 
 	-- Border
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(60, 60, 70)
+	stroke.Color = Color3.fromRGB(252, 252, 252)
 	stroke.Thickness = 1.5
-	stroke.Transparency = 0.5
+	stroke.Transparency = 0.6
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = button
 
 	-- Hover effects
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {
-			BackgroundTransparency = 0.15
+			BackgroundTransparency = 0
 		}):Play()
 		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Transparency = 0.3
+			Transparency = 0.4
 		}):Play()
 	end)
 
 	button.MouseLeave:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {
-			BackgroundTransparency = 0.3
+			BackgroundTransparency = 0.1
 		}):Play()
 		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Transparency = 0.5
+			Transparency = 0.6
 		}):Play()
 	end)
 
