@@ -302,7 +302,7 @@ local function createSwordCard(swordName, config)
 	rarityLabel.Parent = cardFrame
 	
 	-- Count indicator (top-left corner) - shows "2x", "3x", etc.
-	local count = ownedSwords[swordName] or 1
+	local count = tonumber(ownedSwords[swordName]) or 1
 	if count > 1 then
 		local countLabel = Instance.new("TextLabel")
 		countLabel.Name = "CountLabel"
@@ -487,8 +487,9 @@ local function createInventoryGUI()
 	-- Create cards only for owned swords (sorted by rarity)
 	local swordList = {}
 	for swordName, config in pairs(SwordConfig.Swords) do
-		-- Only add if player owns this sword
-		if ownedSwords[swordName] then
+		-- Only add if player owns this sword (check if count exists and is > 0)
+		local count = tonumber(ownedSwords[swordName])
+		if count and count > 0 then
 			table.insert(swordList, {name = swordName, config = config})
 		end
 	end
@@ -551,7 +552,12 @@ local function toggleInventory()
 	end)
 	
 	if success and inventory then
-		ownedSwords = inventory
+		-- Ensure all counts are numbers
+		local cleanedInventory = {}
+		for name, count in pairs(inventory) do
+			cleanedInventory[name] = tonumber(count) or 1
+		end
+		ownedSwords = cleanedInventory
 	end
 	
 	-- Create GUI if doesn't exist
@@ -594,13 +600,19 @@ end)
 
 -- Listen for inventory updates from server
 inventoryUpdatedRemote.OnClientEvent:Connect(function(inventory)
-	ownedSwords = inventory
+	-- Ensure all counts are numbers
+	local cleanedInventory = {}
+	for name, count in pairs(inventory) do
+		cleanedInventory[name] = tonumber(count) or 1
+	end
+	ownedSwords = cleanedInventory
 	
 	-- Build debug message with counts
 	local inventoryList = {}
-	for name, count in pairs(inventory) do
-		if count > 1 then
-			table.insert(inventoryList, name .. " (x" .. count .. ")")
+	for name, count in pairs(cleanedInventory) do
+		local numCount = tonumber(count) or 1
+		if numCount > 1 then
+			table.insert(inventoryList, name .. " (x" .. numCount .. ")")
 		else
 			table.insert(inventoryList, name)
 		end
@@ -619,11 +631,16 @@ task.spawn(function()
 	end)
 	
 	if success and inventory then
-		ownedSwords = inventory
+		-- Ensure all counts are numbers
+		local cleanedInventory = {}
+		for name, count in pairs(inventory) do
+			cleanedInventory[name] = tonumber(count) or 1
+		end
+		ownedSwords = cleanedInventory
 		
 		-- Count unique swords
 		local uniqueCount = 0
-		for _ in pairs(inventory) do uniqueCount = uniqueCount + 1 end
+		for _ in pairs(cleanedInventory) do uniqueCount = uniqueCount + 1 end
 		
 		print("📦 Loaded inventory with " .. uniqueCount .. " unique sword(s)")
 	end
