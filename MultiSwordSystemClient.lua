@@ -237,13 +237,39 @@ end)
 -- ========================================
 
 if isMobile then
-	-- Mobile: Use UserInputService for tap detection
-	UserInputService.TouchTap:Connect(function(touchPositions, gameProcessed)
-		-- Don't attack if tap was on GUI (buttons, inventory, etc.)
-		if gameProcessed then return end
-		
-		-- Attack on screen tap
-		requestAttack()
+	-- Mobile: Smart tap detection (attack on tap, not on camera drag)
+	local activeTouches = {} -- Track touch start positions
+	
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		-- Only track screen touches
+		if input.UserInputType == Enum.UserInputType.Touch then
+			-- Don't process if touching GUI
+			if gameProcessed then return end
+			
+			-- Store touch start position
+			activeTouches[input] = input.Position
+		end
+	end)
+	
+	UserInputService.InputEnded:Connect(function(input, gameProcessed)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			-- Check if this touch started on the game screen
+			local startPosition = activeTouches[input]
+			if startPosition then
+				-- Calculate how far the touch moved
+				local endPosition = input.Position
+				local dragDistance = (endPosition - startPosition).Magnitude
+				
+				-- If touch barely moved (< 20 pixels), it's a tap - attack!
+				-- If it moved a lot, it was camera dragging - don't attack
+				if dragDistance < 20 then
+					requestAttack()
+				end
+				
+				-- Clean up
+				activeTouches[input] = nil
+			end
+		end
 	end)
 else
 	-- PC: Use mouse click for attacks
