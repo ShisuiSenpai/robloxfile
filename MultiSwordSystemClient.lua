@@ -175,18 +175,20 @@ end
 local function playCooldownAnimation(duration)
 	if not cooldownOverlay or not cooldownUI then return end
 	
-	-- Reset overlay to full width
-	cooldownOverlay.Size = UDim2.new(1, 0, 1, 0)
+	-- Reset overlay to full width (but slightly less to prevent overflow)
+	cooldownOverlay.Size = UDim2.new(1, -2, 1, 0)
 	
-	-- Animate overlay shrinking from left to right
-	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+	-- Animate overlay shrinking from left to right (end slightly before 0 for clean finish)
+	local tweenInfo = TweenInfo.new(duration * 0.95, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 	local tween = TweenService:Create(cooldownOverlay, tweenInfo, {
-		Size = UDim2.new(0, 0, 1, 0) -- Shrink to 0 width
+		Size = UDim2.new(0, 2, 1, 0) -- End at 2 pixels instead of 0
 	})
 	tween:Play()
 	
-	-- Flash white when ready
+	-- Hide overlay completely after tween finishes
 	tween.Completed:Connect(function()
+		cooldownOverlay.Size = UDim2.new(0, 0, 1, 0)
+		
 		-- Flash the container white
 		local originalColor = cooldownUI.BackgroundColor3
 		cooldownUI.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
