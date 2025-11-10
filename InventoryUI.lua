@@ -303,7 +303,12 @@ local function createSwordCard(swordName, config)
 	
 	-- Count indicator (top-left corner) - shows "2x", "3x", etc.
 	local count = tonumber(ownedSwords[swordName]) or 1
+	
+	-- Debug logging
+	print("🔍 Creating card for " .. swordName .. " | Raw value: " .. tostring(ownedSwords[swordName]) .. " | Count: " .. count)
+	
 	if count > 1 then
+		print("✅ Creating count label: " .. count .. "x")
 		local countLabel = Instance.new("TextLabel")
 		countLabel.Name = "CountLabel"
 		countLabel.Size = UDim2.new(0, 50, 0, 20)
@@ -316,6 +321,8 @@ local function createSwordCard(swordName, config)
 		countLabel.TextStrokeTransparency = 0.5
 		countLabel.TextXAlignment = Enum.TextXAlignment.Left
 		countLabel.Parent = cardFrame
+	else
+		print("❌ Count not > 1, no label created")
 	end
 
 	-- ========================================
@@ -600,12 +607,22 @@ end)
 
 -- Listen for inventory updates from server
 inventoryUpdatedRemote.OnClientEvent:Connect(function(inventory)
+	print("🔍 Received inventory update from server:")
+	for name, count in pairs(inventory) do
+		print("  - " .. name .. " = " .. tostring(count) .. " (type: " .. type(count) .. ")")
+	end
+	
 	-- Ensure all counts are numbers
 	local cleanedInventory = {}
 	for name, count in pairs(inventory) do
 		cleanedInventory[name] = tonumber(count) or 1
 	end
 	ownedSwords = cleanedInventory
+	
+	print("🔍 After cleaning:")
+	for name, count in pairs(ownedSwords) do
+		print("  - " .. name .. " = " .. tostring(count) .. " (type: " .. type(count) .. ")")
+	end
 	
 	-- Build debug message with counts
 	local inventoryList = {}
