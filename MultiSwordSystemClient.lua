@@ -122,6 +122,11 @@ local function createCooldownUI()
 	container.BorderSizePixel = 0
 	container.Parent = screenGui
 	
+	-- Rounded corners
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = container
+	
 	-- Border
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(252, 252, 252)
@@ -152,6 +157,11 @@ local function createCooldownUI()
 	cooldownFrame.BorderSizePixel = 0
 	cooldownFrame.ZIndex = 2
 	cooldownFrame.Parent = container
+	
+	-- Rounded corners for overlay (same as container)
+	local overlayCorner = Instance.new("UICorner")
+	overlayCorner.CornerRadius = UDim.new(0, 8)
+	overlayCorner.Parent = cooldownFrame
 	
 	-- Store reference
 	cooldownUI = container
