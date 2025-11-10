@@ -177,6 +177,36 @@ local function createSwordCard(swordName, config)
 	local rarityData = SwordConfig.Rarities[rarity]
 	local rarityColor = rarityData and rarityData.Color or Color3.fromRGB(150, 150, 150)
 
+	-- Image overlay (subtle background texture like crate UI)
+	local imageOverlay = Instance.new("ImageLabel")
+	imageOverlay.Name = "ImageOverlay"
+	imageOverlay.Size = UDim2.new(1, 0, 1, 0)
+	imageOverlay.Position = UDim2.new(0, 0, 0, 0)
+	imageOverlay.BackgroundTransparency = 1
+	imageOverlay.Image = "rbxassetid://126037341070816"
+	imageOverlay.ImageTransparency = 0.85 -- Subtle transparency
+	imageOverlay.ScaleType = Enum.ScaleType.Crop
+	imageOverlay.ZIndex = 1 -- Behind other elements
+	imageOverlay.Parent = cardFrame
+
+	-- Corner radius for overlay to match frame
+	local overlayCorner = Instance.new("UICorner")
+	overlayCorner.CornerRadius = UDim.new(0, UI_SETTINGS.CornerRadius)
+	overlayCorner.Parent = imageOverlay
+
+	-- Gradient effect on overlay for extra depth
+	local overlayGradient = Instance.new("UIGradient")
+	overlayGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), -- Top: lighter
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 150))  -- Bottom: darker
+	})
+	overlayGradient.Rotation = 90 -- Vertical gradient
+	overlayGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.3), -- Top: more visible
+		NumberSequenceKeypoint.new(1, 0.6)  -- Bottom: more transparent
+	})
+	overlayGradient.Parent = imageOverlay
+
 	-- Subtle rarity gradient (darker, more subtle than crate UI)
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
