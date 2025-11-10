@@ -117,7 +117,7 @@ local function createCooldownUI()
 	container.Name = "Container"
 	container.Size = UDim2.new(0, 140, 0, 50) -- Rectangle shape
 	-- Position based on platform: top right for mobile, bottom right for PC
-	container.Position = isMobile and UDim2.new(1, -155, 0, 15) or UDim2.new(1, -155, 1, -65)
+	container.Position = isMobile and UDim2.new(1, -155, 0, 80) or UDim2.new(1, -155, 1, -65)
 	container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 	container.BackgroundTransparency = 0.2
 	container.BorderSizePixel = 0
