@@ -112,20 +112,15 @@ local function createCooldownUI()
 	screenGui.DisplayOrder = 50
 	screenGui.Parent = playerGui
 	
-	-- Main container
+	-- Main container (rectangle)
 	local container = Instance.new("Frame")
 	container.Name = "Container"
-	container.Size = UDim2.new(0, 90, 0, 90) -- Small square
-	container.Position = UDim2.new(0, 15, 1, -105) -- Bottom left, slightly above bottom
+	container.Size = UDim2.new(0, 140, 0, 50) -- Rectangle shape
+	container.Position = UDim2.new(1, -155, 1, -65) -- Bottom right corner
 	container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 	container.BackgroundTransparency = 0.2
 	container.BorderSizePixel = 0
 	container.Parent = screenGui
-	
-	-- Rounded corners
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = container
 	
 	-- Border
 	local stroke = Instance.new("UIStroke")
@@ -140,28 +135,23 @@ local function createCooldownUI()
 	label.Name = "Label"
 	label.Size = UDim2.new(1, 0, 1, 0)
 	label.BackgroundTransparency = 1
-	label.Text = isMobile and "TAP\nto Attack" or "M1\nto Attack"
+	label.Text = isMobile and "TAP to Attack" or "M1 to Attack"
 	label.TextColor3 = Color3.fromRGB(244, 244, 255)
-	label.TextSize = 13
+	label.TextSize = 14
 	label.Font = Enum.Font.GothamBold
 	label.TextWrapped = true
 	label.Parent = container
 	
-	-- Cooldown overlay (black transparent frame that fills from top)
+	-- Cooldown overlay (black transparent frame that fills from left to right)
 	local cooldownFrame = Instance.new("Frame")
 	cooldownFrame.Name = "CooldownOverlay"
-	cooldownFrame.Size = UDim2.new(1, 0, 0, 0) -- Start at 0 height
-	cooldownFrame.Position = UDim2.new(0, 0, 0, 0) -- Top of container
+	cooldownFrame.Size = UDim2.new(0, 0, 1, 0) -- Start at 0 width
+	cooldownFrame.Position = UDim2.new(0, 0, 0, 0) -- Left side of container
 	cooldownFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	cooldownFrame.BackgroundTransparency = 0.3 -- Semi-transparent black
 	cooldownFrame.BorderSizePixel = 0
 	cooldownFrame.ZIndex = 2
 	cooldownFrame.Parent = container
-	
-	-- Rounded corners for overlay
-	local overlayCorner = Instance.new("UICorner")
-	overlayCorner.CornerRadius = UDim.new(0, 10)
-	overlayCorner.Parent = cooldownFrame
 	
 	-- Store reference
 	cooldownUI = container
@@ -174,13 +164,13 @@ end
 local function playCooldownAnimation(duration)
 	if not cooldownOverlay or not cooldownUI then return end
 	
-	-- Reset overlay to full height
+	-- Reset overlay to full width
 	cooldownOverlay.Size = UDim2.new(1, 0, 1, 0)
 	
-	-- Animate overlay shrinking from top to bottom
+	-- Animate overlay shrinking from left to right
 	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 	local tween = TweenService:Create(cooldownOverlay, tweenInfo, {
-		Size = UDim2.new(1, 0, 0, 0) -- Shrink to 0 height
+		Size = UDim2.new(0, 0, 1, 0) -- Shrink to 0 width
 	})
 	tween:Play()
 	
