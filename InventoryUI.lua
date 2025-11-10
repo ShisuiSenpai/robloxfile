@@ -300,6 +300,23 @@ local function createSwordCard(swordName, config)
 	rarityLabel.TextStrokeTransparency = 0.5
 	rarityLabel.TextXAlignment = Enum.TextXAlignment.Right
 	rarityLabel.Parent = cardFrame
+	
+	-- Count indicator (top-left corner) - shows "2x", "3x", etc.
+	local count = ownedSwords[swordName] or 1
+	if count > 1 then
+		local countLabel = Instance.new("TextLabel")
+		countLabel.Name = "CountLabel"
+		countLabel.Size = UDim2.new(0, 50, 0, 20)
+		countLabel.Position = UDim2.new(0, 5, 0, 5)
+		countLabel.BackgroundTransparency = 1
+		countLabel.Text = count .. "x"
+		countLabel.TextColor3 = UI_SETTINGS.TextColor
+		countLabel.TextSize = 13
+		countLabel.Font = Enum.Font.GothamBold
+		countLabel.TextStrokeTransparency = 0.5
+		countLabel.TextXAlignment = Enum.TextXAlignment.Left
+		countLabel.Parent = cardFrame
+	end
 
 	-- ========================================
 	-- HOVER & CLICK EFFECTS
@@ -578,13 +595,17 @@ end)
 -- Listen for inventory updates from server
 inventoryUpdatedRemote.OnClientEvent:Connect(function(inventory)
 	ownedSwords = inventory
-	print("📦 Inventory updated! You now own " .. table.concat((function()
-		local names = {}
-		for name in pairs(inventory) do
-			table.insert(names, name)
+	
+	-- Build debug message with counts
+	local inventoryList = {}
+	for name, count in pairs(inventory) do
+		if count > 1 then
+			table.insert(inventoryList, name .. " (x" .. count .. ")")
+		else
+			table.insert(inventoryList, name)
 		end
-		return names
-	end)(), ", "))
+	end
+	print("📦 Inventory updated! You now own: " .. table.concat(inventoryList, ", "))
 	
 	-- Refresh inventory UI if open
 	refreshInventory()
@@ -599,11 +620,12 @@ task.spawn(function()
 	
 	if success and inventory then
 		ownedSwords = inventory
-		print("📦 Loaded inventory with " .. (function()
-			local count = 0
-			for _ in pairs(inventory) do count = count + 1 end
-			return count
-		end)() .. " sword(s)")
+		
+		-- Count unique swords
+		local uniqueCount = 0
+		for _ in pairs(inventory) do uniqueCount = uniqueCount + 1 end
+		
+		print("📦 Loaded inventory with " .. uniqueCount .. " unique sword(s)")
 	end
 end)
 

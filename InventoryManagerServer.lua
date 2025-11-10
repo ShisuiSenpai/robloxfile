@@ -65,10 +65,10 @@ local playerInventories = {}
 local function initializeInventory(player)
 	local userId = player.UserId
 
-	-- Create new inventory with starter sword
+	-- Create new inventory with starter sword (count = 1)
 	playerInventories[userId] = {
 		swords = {
-			[SwordConfig.DefaultSword] = true -- Start with Nightward
+			[SwordConfig.DefaultSword] = 1 -- Start with 1 Nightward
 		},
 		equippedSword = SwordConfig.DefaultSword
 	}
@@ -95,22 +95,27 @@ local function addSwordToInventory(player, swordName)
 	end
 
 	-- Check if player already has this sword
+	local isNewSword = false
 	if playerInventories[userId].swords[swordName] then
-		print("Player already owns: " .. swordName)
-		return false -- Already owned
+		-- Increment count
+		playerInventories[userId].swords[swordName] = playerInventories[userId].swords[swordName] + 1
+		print("✅ Added duplicate " .. swordName .. " to " .. player.Name .. "'s inventory (now x" .. playerInventories[userId].swords[swordName] .. ")")
+	else
+		-- First time getting this sword
+		playerInventories[userId].swords[swordName] = 1
+		isNewSword = true
+		print("✅ Added NEW " .. swordName .. " to " .. player.Name .. "'s inventory")
 	end
-
-	-- Add sword to inventory
-	playerInventories[userId].swords[swordName] = true
-	print("✅ Added " .. swordName .. " to " .. player.Name .. "'s inventory")
 
 	-- Notify client of updated inventory
 	inventoryUpdatedRemote:FireClient(player, playerInventories[userId].swords)
 	
-	-- Notify other server scripts (MultiSwordSystem) to create holster
-	local swordAddedBindable = ReplicatedStorage:FindFirstChild("SwordAddedBindable")
-	if swordAddedBindable then
-		swordAddedBindable:Fire(player, swordName)
+	-- Only create holster if it's a new sword (not a duplicate)
+	if isNewSword then
+		local swordAddedBindable = ReplicatedStorage:FindFirstChild("SwordAddedBindable")
+		if swordAddedBindable then
+			swordAddedBindable:Fire(player, swordName)
+		end
 	end
 
 	return true
@@ -124,7 +129,8 @@ local function playerOwnsSword(player, swordName)
 		return false
 	end
 
-	return playerInventories[userId].swords[swordName] == true
+	-- Check if count is greater than 0
+	return playerInventories[userId].swords[swordName] and playerInventories[userId].swords[swordName] > 0
 end
 
 -- Get player's full inventory
