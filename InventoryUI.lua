@@ -669,8 +669,70 @@ local function toggleInventory()
 		
 		updateEquippedStates()
 	else
-		-- Closing (instant)
-		inventoryGui.Enabled = false
+		-- Closing animation
+		local overlay = inventoryGui:FindFirstChild("Overlay")
+		if overlay then
+			local titleBar = overlay:FindFirstChild("TitleBar")
+			local container = overlay:FindFirstChild("Container")
+			
+			-- Smooth fade out animation
+			local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			
+			-- Fade out overlay background
+			TweenService:Create(overlay, tweenInfo, {
+				BackgroundTransparency = 1
+			}):Play()
+			
+			-- Fade out title bar
+			if titleBar then
+				TweenService:Create(titleBar, tweenInfo, {
+					BackgroundTransparency = 1
+				}):Play()
+				
+				local titleText = titleBar:FindFirstChild("TitleText")
+				local closeHint = titleBar:FindFirstChild("CloseHint")
+				if titleText then
+					TweenService:Create(titleText, tweenInfo, {TextTransparency = 1}):Play()
+				end
+				if closeHint then
+					TweenService:Create(closeHint, tweenInfo, {TextTransparency = 1}):Play()
+				end
+			end
+			
+			-- Fade out container and cards
+			if container then
+				TweenService:Create(container, tweenInfo, {
+					ScrollBarImageTransparency = 1
+				}):Play()
+				
+				-- Fade out all cards
+				for _, card in pairs(container:GetChildren()) do
+					if card:IsA("TextButton") and card.Name:match("^Card_") then
+						TweenService:Create(card, tweenInfo, {
+							BackgroundTransparency = 1
+						}):Play()
+						
+						for _, child in pairs(card:GetDescendants()) do
+							if child:IsA("TextLabel") then
+								TweenService:Create(child, tweenInfo, {TextTransparency = 1}):Play()
+							elseif child:IsA("ImageLabel") then
+								TweenService:Create(child, tweenInfo, {ImageTransparency = 1}):Play()
+							elseif child:IsA("ViewportFrame") then
+								TweenService:Create(child, tweenInfo, {ImageTransparency = 1}):Play()
+							end
+						end
+					end
+				end
+			end
+			
+			-- Disable GUI after animation completes
+			task.delay(0.25, function()
+				inventoryGui.Enabled = false
+			end)
+		else
+			-- Fallback: instant close if overlay not found
+			inventoryGui.Enabled = false
+		end
 	end
 end
 
