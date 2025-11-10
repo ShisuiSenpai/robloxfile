@@ -17,13 +17,13 @@ local proximityPrompt = openCratePart:WaitForChild("OpenSwordBox")
 -- PROXIMITY PROMPT STYLING
 -- ========================================
 
--- Configure the ProximityPrompt to look modern and always visible
+-- Configure the ProximityPrompt with default Roblox UI
 proximityPrompt.ObjectText = "Relic" -- Main label
 proximityPrompt.ActionText = "Open" -- Action text
 proximityPrompt.RequiresLineOfSight = false -- Always visible when in range (no obstruction check)
 proximityPrompt.MaxActivationDistance = 7 -- Distance in studs (7 studs as requested)
 proximityPrompt.HoldDuration = 0 -- Instant activation
-proximityPrompt.Style = Enum.ProximityPromptStyle.Custom -- Use custom styling
+proximityPrompt.Style = Enum.ProximityPromptStyle.Default -- Use default Roblox UI
 proximityPrompt.Enabled = true
 proximityPrompt.ClickablePrompt = false -- Disable click-to-activate (use key/button only)
 
