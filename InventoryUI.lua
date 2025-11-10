@@ -599,13 +599,14 @@ local function createInventoryButton()
 	buttonGui.ResetOnSpawn = false
 	buttonGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	buttonGui.IgnoreGuiInset = true
+	buttonGui.DisplayOrder = 100 -- Above inventory UI (stays on top)
 	buttonGui.Parent = playerGui
 
-	-- Button frame (square, right middle)
+	-- Button frame (square, left middle)
 	local button = Instance.new("TextButton")
 	button.Name = "InventoryButton"
 	button.Size = UDim2.new(0, 80, 0, 80) -- Square
-	button.Position = UDim2.new(1, -90, 0.5, -40) -- Right middle
+	button.Position = UDim2.new(0, 10, 0.5, 0) -- Left middle
 	button.AnchorPoint = Vector2.new(0, 0.5) -- Center vertically
 	button.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 	button.BackgroundTransparency = 0.3
