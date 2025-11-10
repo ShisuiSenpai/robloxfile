@@ -398,12 +398,13 @@ local function createInventoryGUI()
 	screenGui.Enabled = false
 	screenGui.Parent = playerGui
 
-	-- Background overlay (no darkening - fully transparent)
+	-- Background overlay (darkens screen)
 	local overlay = Instance.new("Frame")
 	overlay.Name = "Overlay"
 	overlay.Size = UDim2.new(1, 0, 1, 0)
 	overlay.Position = UDim2.new(0, 0, 0, 0)
-	overlay.BackgroundTransparency = 1 -- Fully transparent
+	overlay.BackgroundColor3 = UI_SETTINGS.BackgroundColor
+	overlay.BackgroundTransparency = UI_SETTINGS.BackgroundTransparency
 	overlay.BorderSizePixel = 0
 	overlay.Parent = screenGui
 
@@ -412,8 +413,8 @@ local function createInventoryGUI()
 	titleBar.Name = "TitleBar"
 	titleBar.Size = UDim2.new(0, 600, 0, 50)
 	titleBar.Position = UDim2.new(0.5, -300, 0, 40)
-	titleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-	titleBar.BackgroundTransparency = 0.05 -- More solid
+	titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	titleBar.BackgroundTransparency = 0.3
 	titleBar.BorderSizePixel = 0
 	titleBar.Parent = overlay
 
@@ -422,9 +423,9 @@ local function createInventoryGUI()
 	titleCorner.Parent = titleBar
 
 	local titleStroke = Instance.new("UIStroke")
-	titleStroke.Color = Color3.fromRGB(100, 100, 255) -- Blue accent border
-	titleStroke.Thickness = 2
-	titleStroke.Transparency = 0.4
+	titleStroke.Color = UI_SETTINGS.BorderColor
+	titleStroke.Thickness = 1.5
+	titleStroke.Transparency = 0.5
 	titleStroke.Parent = titleBar
 
 	-- Title text
@@ -458,27 +459,14 @@ local function createInventoryGUI()
 	container.Name = "Container"
 	container.Size = UDim2.new(0, 600, 0, 450)
 	container.Position = UDim2.new(0.5, -300, 0, 110)
-	container.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-	container.BackgroundTransparency = 0.05 -- Slightly visible background
+	container.BackgroundTransparency = 1
 	container.BorderSizePixel = 0
 	container.ScrollBarThickness = 8
-	container.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 255) -- Blue scrollbar
-	container.ScrollBarImageTransparency = 0.5
+	container.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 90)
+	container.ScrollBarImageTransparency = 0.3
 	container.CanvasSize = UDim2.new(0, 0, 0, 0) -- Will auto-size
 	container.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	container.Parent = overlay
-	
-	-- Add rounded corners to container
-	local containerCorner = Instance.new("UICorner")
-	containerCorner.CornerRadius = UDim.new(0, UI_SETTINGS.CornerRadius)
-	containerCorner.Parent = container
-	
-	-- Add border to container
-	local containerStroke = Instance.new("UIStroke")
-	containerStroke.Color = Color3.fromRGB(100, 100, 255)
-	containerStroke.Thickness = 2
-	containerStroke.Transparency = 0.4
-	containerStroke.Parent = container
 
 	-- Grid layout for cards
 	local gridLayout = Instance.new("UIGridLayout")
@@ -613,54 +601,52 @@ local function createInventoryButton()
 	buttonGui.IgnoreGuiInset = true
 	buttonGui.Parent = playerGui
 
-	-- Button frame (square, left middle)
+	-- Button frame (square, right middle)
 	local button = Instance.new("TextButton")
 	button.Name = "InventoryButton"
 	button.Size = UDim2.new(0, 80, 0, 80) -- Square
-	button.Position = UDim2.new(0, 10, 0.5, 0) -- Left middle
+	button.Position = UDim2.new(1, -90, 0.5, -40) -- Right middle
 	button.AnchorPoint = Vector2.new(0, 0.5) -- Center vertically
-	button.BackgroundColor3 = Color3.fromRGB(15, 15, 20) -- Darker, less grey
-	button.BackgroundTransparency = 0.1 -- Less transparent
+	button.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	button.BackgroundTransparency = 0.3
 	button.BorderSizePixel = 0
 	button.AutoButtonColor = false
 	button.Text = "Inventory"
-	button.TextColor3 = Color3.fromRGB(255, 255, 255) -- Pure white
-	button.TextSize = 12
+	button.TextColor3 = Color3.fromRGB(220, 220, 230)
+	button.TextSize = 13
 	button.Font = Enum.Font.GothamBold
 	button.TextWrapped = true
 	button.Parent = buttonGui
 
 	-- Rounded corners
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
+	corner.CornerRadius = UDim.new(0, 10)
 	corner.Parent = button
 
 	-- Border
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(100, 100, 255) -- Blue accent
-	stroke.Thickness = 2
-	stroke.Transparency = 0.3
+	stroke.Color = Color3.fromRGB(60, 60, 70)
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.5
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = button
 
 	-- Hover effects
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {
-			BackgroundTransparency = 0
+			BackgroundTransparency = 0.15
 		}):Play()
 		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Transparency = 0,
-			Thickness = 2.5
+			Transparency = 0.3
 		}):Play()
 	end)
 
 	button.MouseLeave:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {
-			BackgroundTransparency = 0.1
+			BackgroundTransparency = 0.3
 		}):Play()
 		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Transparency = 0.3,
-			Thickness = 2
+			Transparency = 0.5
 		}):Play()
 	end)
 
