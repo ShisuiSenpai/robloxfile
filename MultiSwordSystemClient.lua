@@ -120,6 +120,7 @@ local function createCooldownUI()
 	container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 	container.BackgroundTransparency = 0.2
 	container.BorderSizePixel = 0
+	container.ClipsDescendants = true -- Prevents overlay from going outside bounds
 	container.Parent = screenGui
 	
 	-- Rounded corners
