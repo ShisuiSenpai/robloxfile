@@ -304,11 +304,7 @@ local function createSwordCard(swordName, config)
 	-- Count indicator (top-left corner) - shows "2x", "3x", etc.
 	local count = tonumber(ownedSwords[swordName]) or 1
 	
-	-- Debug logging
-	print("🔍 Creating card for " .. swordName .. " | Raw value: " .. tostring(ownedSwords[swordName]) .. " | Count: " .. count)
-	
 	if count > 1 then
-		print("✅ Creating count label: " .. count .. "x")
 		local countLabel = Instance.new("TextLabel")
 		countLabel.Name = "CountLabel"
 		countLabel.Size = UDim2.new(0, 50, 0, 20)
@@ -321,8 +317,6 @@ local function createSwordCard(swordName, config)
 		countLabel.TextStrokeTransparency = 0.5
 		countLabel.TextXAlignment = Enum.TextXAlignment.Left
 		countLabel.Parent = cardFrame
-	else
-		print("❌ Count not > 1, no label created")
 	end
 
 	-- ========================================
@@ -378,7 +372,6 @@ local function createSwordCard(swordName, config)
 	cardFrame.MouseButton1Click:Connect(function()
 		-- Request sword switch from server
 		switchSwordRemote:FireServer(swordName)
-		print("Requested sword switch to: " .. swordName)
 	end)
 
 	-- Store reference
@@ -532,6 +525,75 @@ local function createInventoryGUI()
 end
 
 -- ========================================
+-- INVENTORY BUTTON
+-- ========================================
+
+-- Create inventory button UI
+local function createInventoryButton()
+	-- Create ScreenGui for button
+	local buttonGui = Instance.new("ScreenGui")
+	buttonGui.Name = "InventoryButtonUI"
+	buttonGui.ResetOnSpawn = false
+	buttonGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	buttonGui.IgnoreGuiInset = true
+	buttonGui.Parent = playerGui
+
+	-- Button frame
+	local button = Instance.new("TextButton")
+	button.Name = "InventoryButton"
+	button.Size = UDim2.new(0, 120, 0, 40)
+	button.Position = UDim2.new(1, -130, 0, 10) -- Top-right corner
+	button.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	button.BackgroundTransparency = 0.3
+	button.BorderSizePixel = 0
+	button.AutoButtonColor = false
+	button.Text = "Inventory"
+	button.TextColor3 = Color3.fromRGB(220, 220, 230)
+	button.TextSize = 14
+	button.Font = Enum.Font.GothamBold
+	button.Parent = buttonGui
+
+	-- Rounded corners
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = button
+
+	-- Border
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(60, 60, 70)
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = button
+
+	-- Hover effects
+	button.MouseEnter:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0.15
+		}):Play()
+		TweenService:Create(stroke, TweenInfo.new(0.2), {
+			Transparency = 0.3
+		}):Play()
+	end)
+
+	button.MouseLeave:Connect(function()
+		TweenService:Create(button, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0.3
+		}):Play()
+		TweenService:Create(stroke, TweenInfo.new(0.2), {
+			Transparency = 0.5
+		}):Play()
+	end)
+
+	-- Click handler
+	button.MouseButton1Click:Connect(function()
+		toggleInventory()
+	end)
+
+	return buttonGui
+end
+
+-- ========================================
 -- INVENTORY MANAGEMENT
 -- ========================================
 
@@ -602,39 +664,16 @@ end)
 switchSwordRemote.OnClientEvent:Connect(function(swordName)
 	currentEquippedSword = swordName
 	updateEquippedStates()
-	print("Equipped: " .. swordName)
 end)
 
 -- Listen for inventory updates from server
 inventoryUpdatedRemote.OnClientEvent:Connect(function(inventory)
-	print("🔍 Received inventory update from server:")
-	for name, count in pairs(inventory) do
-		print("  - " .. name .. " = " .. tostring(count) .. " (type: " .. type(count) .. ")")
-	end
-	
 	-- Ensure all counts are numbers
 	local cleanedInventory = {}
 	for name, count in pairs(inventory) do
 		cleanedInventory[name] = tonumber(count) or 1
 	end
 	ownedSwords = cleanedInventory
-	
-	print("🔍 After cleaning:")
-	for name, count in pairs(ownedSwords) do
-		print("  - " .. name .. " = " .. tostring(count) .. " (type: " .. type(count) .. ")")
-	end
-	
-	-- Build debug message with counts
-	local inventoryList = {}
-	for name, count in pairs(cleanedInventory) do
-		local numCount = tonumber(count) or 1
-		if numCount > 1 then
-			table.insert(inventoryList, name .. " (x" .. numCount .. ")")
-		else
-			table.insert(inventoryList, name)
-		end
-	end
-	print("📦 Inventory updated! You now own: " .. table.concat(inventoryList, ", "))
 	
 	-- Refresh inventory UI if open
 	refreshInventory()
@@ -654,13 +693,10 @@ task.spawn(function()
 			cleanedInventory[name] = tonumber(count) or 1
 		end
 		ownedSwords = cleanedInventory
-		
-		-- Count unique swords
-		local uniqueCount = 0
-		for _ in pairs(cleanedInventory) do uniqueCount = uniqueCount + 1 end
-		
-		print("📦 Loaded inventory with " .. uniqueCount .. " unique sword(s)")
 	end
 end)
 
-print("Inventory UI loaded! Press [TAB] to open.")
+-- Create inventory button
+createInventoryButton()
+
+print("Inventory UI loaded!")

@@ -73,8 +73,7 @@ local function initializeInventory(player)
 		equippedSword = SwordConfig.DefaultSword
 	}
 
-	print("📦 [SERVER] Initialized inventory for " .. player.Name .. " with " .. SwordConfig.DefaultSword .. " (count = 1)")
-	print("🔍 [SERVER] Initial inventory: " .. SwordConfig.DefaultSword .. " = " .. tostring(playerInventories[userId].swords[SwordConfig.DefaultSword]) .. " (type: " .. type(playerInventories[userId].swords[SwordConfig.DefaultSword]) .. ")")
+	print("📦 Initialized inventory for " .. player.Name .. " with " .. SwordConfig.DefaultSword)
 
 	-- Notify client of inventory
 	inventoryUpdatedRemote:FireClient(player, playerInventories[userId].swords)
@@ -99,21 +98,17 @@ local function addSwordToInventory(player, swordName)
 	local isNewSword = false
 	local currentCount = playerInventories[userId].swords[swordName]
 	
-	print("🔍 [SERVER] Adding " .. swordName .. " | Current value: " .. tostring(currentCount) .. " (type: " .. type(currentCount) .. ")")
-	
 	if currentCount and currentCount > 0 then
 		-- Increment count (DUPLICATE)
 		playerInventories[userId].swords[swordName] = currentCount + 1
-		print("✅ [SERVER] Added DUPLICATE " .. swordName .. " to " .. player.Name .. "'s inventory (now x" .. playerInventories[userId].swords[swordName] .. ")")
+		print("✅ Added duplicate " .. swordName .. " to " .. player.Name .. "'s inventory (now x" .. playerInventories[userId].swords[swordName] .. ")")
 		isNewSword = false
 	else
 		-- First time getting this sword (NEW)
 		playerInventories[userId].swords[swordName] = 1
 		isNewSword = true
-		print("✅ [SERVER] Added NEW " .. swordName .. " to " .. player.Name .. "'s inventory (x1)")
+		print("✅ Added " .. swordName .. " to " .. player.Name .. "'s inventory")
 	end
-	
-	print("🔍 [SERVER] Sending to client: " .. swordName .. " = " .. tostring(playerInventories[userId].swords[swordName]))
 
 	-- Notify client of updated inventory
 	inventoryUpdatedRemote:FireClient(player, playerInventories[userId].swords)
