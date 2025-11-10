@@ -318,7 +318,7 @@ local function createSwordCard(swordName, config)
 	cardFrame.MouseButton1Click:Connect(function()
 		-- Request sword switch from server
 		switchSwordRemote:FireServer(swordName)
-		print("🗡️ Requested sword switch to: " .. swordName)
+		print("Requested sword switch to: " .. swordName)
 	end)
 
 	-- Store reference
@@ -341,6 +341,7 @@ local function createInventoryGUI()
 	screenGui.Name = "InventoryUI"
 	screenGui.ResetOnSpawn = false
 	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	screenGui.IgnoreGuiInset = true -- Cover entire screen including topbar
 	screenGui.Enabled = false
 	screenGui.Parent = playerGui
 
@@ -380,7 +381,7 @@ local function createInventoryGUI()
 	titleText.Size = UDim2.new(1, -20, 1, 0)
 	titleText.Position = UDim2.new(0, 10, 0, 0)
 	titleText.BackgroundTransparency = 1
-	titleText.Text = "⚔️  SWORD INVENTORY"
+	titleText.Text = "SWORD INVENTORY"
 	titleText.TextColor3 = UI_SETTINGS.TextColor
 	titleText.TextSize = 20
 	titleText.Font = Enum.Font.GothamBold
@@ -493,7 +494,7 @@ end)
 switchSwordRemote.OnClientEvent:Connect(function(swordName)
 	currentEquippedSword = swordName
 	updateEquippedStates()
-	print("✅ Equipped: " .. swordName)
+	print("Equipped: " .. swordName)
 end)
 
-print("📦 Inventory UI loaded! Press [TAB] to open.")
+print("Inventory UI loaded! Press [TAB] to open.")
