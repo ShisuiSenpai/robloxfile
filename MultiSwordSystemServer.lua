@@ -16,6 +16,10 @@ local Players = game:GetService("Players")
 local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
 
+-- Wait for InventoryManager to be ready
+repeat task.wait() until _G.InventoryManager
+local InventoryManager = _G.InventoryManager
+
 -- Get asset folders
 local toolSwordsFolder = ReplicatedStorage:WaitForChild("ToolSwords")
 local holsteredModelsFolder = ReplicatedStorage:WaitForChild("HolsteredModels")
@@ -228,17 +232,24 @@ local function initializePlayer(player)
 		lastAttackTime = 0,
 	}
 
-	-- Create all holstered swords
+	-- Get player's owned swords from inventory
+	local ownedSwords = InventoryManager.GetInventory(player)
+
+	-- Create holstered swords only for owned swords
 	for swordName, config in pairs(SwordConfig.Swords) do
-		createHolsteredSword(character, swordName, config)
+		if ownedSwords[swordName] then
+			createHolsteredSword(character, swordName, config)
+		end
 	end
 
 	-- Show only the current sword (or all if ShowAllSwords is true)
 	for swordName, config in pairs(SwordConfig.Swords) do
-		if SwordConfig.ShowAllSwords or swordName == SwordConfig.DefaultSword then
-			showHolster(character, swordName)
-		else
-			hideHolster(character, swordName)
+		if ownedSwords[swordName] then
+			if SwordConfig.ShowAllSwords or swordName == SwordConfig.DefaultSword then
+				showHolster(character, swordName)
+			else
+				hideHolster(character, swordName)
+			end
 		end
 	end
 
@@ -314,13 +325,29 @@ switchSwordRemote.OnServerEvent:Connect(function(player, swordName)
 	if not playerData then return end
 
 	-- Validate sword exists
-	if not SwordConfig.Swords[swordName] then return end
+	if not SwordConfig.Swords[swordName] then 
+		warn("Sword does not exist: " .. tostring(swordName))
+		return 
+	end
+
+	-- Check if player owns this sword
+	if not InventoryManager.PlayerOwnsSword(player, swordName) then
+		warn(player.Name .. " tried to equip sword they don't own: " .. swordName)
+		return
+	end
 
 	-- Don't switch if already on this sword
-	if playerData.currentSword == swordName then return end
+	if playerData.currentSword == swordName then 
+		-- Still send confirmation (for UI update)
+		switchSwordRemote:FireClient(player, swordName)
+		return 
+	end
 
 	-- Don't switch while attacking
-	if playerData.isAttacking then return end
+	if playerData.isAttacking then 
+		warn(player.Name .. " tried to switch while attacking")
+		return 
+	end
 
 	-- Hide old sword (unless ShowAllSwords)
 	if not SwordConfig.ShowAllSwords then
@@ -335,7 +362,46 @@ switchSwordRemote.OnServerEvent:Connect(function(player, swordName)
 
 	-- Tell client switch was successful
 	switchSwordRemote:FireClient(player, swordName)
+	
+	print("✅ " .. player.Name .. " equipped: " .. swordName)
 end)
+
+-- ========================================
+-- DYNAMIC HOLSTER CREATION (for new swords from crates)
+-- ========================================
+
+-- Listen for when a player gets a new sword via BindableEvent
+local swordAddedBindable = ReplicatedStorage:WaitForChild("SwordAddedBindable", 10)
+if swordAddedBindable then
+	swordAddedBindable.Event:Connect(function(player, swordName)
+		local character = player.Character
+		if not character then return end
+
+		local userId = player.UserId
+		local playerData = playerSwordData[userId]
+		if not playerData then return end
+
+		-- Check if holster already exists
+		local holsterFolder = character:FindFirstChild("HolsteredSwords")
+		local holsterExists = holsterFolder and holsterFolder:FindFirstChild("Holstered_" .. swordName)
+		
+		if not holsterExists then
+			local config = SwordConfig.Swords[swordName]
+			if config then
+				createHolsteredSword(character, swordName, config)
+				
+				-- Hide it by default (unless ShowAllSwords is enabled)
+				if not SwordConfig.ShowAllSwords then
+					hideHolster(character, swordName)
+				else
+					showHolster(character, swordName)
+				end
+				
+				print("🗡️ Created holster for new sword: " .. swordName)
+			end
+		end
+	end)
+end
 
 -- ========================================
 -- PLAYER MANAGEMENT

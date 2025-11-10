@@ -238,19 +238,7 @@ mouse.Button1Down:Connect(function()
 	requestAttack()
 end)
 
--- Keyboard handler for sword switching
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if not SwordConfig.AllowSwitching then return end
-
-	-- Check if input matches any sword's keybind
-	for swordName, config in pairs(SwordConfig.Swords) do
-		if config.Keybind and input.KeyCode == config.Keybind then
-			switchSword(swordName)
-			break
-		end
-	end
-end)
+-- Keybind switching disabled - swords can only be equipped from inventory UI
 
 -- ========================================
 -- SERVER EVENT HANDLERS

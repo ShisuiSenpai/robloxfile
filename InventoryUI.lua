@@ -29,6 +29,11 @@ local vfModelsFolder = ReplicatedStorage:WaitForChild("VFmodels")
 local swordRemotes = ReplicatedStorage:WaitForChild("SwordRemotes")
 local switchSwordRemote = swordRemotes:WaitForChild("SwitchSword")
 
+-- Get inventory remotes
+local inventoryRemotes = ReplicatedStorage:WaitForChild("InventoryRemotes")
+local getInventoryRemote = inventoryRemotes:WaitForChild("GetInventory")
+local inventoryUpdatedRemote = inventoryRemotes:WaitForChild("InventoryUpdated")
+
 -- ========================================
 -- UI SETTINGS
 -- ========================================
@@ -72,6 +77,7 @@ local inventoryGui = nil
 local isInventoryOpen = false
 local currentEquippedSword = SwordConfig.DefaultSword
 local cardFrames = {} -- Store all card frames for updating
+local ownedSwords = {} -- Store which swords the player owns
 
 -- ========================================
 -- UTILITY FUNCTIONS
@@ -461,10 +467,13 @@ local function createInventoryGUI()
 	padding.PaddingRight = UDim.new(0, 15)
 	padding.Parent = container
 
-	-- Create cards for all swords (sorted by rarity)
+	-- Create cards only for owned swords (sorted by rarity)
 	local swordList = {}
 	for swordName, config in pairs(SwordConfig.Swords) do
-		table.insert(swordList, {name = swordName, config = config})
+		-- Only add if player owns this sword
+		if ownedSwords[swordName] then
+			table.insert(swordList, {name = swordName, config = config})
+		end
 	end
 
 	-- Sort by rarity (highest to lowest)
@@ -480,6 +489,19 @@ local function createInventoryGUI()
 		card.LayoutOrder = i
 		card.Parent = container
 	end
+	
+	-- Show message if no swords owned (shouldn't happen since players start with Nightward)
+	if #swordList == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Size = UDim2.new(1, 0, 0, 100)
+		emptyLabel.BackgroundTransparency = 1
+		emptyLabel.Text = "No swords owned yet!\nOpen crates to get swords."
+		emptyLabel.TextColor3 = UI_SETTINGS.TextColor
+		emptyLabel.TextSize = 16
+		emptyLabel.Font = Enum.Font.GothamMedium
+		emptyLabel.TextWrapped = true
+		emptyLabel.Parent = container
+	end
 
 	return screenGui
 end
@@ -488,8 +510,34 @@ end
 -- INVENTORY MANAGEMENT
 -- ========================================
 
+-- Refresh inventory (rebuild UI with current owned swords)
+local function refreshInventory()
+	if inventoryGui then
+		inventoryGui:Destroy()
+		inventoryGui = nil
+		cardFrames = {}
+	end
+	
+	-- Rebuild if currently open
+	if isInventoryOpen then
+		inventoryGui = createInventoryGUI()
+		inventoryGui.Enabled = true
+		updateEquippedStates()
+	end
+end
+
 -- Toggle inventory visibility
 local function toggleInventory()
+	-- Request latest inventory from server
+	local success, inventory = pcall(function()
+		return getInventoryRemote:InvokeServer()
+	end)
+	
+	if success and inventory then
+		ownedSwords = inventory
+	end
+	
+	-- Create GUI if doesn't exist
 	if not inventoryGui then
 		inventoryGui = createInventoryGUI()
 	end
@@ -525,6 +573,38 @@ switchSwordRemote.OnClientEvent:Connect(function(swordName)
 	currentEquippedSword = swordName
 	updateEquippedStates()
 	print("Equipped: " .. swordName)
+end)
+
+-- Listen for inventory updates from server
+inventoryUpdatedRemote.OnClientEvent:Connect(function(inventory)
+	ownedSwords = inventory
+	print("📦 Inventory updated! You now own " .. table.concat((function()
+		local names = {}
+		for name in pairs(inventory) do
+			table.insert(names, name)
+		end
+		return names
+	end)(), ", "))
+	
+	-- Refresh inventory UI if open
+	refreshInventory()
+end)
+
+-- Request initial inventory
+task.spawn(function()
+	task.wait(1) -- Wait for server to initialize
+	local success, inventory = pcall(function()
+		return getInventoryRemote:InvokeServer()
+	end)
+	
+	if success and inventory then
+		ownedSwords = inventory
+		print("📦 Loaded inventory with " .. (function()
+			local count = 0
+			for _ in pairs(inventory) do count = count + 1 end
+			return count
+		end)() .. " sword(s)")
+	end
 end)
 
 print("Inventory UI loaded! Press [TAB] to open.")

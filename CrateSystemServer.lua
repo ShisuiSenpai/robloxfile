@@ -55,6 +55,10 @@ end
 local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
 
+-- Wait for InventoryManager to be ready
+repeat task.wait() until _G.InventoryManager
+local InventoryManager = _G.InventoryManager
+
 -- Table of all available swords
 local availableSwords = {}
 for swordName, _ in pairs(SwordConfig.Swords) do
@@ -143,8 +147,12 @@ proximityPrompt.Triggered:Connect(function(player)
 
 	print(player.Name .. " is opening a crate! Chosen sword: " .. chosenSword)
 
-	-- Clear opening flag after animation completes (6 seconds = safe estimate)
+	-- Wait for animation to complete, then add sword to inventory
 	task.delay(6, function()
+		-- Add sword to player's inventory
+		InventoryManager.AddSword(player, chosenSword)
+		
+		-- Clear opening flag
 		playersOpening[player.UserId] = nil
 	end)
 end)
