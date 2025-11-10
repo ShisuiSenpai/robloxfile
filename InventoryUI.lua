@@ -525,6 +525,69 @@ local function createInventoryGUI()
 end
 
 -- ========================================
+-- INVENTORY MANAGEMENT
+-- ========================================
+
+-- Refresh inventory (rebuild UI with current owned swords)
+local function refreshInventory()
+	if inventoryGui then
+		inventoryGui:Destroy()
+		inventoryGui = nil
+		cardFrames = {}
+	end
+	
+	-- Rebuild if currently open
+	if isInventoryOpen then
+		inventoryGui = createInventoryGUI()
+		inventoryGui.Enabled = true
+		updateEquippedStates()
+	end
+end
+
+-- Toggle inventory visibility
+local function toggleInventory()
+	-- Request latest inventory from server
+	local success, inventory = pcall(function()
+		return getInventoryRemote:InvokeServer()
+	end)
+	
+	if success and inventory then
+		-- Ensure all counts are numbers
+		local cleanedInventory = {}
+		for name, count in pairs(inventory) do
+			cleanedInventory[name] = tonumber(count) or 1
+		end
+		ownedSwords = cleanedInventory
+	end
+	
+	-- Create GUI if doesn't exist
+	if not inventoryGui then
+		inventoryGui = createInventoryGUI()
+	end
+
+	isInventoryOpen = not isInventoryOpen
+	inventoryGui.Enabled = isInventoryOpen
+
+	-- Update equipped states when opening
+	if isInventoryOpen then
+		updateEquippedStates()
+	end
+end
+
+-- ========================================
+-- INPUT HANDLING
+-- ========================================
+
+-- Listen for TAB key to open/close inventory
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+
+	if input.KeyCode == Enum.KeyCode.Tab then
+		toggleInventory()
+	end
+end)
+
+-- ========================================
 -- INVENTORY BUTTON
 -- ========================================
 
@@ -592,69 +655,6 @@ local function createInventoryButton()
 
 	return buttonGui
 end
-
--- ========================================
--- INVENTORY MANAGEMENT
--- ========================================
-
--- Refresh inventory (rebuild UI with current owned swords)
-local function refreshInventory()
-	if inventoryGui then
-		inventoryGui:Destroy()
-		inventoryGui = nil
-		cardFrames = {}
-	end
-	
-	-- Rebuild if currently open
-	if isInventoryOpen then
-		inventoryGui = createInventoryGUI()
-		inventoryGui.Enabled = true
-		updateEquippedStates()
-	end
-end
-
--- Toggle inventory visibility
-local function toggleInventory()
-	-- Request latest inventory from server
-	local success, inventory = pcall(function()
-		return getInventoryRemote:InvokeServer()
-	end)
-	
-	if success and inventory then
-		-- Ensure all counts are numbers
-		local cleanedInventory = {}
-		for name, count in pairs(inventory) do
-			cleanedInventory[name] = tonumber(count) or 1
-		end
-		ownedSwords = cleanedInventory
-	end
-	
-	-- Create GUI if doesn't exist
-	if not inventoryGui then
-		inventoryGui = createInventoryGUI()
-	end
-
-	isInventoryOpen = not isInventoryOpen
-	inventoryGui.Enabled = isInventoryOpen
-
-	-- Update equipped states when opening
-	if isInventoryOpen then
-		updateEquippedStates()
-	end
-end
-
--- ========================================
--- INPUT HANDLING
--- ========================================
-
--- Listen for TAB key to open/close inventory
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-
-	if input.KeyCode == Enum.KeyCode.Tab then
-		toggleInventory()
-	end
-end)
 
 -- ========================================
 -- SWORD SWITCH LISTENER
