@@ -80,21 +80,15 @@ detectionZone.Parent = workspace
 
 -- Find assets
 local crownAccessory = nil
-local pushTool = nil
 
 if ReplicatedStorage:FindFirstChild("Assets") then
 	crownAccessory = ReplicatedStorage.Assets:FindFirstChild("Crown")
 	if crownAccessory then
 		debugPrint("Crown found!")
 	end
-
-	pushTool = ReplicatedStorage.Assets:FindFirstChild("Push")
-	if pushTool and pushTool:IsA("Tool") then
-		debugPrint("Push tool found!")
-	else
-		warn("[ROUND SYSTEM] Push tool not found in ReplicatedStorage > Assets > Push")
-	end
 end
+
+-- NOTE: Sword system handles weapons automatically - no tool giving needed!
 
 -- OPTIMIZED: Cache spawn list to avoid repeated GetChildren calls
 local cachedLobbySpawns = lobbySpawns and lobbySpawns:GetChildren() or {}
@@ -180,48 +174,7 @@ local function removeCrown(player)
 	if crown then pcall(function() crown:Destroy() end) end
 end
 
--- Push tool management
-local function givePushTool(player)
-	if not pushTool or not player then return end
-
-	local backpack = player:FindFirstChild("Backpack")
-	if not backpack then return end
-
-	-- Check if already has tool
-	if backpack:FindFirstChild("Push") or (player.Character and player.Character:FindFirstChild("Push")) then
-		return
-	end
-
-	-- Clone and give tool
-	local success = pcall(function()
-		local toolClone = pushTool:Clone()
-		toolClone.Parent = backpack
-	end)
-
-	if success then
-		debugPrint("Gave push tool to", player.Name)
-	end
-end
-
-local function removePushTool(player)
-	if not player then return end
-
-	-- Remove from backpack and character
-	pcall(function()
-		local backpack = player:FindFirstChild("Backpack")
-		if backpack then
-			local tool = backpack:FindFirstChild("Push")
-			if tool then tool:Destroy() end
-		end
-	end)
-
-	pcall(function()
-		if player.Character then
-			local tool = player.Character:FindFirstChild("Push")
-			if tool then tool:Destroy() end
-		end
-	end)
-end
+-- Sword system handles weapons - no tool management needed here!
 
 -- OPTIMIZED: Only update king display when value actually changes
 local lastTimeRemaining = -1
@@ -353,9 +306,9 @@ local function onPlayerWin(player)
 	-- Send all players to lobby
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr.Character then
-			spawnPlayerAt(plr, cachedLobbySpawns)
-			playersAlive[plr] = false
-			removePushTool(plr)
+		spawnPlayerAt(plr, cachedLobbySpawns)
+		playersAlive[plr] = false
+		-- Sword system handles weapons automatically
 		end
 	end
 
@@ -404,7 +357,7 @@ function startNewRound()
 			spawnPlayerAt(player, cachedPyramidSpawns)
 			playersAlive[player] = true
 			freezePlayer(player)
-			givePushTool(player)
+			-- Sword system handles weapons automatically
 		end
 	end
 
@@ -453,7 +406,7 @@ local function onPlayerDeath(player)
 		updateKingDisplay(nil, 0)
 	end
 
-	removePushTool(player)
+	-- Sword system handles weapons automatically
 
 	-- Clear this player's spawn usage (they're going to lobby now)
 	for spawn, usedByPlayer in pairs(usedSpawns) do
@@ -530,10 +483,10 @@ local function setupPlayer(player)
 		task.wait(0.5)
 		if gameState == "InProgress" and playersAlive[player] then
 			spawnPlayerAt(player, cachedPyramidSpawns)
-			givePushTool(player)
+			-- Sword system handles weapons automatically
 		else
 			spawnPlayerAt(player, cachedLobbySpawns)
-			removePushTool(player)
+			-- Sword system handles weapons automatically
 		end
 	end)
 end
@@ -545,8 +498,8 @@ Players.PlayerAdded:Connect(function(player)
 	-- Initial spawn
 	if player.Character or player.CharacterAdded:Wait() then
 		task.wait(1)
-		spawnPlayerAt(player, cachedLobbySpawns)
-		removePushTool(player)
+			spawnPlayerAt(player, cachedLobbySpawns)
+			-- Sword system handles weapons automatically
 
 		-- Send current game state
 		if gameState == "WaitingForPlayers" then
