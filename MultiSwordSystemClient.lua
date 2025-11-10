@@ -19,11 +19,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local mouse = player:GetMouse()
+local playerGui = player:WaitForChild("PlayerGui")
 
 -- Detect if player is on mobile
 local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
