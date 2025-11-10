@@ -82,6 +82,10 @@ local isAttacking = false
 local canAttack = true
 local serverInitialized = false
 
+-- Cooldown UI references
+local cooldownUI = nil
+local cooldownOverlay = nil
+
 -- ========================================
 -- UTILITY FUNCTIONS
 -- ========================================
@@ -89,6 +93,106 @@ local serverInitialized = false
 -- Function to get any character (not just local player)
 local function getCharacterFromPlayer(targetPlayer)
 	return targetPlayer.Character or targetPlayer.CharacterAdded:Wait()
+end
+
+-- ========================================
+-- COOLDOWN UI
+-- ========================================
+
+-- Create cooldown indicator UI
+local function createCooldownUI()
+	-- Create ScreenGui
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "CooldownIndicatorUI"
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	screenGui.IgnoreGuiInset = true
+	screenGui.DisplayOrder = 50
+	screenGui.Parent = playerGui
+	
+	-- Main container
+	local container = Instance.new("Frame")
+	container.Name = "Container"
+	container.Size = UDim2.new(0, 90, 0, 90) -- Small square
+	container.Position = UDim2.new(0, 15, 1, -105) -- Bottom left, slightly above bottom
+	container.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	container.BackgroundTransparency = 0.2
+	container.BorderSizePixel = 0
+	container.Parent = screenGui
+	
+	-- Rounded corners
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = container
+	
+	-- Border
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(252, 252, 252)
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.6
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = container
+	
+	-- Label text
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = isMobile and "TAP\nto Attack" or "M1\nto Attack"
+	label.TextColor3 = Color3.fromRGB(244, 244, 255)
+	label.TextSize = 13
+	label.Font = Enum.Font.GothamBold
+	label.TextWrapped = true
+	label.Parent = container
+	
+	-- Cooldown overlay (black transparent frame that fills from top)
+	local cooldownFrame = Instance.new("Frame")
+	cooldownFrame.Name = "CooldownOverlay"
+	cooldownFrame.Size = UDim2.new(1, 0, 0, 0) -- Start at 0 height
+	cooldownFrame.Position = UDim2.new(0, 0, 0, 0) -- Top of container
+	cooldownFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	cooldownFrame.BackgroundTransparency = 0.3 -- Semi-transparent black
+	cooldownFrame.BorderSizePixel = 0
+	cooldownFrame.ZIndex = 2
+	cooldownFrame.Parent = container
+	
+	-- Rounded corners for overlay
+	local overlayCorner = Instance.new("UICorner")
+	overlayCorner.CornerRadius = UDim.new(0, 10)
+	overlayCorner.Parent = cooldownFrame
+	
+	-- Store reference
+	cooldownUI = container
+	cooldownOverlay = cooldownFrame
+	
+	return screenGui
+end
+
+-- Function to play cooldown animation
+local function playCooldownAnimation(duration)
+	if not cooldownOverlay or not cooldownUI then return end
+	
+	-- Reset overlay to full height
+	cooldownOverlay.Size = UDim2.new(1, 0, 1, 0)
+	
+	-- Animate overlay shrinking from top to bottom
+	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+	local tween = TweenService:Create(cooldownOverlay, tweenInfo, {
+		Size = UDim2.new(1, 0, 0, 0) -- Shrink to 0 height
+	})
+	tween:Play()
+	
+	-- Flash white when ready
+	tween.Completed:Connect(function()
+		-- Flash the container white
+		local originalColor = cooldownUI.BackgroundColor3
+		cooldownUI.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		
+		-- Quick fade back to original
+		TweenService:Create(cooldownUI, TweenInfo.new(0.15), {
+			BackgroundColor3 = originalColor
+		}):Play()
+	end)
 end
 
 -- ========================================
@@ -197,6 +301,9 @@ local function requestAttack()
 	-- Local cooldown (server validates actual cooldown)
 	local attackConfig = currentSwordConfig.Attack
 	local totalCooldown = attackConfig.AttackDuration + attackConfig.AttackCooldown
+	
+	-- Play cooldown animation
+	playCooldownAnimation(totalCooldown)
 
 	task.wait(totalCooldown)
 	isAttacking = false
@@ -336,6 +443,9 @@ end)
 -- ========================================
 -- INITIALIZATION
 -- ========================================
+
+-- Create cooldown UI
+createCooldownUI()
 
 print("🗡️ Multi-Sword System (Client) Loaded!")
 print("⏳ Waiting for server initialization...")
