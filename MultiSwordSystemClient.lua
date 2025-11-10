@@ -25,6 +25,9 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local mouse = player:GetMouse()
 
+-- Detect if player is on mobile
+local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+
 -- Load sword configuration from Modules folder
 local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
 local SwordConfig = require(modulesFolder:WaitForChild("SwordConfig"))
@@ -233,10 +236,21 @@ end)
 -- INPUT HANDLING
 -- ========================================
 
--- Mouse click handler for attacks
-mouse.Button1Down:Connect(function()
-	requestAttack()
-end)
+if isMobile then
+	-- Mobile: Use UserInputService for tap detection
+	UserInputService.TouchTap:Connect(function(touchPositions, gameProcessed)
+		-- Don't attack if tap was on GUI (buttons, inventory, etc.)
+		if gameProcessed then return end
+		
+		-- Attack on screen tap
+		requestAttack()
+	end)
+else
+	-- PC: Use mouse click for attacks
+	mouse.Button1Down:Connect(function()
+		requestAttack()
+	end)
+end
 
 -- Keybind switching disabled - swords can only be equipped from inventory UI
 
