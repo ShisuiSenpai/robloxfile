@@ -601,50 +601,38 @@ local function createInventoryButton()
 	buttonGui.IgnoreGuiInset = true
 	buttonGui.Parent = playerGui
 
-	-- Button frame
+	-- Button frame (square, right middle)
 	local button = Instance.new("TextButton")
 	button.Name = "InventoryButton"
-	button.Size = UDim2.new(0, 120, 0, 40)
-	button.Position = UDim2.new(1, -130, 0, 10) -- Top-right corner
+	button.Size = UDim2.new(0, 80, 0, 80) -- Square
+	button.Position = UDim2.new(1, -90, 0.5, -40) -- Right middle
+	button.AnchorPoint = Vector2.new(0, 0.5) -- Center vertically
 	button.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 	button.BackgroundTransparency = 0.3
 	button.BorderSizePixel = 0
 	button.AutoButtonColor = false
 	button.Text = "Inventory"
 	button.TextColor3 = Color3.fromRGB(220, 220, 230)
-	button.TextSize = 14
+	button.TextSize = 13
 	button.Font = Enum.Font.GothamBold
+	button.TextWrapped = true
 	button.Parent = buttonGui
 
 	-- Rounded corners
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
+	corner.CornerRadius = UDim.new(0, 10)
 	corner.Parent = button
-
-	-- Border
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(60, 60, 70)
-	stroke.Thickness = 1.5
-	stroke.Transparency = 0.5
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = button
 
 	-- Hover effects
 	button.MouseEnter:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {
 			BackgroundTransparency = 0.15
 		}):Play()
-		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Transparency = 0.3
-		}):Play()
 	end)
 
 	button.MouseLeave:Connect(function()
 		TweenService:Create(button, TweenInfo.new(0.2), {
 			BackgroundTransparency = 0.3
-		}):Play()
-		TweenService:Create(stroke, TweenInfo.new(0.2), {
-			Transparency = 0.5
 		}):Play()
 	end)
 
