@@ -3,20 +3,19 @@
 	Place this LocalScript in StarterPlayerScripts
 	
 	Creates a modern, hologram-style UI for ProximityPrompts
+	
+	Note: This UI is purely visual. The ProximityPrompt handles all triggering.
+	When the player presses E (or the gamepad/touch equivalent), the
+	ProximityPrompt.Triggered event fires as normal on the server.
 ]]
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-
--- Get RemoteEvent for button clicks
-local crateRemotes = ReplicatedStorage:WaitForChild("CrateRemotes", 10)
-local openCrateButtonEvent = crateRemotes:WaitForChild("OpenCrateButton")
 
 -- ========================================
 -- UI SETTINGS (CUSTOMIZE HERE)
@@ -170,48 +169,29 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	actionLayout.Padding = UDim.new(0, 8)
 	actionLayout.Parent = actionContainer
 
-	-- Key button (E) - Now clickable!
-	local keyButton = Instance.new("TextButton")
-	keyButton.Name = "KeyButton"
-	keyButton.Size = UDim2.new(0, 30, 0, 26)
-	keyButton.BackgroundColor3 = UI_SETTINGS.KeyBackgroundColor
-	keyButton.BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency
-	keyButton.BorderSizePixel = 0
-	keyButton.LayoutOrder = 1
-	keyButton.Text = getKeyString(inputType)
-	keyButton.TextColor3 = UI_SETTINGS.TextColor
-	keyButton.TextSize = UI_SETTINGS.KeyTextSize
-	keyButton.Font = Enum.Font.GothamBold
-	keyButton.AutoButtonColor = false -- Disable default button color change
-	keyButton.Parent = actionContainer
+	-- Key display (E) - Visual only, ProximityPrompt handles the actual trigger
+	local keyLabel = Instance.new("TextLabel")
+	keyLabel.Name = "KeyLabel"
+	keyLabel.Size = UDim2.new(0, 30, 0, 26)
+	keyLabel.BackgroundColor3 = UI_SETTINGS.KeyBackgroundColor
+	keyLabel.BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency
+	keyLabel.BorderSizePixel = 0
+	keyLabel.LayoutOrder = 1
+	keyLabel.Text = getKeyString(inputType)
+	keyLabel.TextColor3 = UI_SETTINGS.TextColor
+	keyLabel.TextSize = UI_SETTINGS.KeyTextSize
+	keyLabel.Font = Enum.Font.GothamBold
+	keyLabel.Parent = actionContainer
 
 	local keyCorner = Instance.new("UICorner")
 	keyCorner.CornerRadius = UDim.new(0, 5)
-	keyCorner.Parent = keyButton
+	keyCorner.Parent = keyLabel
 
 	local keyStroke = Instance.new("UIStroke")
 	keyStroke.Color = UI_SETTINGS.BorderColor
 	keyStroke.Thickness = 1.5
 	keyStroke.Transparency = UI_SETTINGS.BorderTransparency
-	keyStroke.Parent = keyButton
-
-	-- Click handler to open crate
-	keyButton.MouseButton1Click:Connect(function()
-		-- Fire the server to open the crate, pass the prompt so server knows which crate
-		openCrateButtonEvent:FireServer(prompt.Parent)
-		print("🎁 Crate button clicked for:", prompt.Parent.Name)
-	end)
-
-	-- Hover effect
-	keyButton.MouseEnter:Connect(function()
-		TweenService:Create(keyButton, TweenInfo.new(0.15), {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency - 0.1}):Play()
-		TweenService:Create(keyStroke, TweenInfo.new(0.15), {Transparency = UI_SETTINGS.BorderTransparency - 0.2}):Play()
-	end)
-
-	keyButton.MouseLeave:Connect(function()
-		TweenService:Create(keyButton, TweenInfo.new(0.15), {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency}):Play()
-		TweenService:Create(keyStroke, TweenInfo.new(0.15), {Transparency = UI_SETTINGS.BorderTransparency}):Play()
-	end)
+	keyStroke.Parent = keyLabel
 
 	-- Action text ("Open")
 	local actionText = Instance.new("TextLabel")
@@ -232,8 +212,8 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	stroke.Transparency = 1
 	titleSection.BackgroundTransparency = 1
 	titleText.TextTransparency = 1
-	keyButton.BackgroundTransparency = 1
-	keyButton.TextTransparency = 1
+	keyLabel.BackgroundTransparency = 1
+	keyLabel.TextTransparency = 1
 	keyStroke.Transparency = 1
 	actionText.TextTransparency = 1
 
@@ -243,7 +223,7 @@ local function createCustomUI(prompt, inputType, gamepadKeyCode)
 	TweenService:Create(stroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
 	TweenService:Create(titleSection, tweenInfo, {BackgroundTransparency = UI_SETTINGS.TitleBackgroundTransparency}):Play()
 	TweenService:Create(titleText, tweenInfo, {TextTransparency = 0}):Play()
-	TweenService:Create(keyButton, tweenInfo, {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency, TextTransparency = 0}):Play()
+	TweenService:Create(keyLabel, tweenInfo, {BackgroundTransparency = UI_SETTINGS.KeyBackgroundTransparency, TextTransparency = 0}):Play()
 	TweenService:Create(keyStroke, tweenInfo, {Transparency = UI_SETTINGS.BorderTransparency}):Play()
 	TweenService:Create(actionText, tweenInfo, {TextTransparency = 0}):Play()
 

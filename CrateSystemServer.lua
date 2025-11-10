@@ -49,12 +49,7 @@ if not switchSwordEvent then
 	switchSwordEvent.Parent = crateRemotes
 end
 
-local openCrateButtonEvent = crateRemotes:FindFirstChild("OpenCrateButton")
-if not openCrateButtonEvent then
-	openCrateButtonEvent = Instance.new("RemoteEvent")
-	openCrateButtonEvent.Name = "OpenCrateButton"
-	openCrateButtonEvent.Parent = crateRemotes
-end
+-- Note: OpenCrateButton RemoteEvent removed - ProximityPrompt handles all triggering
 
 -- Load sword config from Modules folder
 local modulesFolder = ReplicatedStorage:WaitForChild("Modules")
@@ -168,42 +163,7 @@ switchSwordEvent.OnServerEvent:Connect(function(player, swordName)
 	print("Switched " .. player.Name .. " to " .. swordName)
 end)
 
--- Handle button click from custom UI
-openCrateButtonEvent.OnServerEvent:Connect(function(player, cratePart)
-	-- Validate the crate part exists
-	if not cratePart or not cratePart:IsA("BasePart") then
-		warn(player.Name .. " sent invalid crate part")
-		return
-	end
-
-	-- Verify it's the correct crate part
-	if cratePart ~= openCratePart then
-		warn(player.Name .. " tried to open wrong crate")
-		return
-	end
-
-	-- Check if player is already opening a crate
-	if playersOpening[player.UserId] then
-		warn(player.Name .. " tried to open crate while already opening one")
-		return
-	end
-
-	-- Mark player as opening
-	playersOpening[player.UserId] = true
-
-	-- Choose a random sword
-	local chosenSword = chooseRandomSword()
-
-	-- Send to client to show animation
-	openCrateEvent:FireClient(player, chosenSword, availableSwords)
-
-	print(player.Name .. " is opening a crate (via button)! Chosen sword: " .. chosenSword)
-
-	-- Clear opening flag after animation completes (6 seconds = safe estimate)
-	task.delay(6, function()
-		playersOpening[player.UserId] = nil
-	end)
-end)
+-- Button click handler removed - ProximityPrompt.Triggered handles all crate opening
 
 -- Cleanup when player leaves
 Players.PlayerRemoving:Connect(function(player)
