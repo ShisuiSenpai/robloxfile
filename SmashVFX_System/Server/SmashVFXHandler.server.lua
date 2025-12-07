@@ -140,14 +140,60 @@ local function disableRagdoll(character)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	
-	-- Clean up any knockback constraints
+	-- Step 1: Clean up all constraints first
 	for _, constraint in ipairs(ragdollData.constraints) do
 		if constraint and constraint.Parent then
 			constraint:Destroy()
 		end
 	end
 	
-	-- Clean up sockets
+	-- Step 2: Stop all movement immediately
+	if rootPart then
+		rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+		rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+	end
+	
+	-- Stop velocity on all parts
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+			part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+		end
+	end
+	
+	-- Step 3: Disable collision on all parts BEFORE re-enabling motors
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			part.CanCollide = false
+		end
+	end
+	
+	-- Step 4: Position character upright before re-enabling motors
+	if rootPart then
+		-- Get current position but make character upright
+		local currentPos = rootPart.Position
+		
+		-- Raycast down to find ground
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {character}
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		
+		local rayResult = workspace:Raycast(currentPos, Vector3.new(0, -10, 0), raycastParams)
+		local groundY = rayResult and rayResult.Position.Y or (currentPos.Y - 3)
+		
+		-- Position character slightly above ground, upright
+		local hipHeight = humanoid and humanoid.HipHeight or 2
+		local newY = groundY + hipHeight + 1
+		
+		-- Set upright position (keep X and Z, fix Y and rotation)
+		rootPart.CFrame = CFrame.new(currentPos.X, newY, currentPos.Z)
+		
+		-- Zero out velocity again after repositioning
+		rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+		rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+	end
+	
+	-- Step 5: Clean up ragdoll sockets
 	for _, socket in ipairs(ragdollData.sockets) do
 		if socket and socket.Parent then
 			socket:Destroy()
@@ -161,14 +207,14 @@ local function disableRagdoll(character)
 		end
 	end
 	
-	-- Re-enable motors
+	-- Step 6: Re-enable motors
 	for _, motorData in ipairs(ragdollData.motors) do
 		if motorData.motor and motorData.motor.Parent then
 			motorData.motor.Enabled = true
 		end
 	end
 	
-	-- Re-enable humanoid states
+	-- Step 7: Re-enable humanoid control
 	if humanoid then
 		humanoid.PlatformStand = false
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
@@ -176,19 +222,6 @@ local function disableRagdoll(character)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
 		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-	end
-	
-	-- Reset collision
-	for _, part in ipairs(character:GetDescendants()) do
-		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-			part.CanCollide = false
-		end
-	end
-	
-	-- Reset velocity gently
-	if rootPart then
-		rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-		rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 	end
 	
 	ragdolledCharacters[character] = nil
