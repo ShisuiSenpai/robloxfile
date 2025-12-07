@@ -16,16 +16,16 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 -- Configuration
-local MAX_DISTANCE = 20
-local COOLDOWN = 0.3
+local MAX_DISTANCE = 40
+local COOLDOWN = 1.5
 
 -- Hitbox Configuration
 local HITBOX_SIZE = Vector3.new(7, 8, 7)
 local HITBOX_DURATION = 0.3
 
 -- Knockback & Ragdoll Configuration
-local KNOCKBACK_FORCE_UP = 35
-local KNOCKBACK_FORCE_BACK = 25
+local KNOCKBACK_UP_VELOCITY = 50 -- Smooth upward explosion
+local KNOCKBACK_BACK_VELOCITY = 40 -- Smooth backward push
 local RAGDOLL_DURATION = 1.5
 
 -- Player cooldowns
@@ -58,9 +58,9 @@ local function createRagdollConstraint(motor)
 	socket.Name = "RagdollSocket_" .. motor.Name
 	socket.LimitsEnabled = true
 	socket.TwistLimitsEnabled = true
-	socket.UpperAngle = 45
-	socket.TwistLowerAngle = -45
-	socket.TwistUpperAngle = 45
+	socket.UpperAngle = 50
+	socket.TwistLowerAngle = -50
+	socket.TwistUpperAngle = 50
 	
 	local att0 = Instance.new("Attachment")
 	att0.Name = "RagdollAtt0"
@@ -88,7 +88,8 @@ local function enableRagdoll(character)
 	local ragdollData = {
 		motors = {},
 		sockets = {},
-		attachments = {}
+		attachments = {},
+		constraints = {}
 	}
 	
 	-- Disable humanoid states
@@ -96,7 +97,11 @@ local function enableRagdoll(character)
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
 	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	
+	-- Set PlatformStand to prevent character from trying to stand
+	humanoid.PlatformStand = true
 	
 	-- Process motors
 	local motors = getMotor6Ds(character)
@@ -117,7 +122,7 @@ local function enableRagdoll(character)
 		end
 	end
 	
-	-- Enable collision on parts
+	-- Enable collision on parts for physics
 	for _, part in ipairs(character:GetDescendants()) do
 		if part:IsA("BasePart") then
 			part.CanCollide = true
@@ -133,14 +138,23 @@ local function disableRagdoll(character)
 	if not ragdollData then return end
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	
-	-- Clean up constraints
+	-- Clean up any knockback constraints
+	for _, constraint in ipairs(ragdollData.constraints) do
+		if constraint and constraint.Parent then
+			constraint:Destroy()
+		end
+	end
+	
+	-- Clean up sockets
 	for _, socket in ipairs(ragdollData.sockets) do
 		if socket and socket.Parent then
 			socket:Destroy()
 		end
 	end
 	
+	-- Clean up attachments
 	for _, att in ipairs(ragdollData.attachments) do
 		if att and att.Parent then
 			att:Destroy()
@@ -156,6 +170,7 @@ local function disableRagdoll(character)
 	
 	-- Re-enable humanoid states
 	if humanoid then
+		humanoid.PlatformStand = false
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
@@ -170,35 +185,109 @@ local function disableRagdoll(character)
 		end
 	end
 	
+	-- Reset velocity gently
+	if rootPart then
+		rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+		rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+	end
+	
 	ragdolledCharacters[character] = nil
 end
 
-local function applyKnockback(character, hitPosition)
+-- Apply smooth knockback using LinearVelocity constraint
+local function applyKnockback(character, hitPosition, ragdollData)
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if not rootPart then return end
 	
-	-- Direction away from hit
-	local direction = (rootPart.Position - hitPosition).Unit
+	-- Calculate direction away from hit (horizontal only)
+	local direction = (rootPart.Position - hitPosition)
 	direction = Vector3.new(direction.X, 0, direction.Z)
-	if direction.Magnitude > 0 then
+	
+	if direction.Magnitude > 0.1 then
 		direction = direction.Unit
 	else
-		direction = Vector3.new(1, 0, 0)
+		-- If too close, push in a random direction
+		local angle = math.random() * math.pi * 2
+		direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
 	end
 	
-	-- Apply velocity
+	-- Create knockback velocity (up and back)
 	local knockbackVelocity = Vector3.new(
-		direction.X * KNOCKBACK_FORCE_BACK,
-		KNOCKBACK_FORCE_UP,
-		direction.Z * KNOCKBACK_FORCE_BACK
+		direction.X * KNOCKBACK_BACK_VELOCITY,
+		KNOCKBACK_UP_VELOCITY,
+		direction.Z * KNOCKBACK_BACK_VELOCITY
 	)
 	
-	rootPart.AssemblyLinearVelocity = knockbackVelocity
-	rootPart.AssemblyAngularVelocity = Vector3.new(
-		math.random(-5, 5),
-		math.random(-3, 3),
-		math.random(-5, 5)
+	-- Create attachment for LinearVelocity
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "KnockbackAttachment"
+	attachment.Parent = rootPart
+	
+	-- Use LinearVelocity for smooth, consistent knockback
+	local linearVelocity = Instance.new("LinearVelocity")
+	linearVelocity.Name = "KnockbackVelocity"
+	linearVelocity.Attachment0 = attachment
+	linearVelocity.MaxForce = math.huge -- Ensure it applies fully
+	linearVelocity.VectorVelocity = knockbackVelocity
+	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVelocity.Parent = rootPart
+	
+	-- Store for cleanup
+	if ragdollData then
+		table.insert(ragdollData.constraints, linearVelocity)
+		table.insert(ragdollData.attachments, attachment)
+	end
+	
+	-- Add some angular velocity for tumbling effect
+	local angularVelocity = Instance.new("AngularVelocity")
+	angularVelocity.Name = "KnockbackSpin"
+	angularVelocity.Attachment0 = attachment
+	angularVelocity.MaxTorque = math.huge
+	angularVelocity.AngularVelocity = Vector3.new(
+		math.random(-8, 8),
+		math.random(-4, 4),
+		math.random(-8, 8)
 	)
+	angularVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	angularVelocity.Parent = rootPart
+	
+	if ragdollData then
+		table.insert(ragdollData.constraints, angularVelocity)
+	end
+	
+	-- Smoothly reduce the knockback force over time
+	task.spawn(function()
+		local duration = 0.3 -- Knockback applies for 0.3 seconds
+		local startTime = tick()
+		local startVelocity = knockbackVelocity
+		
+		while tick() - startTime < duration do
+			local alpha = (tick() - startTime) / duration
+			local easedAlpha = 1 - math.pow(1 - alpha, 2) -- Ease out
+			
+			if linearVelocity and linearVelocity.Parent then
+				-- Gradually reduce velocity, but keep some upward initially
+				local currentVelocity = startVelocity * (1 - easedAlpha)
+				linearVelocity.VectorVelocity = currentVelocity
+			else
+				break
+			end
+			
+			task.wait()
+		end
+		
+		-- Remove the linear velocity constraint (let physics take over)
+		if linearVelocity and linearVelocity.Parent then
+			linearVelocity.MaxForce = 0
+		end
+		
+		-- Remove angular velocity after a bit
+		task.delay(0.2, function()
+			if angularVelocity and angularVelocity.Parent then
+				angularVelocity.MaxTorque = 0
+			end
+		end)
+	end)
 end
 
 local function knockbackAndRagdoll(character, hitPosition)
@@ -207,10 +296,13 @@ local function knockbackAndRagdoll(character, hitPosition)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then return end
 	
+	-- Enable ragdoll first
 	local success = enableRagdoll(character)
 	if not success then return end
 	
-	applyKnockback(character, hitPosition)
+	-- Apply knockback (pass ragdollData for cleanup tracking)
+	local ragdollData = ragdolledCharacters[character]
+	applyKnockback(character, hitPosition, ragdollData)
 	
 	-- Schedule recovery
 	task.delay(RAGDOLL_DURATION, function()
@@ -228,7 +320,6 @@ local function getCharactersInHitbox(position, sourceCharacter)
 	local charactersHit = {}
 	local charactersChecked = {}
 	
-	-- Create a temporary hitbox for detection
 	local hitboxCFrame = CFrame.new(position + Vector3.new(0, HITBOX_SIZE.Y / 2, 0))
 	
 	local overlapParams = OverlapParams.new()
@@ -264,7 +355,7 @@ local function processHits(position, sourcePlayer)
 		local name = targetPlayer and targetPlayer.Name or character.Name
 		print("[SmashVFX Server] HIT: " .. name .. " by " .. sourcePlayer.Name)
 		
-		-- Apply knockback and ragdoll on server
+		-- Apply knockback and ragdoll
 		knockbackAndRagdoll(character, position)
 	end
 	
@@ -278,20 +369,18 @@ end
 -- ============================================
 
 local function validateRequest(player, position, normal)
-	-- Check player has character
 	local character = player.Character
 	if not character then return false end
 	
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return false end
 	
-	-- Validate types
 	if typeof(position) ~= "Vector3" then return false end
 	if typeof(normal) ~= "Vector3" then return false end
 	
-	-- Check distance (with small buffer for latency)
+	-- Check distance (with buffer for latency)
 	local distance = (position - humanoidRootPart.Position).Magnitude
-	if distance > MAX_DISTANCE + 5 then
+	if distance > MAX_DISTANCE + 10 then
 		return false
 	end
 	
@@ -301,7 +390,7 @@ local function validateRequest(player, position, normal)
 		return false
 	end
 	
-	-- Check if normal is ground-like
+	-- Check ground normal
 	if normal.Y < 0.7 then
 		return false
 	end
@@ -314,7 +403,6 @@ end
 -- ============================================
 
 local function onSmashVFXRequested(player, position, normal)
-	-- Validate request
 	if not validateRequest(player, position, normal) then
 		return
 	end
@@ -322,20 +410,19 @@ local function onSmashVFXRequested(player, position, normal)
 	-- Set cooldown
 	playerCooldowns[player.UserId] = tick()
 	
-	-- Process hits on server
+	-- Process hits
 	processHits(position, player)
 	
 	-- Broadcast VFX to all clients
 	smashVFXEvent:FireAllClients(player, position, normal)
 	
-	print("[SmashVFX Server] VFX spawned by " .. player.Name .. " at " .. tostring(position))
+	print("[SmashVFX Server] VFX spawned by " .. player.Name)
 end
 
 local function onPlayerRemoving(player)
 	playerCooldowns[player.UserId] = nil
 end
 
--- Handle character removal (cleanup ragdoll data)
 local function onCharacterRemoving(character)
 	if ragdolledCharacters[character] then
 		ragdolledCharacters[character] = nil
@@ -354,12 +441,11 @@ smashVFXEvent.OnServerEvent:Connect(onSmashVFXRequested)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 Players.PlayerAdded:Connect(onPlayerAdded)
 
--- Handle existing players
 for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end
 
-print("[SmashVFX] Server handler initialized!")
-print("  - Hit detection: SERVER-SIDE")
-print("  - Knockback & Ragdoll: SERVER-SIDE")
-print("  - VFX broadcast: ALL CLIENTS")
+print("[SmashVFX] Server initialized!")
+print("  - Max Distance: " .. MAX_DISTANCE .. " studs")
+print("  - Cooldown: " .. COOLDOWN .. " seconds")
+print("  - Knockback: UP=" .. KNOCKBACK_UP_VELOCITY .. ", BACK=" .. KNOCKBACK_BACK_VELOCITY)

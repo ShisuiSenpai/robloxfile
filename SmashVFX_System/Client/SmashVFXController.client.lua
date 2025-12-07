@@ -2,11 +2,9 @@
 	SmashVFXController (LocalScript)
 	Location: StarterPlayerScripts/SmashVFXController
 	
-	Handles mouse input and spawns the SmashVfx on left-click
-	when clicking on the ground within 20 studs.
-	
-	Press E to show ability preview on the ground.
-	Includes hitbox system with knockback and ragdoll.
+	SINGLE-PLAYER VERSION (for testing)
+	- All logic runs on client
+	- Use Multiplayer version for real games
 ]]
 
 -- Services
@@ -22,33 +20,32 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 -- Configuration
-local MAX_DISTANCE = 20 -- Maximum distance in studs
-local VFX_LIFETIME = 2 -- How long the VFX stays before fading
-local TWEEN_IN_TIME = 0.15 -- Time to scale in
-local TWEEN_OUT_TIME = 0.4 -- Time to fade out
-local COOLDOWN = 0.3 -- Prevent spam clicking
+local MAX_DISTANCE = 40
+local VFX_LIFETIME = 2
+local TWEEN_IN_TIME = 0.15
+local TWEEN_OUT_TIME = 0.4
+local COOLDOWN = 1.5
 
 -- Preview Configuration
-local PREVIEW_SIZE = 7 -- Diameter of preview circle in studs
-local PREVIEW_COLOR_VALID = Color3.fromRGB(100, 255, 100) -- Green when in range
-local PREVIEW_COLOR_INVALID = Color3.fromRGB(255, 100, 100) -- Red when out of range
+local PREVIEW_SIZE = 7
+local PREVIEW_COLOR_VALID = Color3.fromRGB(100, 255, 100)
+local PREVIEW_COLOR_INVALID = Color3.fromRGB(255, 100, 100)
 local PREVIEW_TRANSPARENCY = 0.5
 
 -- Hitbox Configuration
-local HITBOX_SIZE = Vector3.new(7, 8, 7) -- Width, Height, Depth (extends upward)
-local HITBOX_COLOR = Color3.fromRGB(255, 0, 0) -- Red for visibility
-local HITBOX_TRANSPARENCY = 0.7 -- Semi-transparent to see through
-local HITBOX_DURATION = 0.3 -- How long the hitbox stays active
-local DEBUG_HITBOX = true -- Set to false to hide hitbox in production
+local HITBOX_SIZE = Vector3.new(7, 8, 7)
+local HITBOX_COLOR = Color3.fromRGB(255, 0, 0)
+local HITBOX_TRANSPARENCY = 0.7
+local HITBOX_DURATION = 0.3
+local DEBUG_HITBOX = true
 
 -- Knockback & Ragdoll Configuration
-local KNOCKBACK_FORCE_UP = 35 -- Upward force (goofy explosion up)
-local KNOCKBACK_FORCE_BACK = 25 -- Backward force
-local RAGDOLL_DURATION = 1.5 -- How long they stay ragdolled
-local RECOVERY_TIME = 0.5 -- How long the smooth recovery takes
+local KNOCKBACK_UP_VELOCITY = 50
+local KNOCKBACK_BACK_VELOCITY = 40
+local RAGDOLL_DURATION = 1.5
 
--- Ground Detection Configuration
-local MIN_GROUND_NORMAL_Y = 0.7 -- Surface must be mostly horizontal (0.7 = ~45 degree angle max)
+-- Ground Detection
+local MIN_GROUND_NORMAL_Y = 0.7
 
 -- VFX Reference
 local VFXFolder = ReplicatedStorage:WaitForChild("VFX")
@@ -60,15 +57,12 @@ local isOnCooldown = false
 local isPreviewActive = false
 local previewPart = nil
 local previewConnection = nil
-
--- Track ragdolled characters to prevent stacking
 local ragdolledCharacters = {}
 
 -- ============================================
 -- RAGDOLL SYSTEM
 -- ============================================
 
--- Store original motor data for recovery
 local function getMotor6Ds(character)
 	local motors = {}
 	for _, descendant in ipairs(character:GetDescendants()) do
@@ -79,17 +73,15 @@ local function getMotor6Ds(character)
 	return motors
 end
 
--- Create a socket constraint to replace motor (for ragdoll effect)
 local function createRagdollConstraint(motor)
 	local socket = Instance.new("BallSocketConstraint")
 	socket.Name = "RagdollSocket_" .. motor.Name
 	socket.LimitsEnabled = true
 	socket.TwistLimitsEnabled = true
-	socket.UpperAngle = 45
-	socket.TwistLowerAngle = -45
-	socket.TwistUpperAngle = 45
+	socket.UpperAngle = 50
+	socket.TwistLowerAngle = -50
+	socket.TwistUpperAngle = 50
 	
-	-- Create attachments
 	local att0 = Instance.new("Attachment")
 	att0.Name = "RagdollAtt0"
 	att0.CFrame = motor.C0
@@ -107,52 +99,45 @@ local function createRagdollConstraint(motor)
 	return socket, att0, att1
 end
 
--- Enable ragdoll on a character
 local function enableRagdoll(character)
-	if ragdolledCharacters[character] then return end -- Already ragdolled
+	if ragdolledCharacters[character] then return false end
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
+	if not humanoid then return false end
 	
-	-- Store data for recovery
 	local ragdollData = {
 		motors = {},
 		sockets = {},
 		attachments = {},
-		originalState = humanoid:GetState()
+		constraints = {}
 	}
 	
-	-- Disable humanoid states that interfere with ragdoll
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
 	humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
 	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	humanoid.PlatformStand = true
 	
-	-- Get all motors and disable them
 	local motors = getMotor6Ds(character)
 	
 	for _, motor in ipairs(motors) do
-		-- Skip the root joint (keeps character together)
 		if motor.Name ~= "RootJoint" and motor.Name ~= "Root" then
-			-- Store motor data
 			table.insert(ragdollData.motors, {
 				motor = motor,
 				enabled = motor.Enabled
 			})
 			
-			-- Create ragdoll constraint
 			local socket, att0, att1 = createRagdollConstraint(motor)
 			table.insert(ragdollData.sockets, socket)
 			table.insert(ragdollData.attachments, att0)
 			table.insert(ragdollData.attachments, att1)
 			
-			-- Disable the motor
 			motor.Enabled = false
 		end
 	end
 	
-	-- Make all parts able to collide for physics
 	for _, part in ipairs(character:GetDescendants()) do
 		if part:IsA("BasePart") then
 			part.CanCollide = true
@@ -163,7 +148,6 @@ local function enableRagdoll(character)
 	return true
 end
 
--- Disable ragdoll and recover smoothly
 local function disableRagdoll(character)
 	local ragdollData = ragdolledCharacters[character]
 	if not ragdollData then return end
@@ -171,7 +155,12 @@ local function disableRagdoll(character)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	
-	-- Clean up sockets and attachments
+	for _, constraint in ipairs(ragdollData.constraints) do
+		if constraint and constraint.Parent then
+			constraint:Destroy()
+		end
+	end
+	
 	for _, socket in ipairs(ragdollData.sockets) do
 		if socket and socket.Parent then
 			socket:Destroy()
@@ -184,15 +173,14 @@ local function disableRagdoll(character)
 		end
 	end
 	
-	-- Re-enable motors
 	for _, motorData in ipairs(ragdollData.motors) do
 		if motorData.motor and motorData.motor.Parent then
 			motorData.motor.Enabled = true
 		end
 	end
 	
-	-- Re-enable humanoid states
 	if humanoid then
+		humanoid.PlatformStand = false
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
@@ -200,62 +188,118 @@ local function disableRagdoll(character)
 		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 	end
 	
-	-- Reset collision on parts
 	for _, part in ipairs(character:GetDescendants()) do
 		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 			part.CanCollide = false
 		end
 	end
 	
+	if rootPart then
+		rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+		rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+	end
+	
 	ragdolledCharacters[character] = nil
 end
 
--- Apply knockback force to a character
-local function applyKnockback(character, hitPosition)
+local function applyKnockback(character, hitPosition, ragdollData)
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if not rootPart then return end
 	
-	-- Calculate direction away from hit position
-	local direction = (rootPart.Position - hitPosition).Unit
-	direction = Vector3.new(direction.X, 0, direction.Z).Unit -- Keep horizontal
+	local direction = (rootPart.Position - hitPosition)
+	direction = Vector3.new(direction.X, 0, direction.Z)
 	
-	-- Create the knockback velocity (up and back)
+	if direction.Magnitude > 0.1 then
+		direction = direction.Unit
+	else
+		local angle = math.random() * math.pi * 2
+		direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+	end
+	
 	local knockbackVelocity = Vector3.new(
-		direction.X * KNOCKBACK_FORCE_BACK,
-		KNOCKBACK_FORCE_UP, -- Goofy upward explosion
-		direction.Z * KNOCKBACK_FORCE_BACK
+		direction.X * KNOCKBACK_BACK_VELOCITY,
+		KNOCKBACK_UP_VELOCITY,
+		direction.Z * KNOCKBACK_BACK_VELOCITY
 	)
 	
-	-- Apply velocity to root part
-	rootPart.AssemblyLinearVelocity = knockbackVelocity
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "KnockbackAttachment"
+	attachment.Parent = rootPart
 	
-	-- Add some random spin for goofy effect
-	rootPart.AssemblyAngularVelocity = Vector3.new(
-		math.random(-5, 5),
-		math.random(-3, 3),
-		math.random(-5, 5)
+	local linearVelocity = Instance.new("LinearVelocity")
+	linearVelocity.Name = "KnockbackVelocity"
+	linearVelocity.Attachment0 = attachment
+	linearVelocity.MaxForce = math.huge
+	linearVelocity.VectorVelocity = knockbackVelocity
+	linearVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	linearVelocity.Parent = rootPart
+	
+	if ragdollData then
+		table.insert(ragdollData.constraints, linearVelocity)
+		table.insert(ragdollData.attachments, attachment)
+	end
+	
+	local angularVelocity = Instance.new("AngularVelocity")
+	angularVelocity.Name = "KnockbackSpin"
+	angularVelocity.Attachment0 = attachment
+	angularVelocity.MaxTorque = math.huge
+	angularVelocity.AngularVelocity = Vector3.new(
+		math.random(-8, 8),
+		math.random(-4, 4),
+		math.random(-8, 8)
 	)
+	angularVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+	angularVelocity.Parent = rootPart
+	
+	if ragdollData then
+		table.insert(ragdollData.constraints, angularVelocity)
+	end
+	
+	task.spawn(function()
+		local duration = 0.3
+		local startTime = tick()
+		local startVelocity = knockbackVelocity
+		
+		while tick() - startTime < duration do
+			local alpha = (tick() - startTime) / duration
+			local easedAlpha = 1 - math.pow(1 - alpha, 2)
+			
+			if linearVelocity and linearVelocity.Parent then
+				local currentVelocity = startVelocity * (1 - easedAlpha)
+				linearVelocity.VectorVelocity = currentVelocity
+			else
+				break
+			end
+			
+			task.wait()
+		end
+		
+		if linearVelocity and linearVelocity.Parent then
+			linearVelocity.MaxForce = 0
+		end
+		
+		task.delay(0.2, function()
+			if angularVelocity and angularVelocity.Parent then
+				angularVelocity.MaxTorque = 0
+			end
+		end)
+	end)
 end
 
--- Full knockback + ragdoll sequence
 local function knockbackAndRagdoll(character, hitPosition)
-	-- Skip if already ragdolled
 	if ragdolledCharacters[character] then return end
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then return end
 	
-	-- Enable ragdoll
 	local success = enableRagdoll(character)
 	if not success then return end
 	
-	-- Apply knockback force
-	applyKnockback(character, hitPosition)
+	local ragdollData = ragdolledCharacters[character]
+	applyKnockback(character, hitPosition, ragdollData)
 	
-	-- Schedule recovery
 	task.delay(RAGDOLL_DURATION, function()
 		if character and character.Parent then
-			-- Smooth recovery
 			disableRagdoll(character)
 		end
 	end)
@@ -265,7 +309,6 @@ end
 -- HITBOX SYSTEM
 -- ============================================
 
--- Create a visible hitbox part
 local function createHitboxPart(position)
 	local hitbox = Instance.new("Part")
 	hitbox.Name = "SmashVFX_Hitbox"
@@ -294,7 +337,6 @@ local function createHitboxPart(position)
 	return hitbox
 end
 
--- Get all characters (players + NPCs) in hitbox
 local function getCharactersInHitbox(hitbox, sourceCharacter)
 	local charactersHit = {}
 	local charactersChecked = {}
@@ -308,7 +350,6 @@ local function getCharactersInHitbox(hitbox, sourceCharacter)
 	for _, part in ipairs(partsInBox) do
 		local character = part.Parent
 		
-		-- Check if it's a character with humanoid (player or NPC)
 		if character and not charactersChecked[character] then
 			charactersChecked[character] = true
 			
@@ -322,12 +363,10 @@ local function getCharactersInHitbox(hitbox, sourceCharacter)
 	return charactersHit
 end
 
--- Spawn hitbox and check for hits
 local function spawnHitbox(position)
 	local hitbox = createHitboxPart(position)
 	hitbox.Parent = workspace
 	
-	-- Animate hitbox appearing
 	local originalSize = hitbox.Size
 	hitbox.Size = Vector3.new(HITBOX_SIZE.X, 0.5, HITBOX_SIZE.Z)
 	hitbox.CFrame = CFrame.new(position + Vector3.new(0, 0.25, 0))
@@ -339,7 +378,6 @@ local function spawnHitbox(position)
 	})
 	tween:Play()
 	
-	-- Check for hits after hitbox is formed
 	task.delay(0.05, function()
 		if hitbox and hitbox.Parent then
 			local charactersHit = getCharactersInHitbox(hitbox, player.Character)
@@ -349,7 +387,6 @@ local function spawnHitbox(position)
 				local name = targetPlayer and targetPlayer.Name or character.Name
 				print("[SmashVFX] HIT: " .. name)
 				
-				-- Apply knockback and ragdoll!
 				knockbackAndRagdoll(character, position)
 			end
 			
@@ -359,7 +396,6 @@ local function spawnHitbox(position)
 		end
 	end)
 	
-	-- Fade out hitbox
 	task.delay(HITBOX_DURATION, function()
 		if hitbox and hitbox.Parent then
 			local fadeInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -375,7 +411,6 @@ local function spawnHitbox(position)
 	end)
 	
 	Debris:AddItem(hitbox, HITBOX_DURATION + 1)
-	
 	return hitbox
 end
 
@@ -433,15 +468,13 @@ local function showPreview()
 			local targetColor = inRange and PREVIEW_COLOR_VALID or PREVIEW_COLOR_INVALID
 			
 			previewPart.Color = targetColor
+			previewPart.Transparency = PREVIEW_TRANSPARENCY
 			
 			local highlight = previewPart:FindFirstChild("Highlight")
 			if highlight then
 				highlight.FillColor = targetColor
 			end
-			
-			previewPart.Transparency = PREVIEW_TRANSPARENCY
 		else
-			-- Invalid surface - make preview dim/grey
 			previewPart.Color = Color3.fromRGB(100, 100, 100)
 			previewPart.Transparency = 0.8
 			
@@ -482,26 +515,22 @@ end
 -- VFX SYSTEM
 -- ============================================
 
--- Raycast parameters - exclude characters and camera
 local function createRaycastParams()
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	
 	local filterList = {camera}
 	
-	-- Add preview part to filter
 	if previewPart then
 		table.insert(filterList, previewPart)
 	end
 	
-	-- Add all player characters to filter (don't spawn VFX on players)
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p.Character then
 			table.insert(filterList, p.Character)
 		end
 	end
 	
-	-- Also filter out any NPCs/models with humanoids in workspace
 	for _, child in ipairs(workspace:GetChildren()) do
 		if child:FindFirstChildOfClass("Humanoid") then
 			table.insert(filterList, child)
@@ -513,24 +542,13 @@ local function createRaycastParams()
 	return params
 end
 
--- Check if surface is valid ground (horizontal enough)
-local function isValidGroundSurface(normal, hitPart)
-	-- Check if normal is pointing mostly upward (ground-like surface)
-	if normal.Y < MIN_GROUND_NORMAL_Y then
-		return false -- Too steep (wall-like)
-	end
-	
-	-- Optional: Additional checks for specific part types
-	-- You can add more conditions here if needed
-	
-	return true
+local function isValidGroundSurface(normal)
+	return normal.Y >= MIN_GROUND_NORMAL_Y
 end
 
--- Perform raycast from mouse position to find ground
 function getGroundPosition()
 	local mouseLocation = UserInputService:GetMouseLocation()
 	local ray = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
-	
 	local raycastParams = createRaycastParams()
 	
 	local raycastResult = workspace:Raycast(
@@ -540,14 +558,13 @@ function getGroundPosition()
 	)
 	
 	if raycastResult then
-		local isValidGround = isValidGroundSurface(raycastResult.Normal, raycastResult.Instance)
+		local isValidGround = isValidGroundSurface(raycastResult.Normal)
 		return raycastResult.Position, raycastResult.Normal, raycastResult.Instance, isValidGround
 	end
 	
 	return nil, nil, nil, false
 end
 
--- Check if position is within max distance from player
 function isWithinRange(position)
 	local character = player.Character
 	if not character then return false end
@@ -555,34 +572,27 @@ function isWithinRange(position)
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return false end
 	
-	local distance = (position - humanoidRootPart.Position).Magnitude
-	return distance <= MAX_DISTANCE
+	return (position - humanoidRootPart.Position).Magnitude <= MAX_DISTANCE
 end
 
--- Get all ParticleEmitters recursively from a part/model
 local function getAllParticleEmitters(parent)
 	local emitters = {}
-	
 	for _, descendant in ipairs(parent:GetDescendants()) do
 		if descendant:IsA("ParticleEmitter") then
 			table.insert(emitters, descendant)
 		end
 	end
-	
 	return emitters
 end
 
--- Emit all particles in the VFX
 local function emitAllParticles(vfxPart, emitCount)
 	local emitters = getAllParticleEmitters(vfxPart)
-	
 	for _, emitter in ipairs(emitters) do
 		emitter.Enabled = false
 		emitter:Emit(emitCount or emitter:GetAttribute("EmitCount") or 15)
 	end
 end
 
--- Tween the VFX in (scale up from 0)
 local function tweenIn(vfxPart, originalSize)
 	vfxPart.Size = Vector3.new(0.1, 0.1, 0.1)
 	vfxPart.Transparency = 1
@@ -601,7 +611,6 @@ local function tweenIn(vfxPart, originalSize)
 	return tween
 end
 
--- Tween the VFX out and cleanup
 local function tweenOutAndDestroy(vfxPart)
 	local tweenInfo = TweenInfo.new(
 		TWEEN_OUT_TIME,
@@ -614,13 +623,11 @@ local function tweenOutAndDestroy(vfxPart)
 	})
 	
 	tween:Play()
-	
 	tween.Completed:Connect(function()
 		vfxPart:Destroy()
 	end)
 end
 
--- Spawn the VFX at the given position
 local function spawnVFX(position, normal)
 	local vfxClone = SmashVfxTemplate:Clone()
 	local originalSize = vfxClone.Size
@@ -632,20 +639,17 @@ local function spawnVFX(position, normal)
 	vfxClone.CanQuery = false
 	vfxClone.CanTouch = false
 	vfxClone.Transparency = 1
-	
 	vfxClone.Parent = workspace
 	
 	-- Spawn hitbox
 	spawnHitbox(position)
 	
-	-- Tween in
+	-- Animate
 	local tweenInObj = tweenIn(vfxClone, originalSize)
 	tweenInObj.Completed:Wait()
-	
-	-- Emit particles
 	emitAllParticles(vfxClone)
 	
-	-- Schedule cleanup
+	-- Cleanup
 	task.delay(VFX_LIFETIME, function()
 		if vfxClone and vfxClone.Parent then
 			tweenOutAndDestroy(vfxClone)
@@ -662,40 +666,32 @@ end
 local function onInputBegan(input, gameProcessedEvent)
 	if gameProcessedEvent then return end
 	
-	-- E key for preview
 	if input.KeyCode == Enum.KeyCode.E then
 		showPreview()
 		return
 	end
 	
-	-- Left click to spawn VFX
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		if isOnCooldown then return end
 		
 		local currentTime = tick()
 		if currentTime - lastClickTime < COOLDOWN then return end
 		
-		-- Get ground position with validation
 		local position, normal, hitPart, isValidGround = getGroundPosition()
 		
-		-- Must hit valid ground
 		if not position or not isValidGround then
 			return
 		end
 		
-		-- Must be in range
 		if not isWithinRange(position) then
 			return
 		end
 		
-		-- Set cooldown
 		isOnCooldown = true
 		lastClickTime = currentTime
 		
-		-- Spawn VFX
 		spawnVFX(position, normal)
 		
-		-- Reset cooldown
 		task.delay(COOLDOWN, function()
 			isOnCooldown = false
 		end)
@@ -726,12 +722,10 @@ local function init()
 		onCharacterAdded(player.Character)
 	end
 	
-	print("[SmashVFX] Controller initialized!")
-	print("  - Hold E to preview ability")
-	print("  - Left-click on GROUND within " .. MAX_DISTANCE .. " studs to spawn VFX")
-	print("  - VFX only spawns on horizontal surfaces (not walls/players)")
-	print("  - Hitbox debug mode: " .. (DEBUG_HITBOX and "ON" or "OFF"))
-	print("  - Knockback & Ragdoll: ENABLED")
+	print("[SmashVFX] Controller initialized (Single-Player)")
+	print("  - Max Distance: " .. MAX_DISTANCE .. " studs")
+	print("  - Cooldown: " .. COOLDOWN .. " seconds")
+	print("  - Hold E to preview")
 end
 
 init()

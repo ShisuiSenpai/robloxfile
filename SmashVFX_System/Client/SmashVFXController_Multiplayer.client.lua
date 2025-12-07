@@ -5,8 +5,6 @@
 	MULTIPLAYER VERSION
 	- Client handles: Input, Preview, VFX visuals
 	- Server handles: Hit detection, Knockback, Ragdoll
-	
-	All players see VFX when anyone uses the ability.
 ]]
 
 -- Services
@@ -22,11 +20,11 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 -- Configuration
-local MAX_DISTANCE = 20
+local MAX_DISTANCE = 40
 local VFX_LIFETIME = 2
 local TWEEN_IN_TIME = 0.15
 local TWEEN_OUT_TIME = 0.4
-local COOLDOWN = 0.3
+local COOLDOWN = 1.5
 
 -- Preview Configuration
 local PREVIEW_SIZE = 7
@@ -34,12 +32,12 @@ local PREVIEW_COLOR_VALID = Color3.fromRGB(100, 255, 100)
 local PREVIEW_COLOR_INVALID = Color3.fromRGB(255, 100, 100)
 local PREVIEW_TRANSPARENCY = 0.5
 
--- Visual Hitbox Configuration (client-side visual only)
+-- Visual Hitbox Configuration (debug only)
 local HITBOX_SIZE = Vector3.new(7, 8, 7)
 local HITBOX_COLOR = Color3.fromRGB(255, 0, 0)
 local HITBOX_TRANSPARENCY = 0.7
 local HITBOX_DURATION = 0.3
-local DEBUG_HITBOX = true -- Set to false in production
+local DEBUG_HITBOX = true
 
 -- Ground Detection
 local MIN_GROUND_NORMAL_Y = 0.7
@@ -57,7 +55,7 @@ local previewPart = nil
 local previewConnection = nil
 
 -- ============================================
--- VISUAL HITBOX (Client-side, for debugging)
+-- VISUAL HITBOX (Debug)
 -- ============================================
 
 local function createVisualHitbox(position)
@@ -228,14 +226,12 @@ local function createRaycastParams()
 		table.insert(filterList, previewPart)
 	end
 	
-	-- Filter all characters
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p.Character then
 			table.insert(filterList, p.Character)
 		end
 	end
 	
-	-- Filter NPCs
 	for _, child in ipairs(workspace:GetChildren()) do
 		if child:FindFirstChildOfClass("Humanoid") then
 			table.insert(filterList, child)
@@ -333,7 +329,6 @@ local function tweenOutAndDestroy(vfxPart)
 	end)
 end
 
--- Spawn VFX visuals (called when server broadcasts)
 local function spawnVFX(position, normal)
 	local vfxClone = SmashVfxTemplate:Clone()
 	local originalSize = vfxClone.Size
@@ -347,10 +342,10 @@ local function spawnVFX(position, normal)
 	vfxClone.Transparency = 1
 	vfxClone.Parent = workspace
 	
-	-- Show visual hitbox (debug only)
+	-- Show visual hitbox
 	createVisualHitbox(position)
 	
-	-- Animate VFX
+	-- Animate
 	local tweenInObj = tweenIn(vfxClone, originalSize)
 	tweenInObj.Completed:Wait()
 	emitAllParticles(vfxClone)
@@ -372,13 +367,11 @@ end
 local function onInputBegan(input, gameProcessedEvent)
 	if gameProcessedEvent then return end
 	
-	-- E for preview
 	if input.KeyCode == Enum.KeyCode.E then
 		showPreview()
 		return
 	end
 	
-	-- Left click to use ability
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		if isOnCooldown then return end
 		
@@ -395,14 +388,12 @@ local function onInputBegan(input, gameProcessedEvent)
 			return
 		end
 		
-		-- Set cooldown
 		isOnCooldown = true
 		lastClickTime = currentTime
 		
-		-- Send to server (server handles everything else)
+		-- Send to server
 		smashVFXEvent:FireServer(position, normal)
 		
-		-- Reset cooldown
 		task.delay(COOLDOWN, function()
 			isOnCooldown = false
 		end)
@@ -415,7 +406,6 @@ local function onInputEnded(input, gameProcessedEvent)
 	end
 end
 
--- Receive VFX event from server (spawns for ALL players)
 local function onVFXReceived(sourcePlayer, position, normal)
 	print("[SmashVFX] VFX from " .. sourcePlayer.Name)
 	spawnVFX(position, normal)
@@ -440,11 +430,10 @@ local function init()
 		onCharacterAdded(player.Character)
 	end
 	
-	print("[SmashVFX] Client initialized (Multiplayer Mode)")
+	print("[SmashVFX] Client initialized!")
+	print("  - Max Distance: " .. MAX_DISTANCE .. " studs")
+	print("  - Cooldown: " .. COOLDOWN .. " seconds")
 	print("  - Hold E to preview")
-	print("  - Left-click on ground within " .. MAX_DISTANCE .. " studs")
-	print("  - Hit detection: SERVER-SIDE")
-	print("  - VFX visible to: ALL PLAYERS")
 end
 
 init()
