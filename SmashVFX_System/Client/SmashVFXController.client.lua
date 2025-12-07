@@ -4,6 +4,8 @@
 	
 	Handles mouse input and spawns the SmashVfx on left-click
 	when clicking on the ground within 20 studs.
+	
+	Press E to show ability preview on the ground.
 ]]
 
 -- Services
@@ -11,6 +13,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 
 -- Player references
@@ -24,6 +27,12 @@ local TWEEN_IN_TIME = 0.15 -- Time to scale in
 local TWEEN_OUT_TIME = 0.4 -- Time to fade out
 local COOLDOWN = 0.3 -- Prevent spam clicking
 
+-- Preview Configuration
+local PREVIEW_SIZE = 7 -- Diameter of preview circle in studs
+local PREVIEW_COLOR_VALID = Color3.fromRGB(100, 255, 100) -- Green when in range
+local PREVIEW_COLOR_INVALID = Color3.fromRGB(255, 100, 100) -- Red when out of range
+local PREVIEW_TRANSPARENCY = 0.5
+
 -- VFX Reference
 local VFXFolder = ReplicatedStorage:WaitForChild("VFX")
 local SmashVfxTemplate = VFXFolder:WaitForChild("SmashVfx")
@@ -31,14 +40,160 @@ local SmashVfxTemplate = VFXFolder:WaitForChild("SmashVfx")
 -- State
 local lastClickTime = 0
 local isOnCooldown = false
+local isPreviewActive = false
+local previewPart = nil
+local previewConnection = nil
+
+-- ============================================
+-- PREVIEW SYSTEM
+-- ============================================
+
+-- Create the preview circle part
+local function createPreviewPart()
+	local part = Instance.new("Part")
+	part.Name = "SmashVFX_Preview"
+	part.Shape = Enum.PartType.Cylinder
+	part.Size = Vector3.new(0.2, PREVIEW_SIZE, PREVIEW_SIZE) -- Cylinder: Height, Diameter, Diameter
+	part.Color = PREVIEW_COLOR_VALID
+	part.Material = Enum.Material.Neon
+	part.Transparency = PREVIEW_TRANSPARENCY
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	
+	-- Add a nice ring effect using a SelectionBox or UIStroke alternative
+	-- We'll add a Highlight for extra visibility
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = PREVIEW_COLOR_VALID
+	highlight.FillTransparency = 0.7
+	highlight.OutlineColor = Color3.new(1, 1, 1)
+	highlight.OutlineTransparency = 0.3
+	highlight.Parent = part
+	
+	return part
+end
+
+-- Show the preview
+local function showPreview()
+	if isPreviewActive then return end
+	isPreviewActive = true
+	
+	-- Create preview part
+	previewPart = createPreviewPart()
+	previewPart.Parent = workspace
+	
+	-- Animate in with a quick scale tween
+	previewPart.Size = Vector3.new(0.2, 0.5, 0.5)
+	local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	local tween = TweenService:Create(previewPart, tweenInfo, {
+		Size = Vector3.new(0.2, PREVIEW_SIZE, PREVIEW_SIZE)
+	})
+	tween:Play()
+	
+	-- Update preview position every frame
+	previewConnection = RunService.RenderStepped:Connect(function()
+		if not previewPart or not previewPart.Parent then return end
+		
+		local position, normal, hitPart = getGroundPosition()
+		
+		if position then
+			-- Position the cylinder flat on the ground
+			-- Cylinder needs to be rotated 90 degrees on Z to lay flat
+			previewPart.CFrame = CFrame.new(position + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			
+			-- Change color based on range
+			local inRange = isWithinRange(position)
+			local targetColor = inRange and PREVIEW_COLOR_VALID or PREVIEW_COLOR_INVALID
+			
+			previewPart.Color = targetColor
+			
+			-- Update highlight color too
+			local highlight = previewPart:FindFirstChild("Highlight")
+			if highlight then
+				highlight.FillColor = targetColor
+			end
+		end
+	end)
+end
+
+-- Hide the preview
+local function hidePreview()
+	if not isPreviewActive then return end
+	isPreviewActive = false
+	
+	-- Disconnect update loop
+	if previewConnection then
+		previewConnection:Disconnect()
+		previewConnection = nil
+	end
+	
+	-- Animate out
+	if previewPart and previewPart.Parent then
+		local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		local tween = TweenService:Create(previewPart, tweenInfo, {
+			Size = Vector3.new(0.2, 0.5, 0.5),
+			Transparency = 1
+		})
+		tween:Play()
+		tween.Completed:Connect(function()
+			if previewPart then
+				previewPart:Destroy()
+				previewPart = nil
+			end
+		end)
+	end
+end
+
+-- ============================================
+-- VFX SYSTEM
+-- ============================================
 
 -- Raycast parameters (ignore player character and other VFX)
 local function createRaycastParams()
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = {player.Character, camera}
+	local filterList = {player.Character, camera}
+	if previewPart then
+		table.insert(filterList, previewPart)
+	end
+	params.FilterDescendantsInstances = filterList
 	params.IgnoreWater = true
 	return params
+end
+
+-- Perform raycast from mouse position to find ground
+function getGroundPosition()
+	local mouseLocation = UserInputService:GetMouseLocation()
+	local ray = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
+	
+	local raycastParams = createRaycastParams()
+	
+	-- Cast a ray from camera through mouse position
+	local raycastResult = workspace:Raycast(
+		ray.Origin,
+		ray.Direction * 500, -- Long ray to hit distant surfaces
+		raycastParams
+	)
+	
+	if raycastResult then
+		return raycastResult.Position, raycastResult.Normal, raycastResult.Instance
+	end
+	
+	return nil, nil, nil
+end
+
+-- Check if position is within max distance from player
+function isWithinRange(position)
+	local character = player.Character
+	if not character then return false end
+	
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return false end
+	
+	local distance = (position - humanoidRootPart.Position).Magnitude
+	return distance <= MAX_DISTANCE
 end
 
 -- Get all ParticleEmitters recursively from a part/model
@@ -147,90 +302,77 @@ local function spawnVFX(position, normal)
 	Debris:AddItem(vfxClone, VFX_LIFETIME + TWEEN_OUT_TIME + 1)
 end
 
--- Perform raycast from mouse position to find ground
-local function getGroundPosition()
-	local mouseLocation = UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
-	
-	local raycastParams = createRaycastParams()
-	
-	-- Cast a ray from camera through mouse position
-	local raycastResult = workspace:Raycast(
-		ray.Origin,
-		ray.Direction * 500, -- Long ray to hit distant surfaces
-		raycastParams
-	)
-	
-	if raycastResult then
-		return raycastResult.Position, raycastResult.Normal, raycastResult.Instance
-	end
-	
-	return nil, nil, nil
-end
+-- ============================================
+-- INPUT HANDLING
+-- ============================================
 
--- Check if position is within max distance from player
-local function isWithinRange(position)
-	local character = player.Character
-	if not character then return false end
-	
-	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-	if not humanoidRootPart then return false end
-	
-	local distance = (position - humanoidRootPart.Position).Magnitude
-	return distance <= MAX_DISTANCE
-end
-
--- Handle mouse click
+-- Handle input began
 local function onInputBegan(input, gameProcessedEvent)
 	-- Ignore if the game already processed this input (e.g., clicking on GUI)
 	if gameProcessedEvent then return end
 	
-	-- Check for left mouse button
-	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-	
-	-- Check cooldown
-	if isOnCooldown then return end
-	
-	local currentTime = tick()
-	if currentTime - lastClickTime < COOLDOWN then return end
-	
-	-- Get ground position
-	local position, normal, hitPart = getGroundPosition()
-	
-	if not position then
-		-- No ground hit
+	-- Check for E key to show preview
+	if input.KeyCode == Enum.KeyCode.E then
+		showPreview()
 		return
 	end
 	
-	-- Check if within range
-	if not isWithinRange(position) then
-		-- Optional: You could add a visual/audio feedback here for "out of range"
-		return
+	-- Check for left mouse button to spawn VFX
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		-- Check cooldown
+		if isOnCooldown then return end
+		
+		local currentTime = tick()
+		if currentTime - lastClickTime < COOLDOWN then return end
+		
+		-- Get ground position
+		local position, normal, hitPart = getGroundPosition()
+		
+		if not position then
+			return
+		end
+		
+		-- Check if within range
+		if not isWithinRange(position) then
+			return
+		end
+		
+		-- Set cooldown
+		isOnCooldown = true
+		lastClickTime = currentTime
+		
+		-- Spawn the VFX
+		spawnVFX(position, normal)
+		
+		-- Reset cooldown after delay
+		task.delay(COOLDOWN, function()
+			isOnCooldown = false
+		end)
 	end
-	
-	-- Set cooldown
-	isOnCooldown = true
-	lastClickTime = currentTime
-	
-	-- Spawn the VFX
-	spawnVFX(position, normal)
-	
-	-- Reset cooldown after delay
-	task.delay(COOLDOWN, function()
-		isOnCooldown = false
-	end)
+end
+
+-- Handle input ended
+local function onInputEnded(input, gameProcessedEvent)
+	-- Check for E key release to hide preview
+	if input.KeyCode == Enum.KeyCode.E then
+		hidePreview()
+	end
 end
 
 -- Wait for character to load
 local function onCharacterAdded(character)
-	-- Update raycast params when character changes
-	-- Character is automatically excluded in createRaycastParams()
+	-- Hide preview when respawning
+	hidePreview()
 end
 
--- Initialize
+-- ============================================
+-- INITIALIZATION
+-- ============================================
+
 local function init()
-	-- Connect input handler
+	-- Connect input handlers
 	UserInputService.InputBegan:Connect(onInputBegan)
+	UserInputService.InputEnded:Connect(onInputEnded)
 	
 	-- Handle character respawning
 	player.CharacterAdded:Connect(onCharacterAdded)
@@ -239,7 +381,9 @@ local function init()
 		onCharacterAdded(player.Character)
 	end
 	
-	print("[SmashVFX] Controller initialized! Left-click on ground within " .. MAX_DISTANCE .. " studs to spawn VFX.")
+	print("[SmashVFX] Controller initialized!")
+	print("  - Hold E to preview ability")
+	print("  - Left-click on ground within " .. MAX_DISTANCE .. " studs to spawn VFX")
 end
 
 -- Start the system
