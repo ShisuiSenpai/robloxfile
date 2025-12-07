@@ -5,8 +5,11 @@
 	MULTIPLAYER VERSION - Use this if you want other players to see the VFX.
 	Works with SmashVFXHandler on the server.
 	
-	Press E to show ability preview on the ground.
-	Includes hitbox system for player detection.
+	Features:
+	- Press E to preview ability
+	- Left-click on ground to spawn VFX
+	- Knockback + Ragdoll on hit
+	- Only spawns on ground (not walls/players)
 ]]
 
 -- Services
@@ -35,11 +38,20 @@ local PREVIEW_COLOR_INVALID = Color3.fromRGB(255, 100, 100)
 local PREVIEW_TRANSPARENCY = 0.5
 
 -- Hitbox Configuration
-local HITBOX_SIZE = Vector3.new(7, 8, 7) -- Width, Height, Depth
+local HITBOX_SIZE = Vector3.new(7, 8, 7)
 local HITBOX_COLOR = Color3.fromRGB(255, 0, 0)
 local HITBOX_TRANSPARENCY = 0.7
 local HITBOX_DURATION = 0.3
-local DEBUG_HITBOX = true -- Set to false in production
+local DEBUG_HITBOX = true
+
+-- Knockback & Ragdoll Configuration
+local KNOCKBACK_FORCE_UP = 35
+local KNOCKBACK_FORCE_BACK = 25
+local RAGDOLL_DURATION = 1.5
+local RECOVERY_TIME = 0.5
+
+-- Ground Detection
+local MIN_GROUND_NORMAL_Y = 0.7
 
 -- References
 local VFXFolder = ReplicatedStorage:WaitForChild("VFX")
@@ -52,6 +64,174 @@ local isOnCooldown = false
 local isPreviewActive = false
 local previewPart = nil
 local previewConnection = nil
+local ragdolledCharacters = {}
+
+-- ============================================
+-- RAGDOLL SYSTEM
+-- ============================================
+
+local function getMotor6Ds(character)
+	local motors = {}
+	for _, descendant in ipairs(character:GetDescendants()) do
+		if descendant:IsA("Motor6D") then
+			table.insert(motors, descendant)
+		end
+	end
+	return motors
+end
+
+local function createRagdollConstraint(motor)
+	local socket = Instance.new("BallSocketConstraint")
+	socket.Name = "RagdollSocket_" .. motor.Name
+	socket.LimitsEnabled = true
+	socket.TwistLimitsEnabled = true
+	socket.UpperAngle = 45
+	socket.TwistLowerAngle = -45
+	socket.TwistUpperAngle = 45
+	
+	local att0 = Instance.new("Attachment")
+	att0.Name = "RagdollAtt0"
+	att0.CFrame = motor.C0
+	att0.Parent = motor.Part0
+	
+	local att1 = Instance.new("Attachment")
+	att1.Name = "RagdollAtt1"
+	att1.CFrame = motor.C1
+	att1.Parent = motor.Part1
+	
+	socket.Attachment0 = att0
+	socket.Attachment1 = att1
+	socket.Parent = motor.Part0
+	
+	return socket, att0, att1
+end
+
+local function enableRagdoll(character)
+	if ragdolledCharacters[character] then return end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	
+	local ragdollData = {
+		motors = {},
+		sockets = {},
+		attachments = {},
+		originalState = humanoid:GetState()
+	}
+	
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+	humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	
+	local motors = getMotor6Ds(character)
+	
+	for _, motor in ipairs(motors) do
+		if motor.Name ~= "RootJoint" and motor.Name ~= "Root" then
+			table.insert(ragdollData.motors, {
+				motor = motor,
+				enabled = motor.Enabled
+			})
+			
+			local socket, att0, att1 = createRagdollConstraint(motor)
+			table.insert(ragdollData.sockets, socket)
+			table.insert(ragdollData.attachments, att0)
+			table.insert(ragdollData.attachments, att1)
+			
+			motor.Enabled = false
+		end
+	end
+	
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = true
+		end
+	end
+	
+	ragdolledCharacters[character] = ragdollData
+	return true
+end
+
+local function disableRagdoll(character)
+	local ragdollData = ragdolledCharacters[character]
+	if not ragdollData then return end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	
+	for _, socket in ipairs(ragdollData.sockets) do
+		if socket and socket.Parent then
+			socket:Destroy()
+		end
+	end
+	
+	for _, att in ipairs(ragdollData.attachments) do
+		if att and att.Parent then
+			att:Destroy()
+		end
+	end
+	
+	for _, motorData in ipairs(ragdollData.motors) do
+		if motorData.motor and motorData.motor.Parent then
+			motorData.motor.Enabled = true
+		end
+	end
+	
+	if humanoid then
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
+		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	end
+	
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			part.CanCollide = false
+		end
+	end
+	
+	ragdolledCharacters[character] = nil
+end
+
+local function applyKnockback(character, hitPosition)
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return end
+	
+	local direction = (rootPart.Position - hitPosition).Unit
+	direction = Vector3.new(direction.X, 0, direction.Z).Unit
+	
+	local knockbackVelocity = Vector3.new(
+		direction.X * KNOCKBACK_FORCE_BACK,
+		KNOCKBACK_FORCE_UP,
+		direction.Z * KNOCKBACK_FORCE_BACK
+	)
+	
+	rootPart.AssemblyLinearVelocity = knockbackVelocity
+	rootPart.AssemblyAngularVelocity = Vector3.new(
+		math.random(-5, 5),
+		math.random(-3, 3),
+		math.random(-5, 5)
+	)
+end
+
+local function knockbackAndRagdoll(character, hitPosition)
+	if ragdolledCharacters[character] then return end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return end
+	
+	local success = enableRagdoll(character)
+	if not success then return end
+	
+	applyKnockback(character, hitPosition)
+	
+	task.delay(RAGDOLL_DURATION, function()
+		if character and character.Parent then
+			disableRagdoll(character)
+		end
+	end)
+end
 
 -- ============================================
 -- HITBOX SYSTEM
@@ -85,37 +265,33 @@ local function createHitboxPart(position)
 	return hitbox
 end
 
-local function getPlayersInHitbox(hitbox, sourcePlayer)
-	local playersHit = {}
+local function getCharactersInHitbox(hitbox, sourceCharacter)
+	local charactersHit = {}
+	local charactersChecked = {}
 	
 	local overlapParams = OverlapParams.new()
 	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-	overlapParams.FilterDescendantsInstances = {hitbox}
-	if sourcePlayer and sourcePlayer.Character then
-		overlapParams.FilterDescendantsInstances = {hitbox, sourcePlayer.Character}
-	end
+	overlapParams.FilterDescendantsInstances = {hitbox, sourceCharacter}
 	
 	local partsInBox = workspace:GetPartsInPart(hitbox, overlapParams)
 	
 	for _, part in ipairs(partsInBox) do
 		local character = part.Parent
-		if character then
-			local humanoid = character:FindFirstChild("Humanoid")
+		
+		if character and not charactersChecked[character] then
+			charactersChecked[character] = true
+			
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
 			if humanoid and humanoid.Health > 0 then
-				local targetPlayer = Players:GetPlayerFromCharacter(character)
-				if targetPlayer and targetPlayer ~= sourcePlayer then
-					if not table.find(playersHit, targetPlayer) then
-						table.insert(playersHit, targetPlayer)
-					end
-				end
+				table.insert(charactersHit, character)
 			end
 		end
 	end
 	
-	return playersHit
+	return charactersHit
 end
 
-local function spawnHitbox(position, sourcePlayer)
+local function spawnHitbox(position, sourceCharacter)
 	local hitbox = createHitboxPart(position)
 	hitbox.Parent = workspace
 	
@@ -132,14 +308,18 @@ local function spawnHitbox(position, sourcePlayer)
 	
 	task.delay(0.05, function()
 		if hitbox and hitbox.Parent then
-			local playersHit = getPlayersInHitbox(hitbox, sourcePlayer)
+			local charactersHit = getCharactersInHitbox(hitbox, sourceCharacter)
 			
-			for _, hitPlayer in ipairs(playersHit) do
-				print("[SmashVFX] HIT: " .. hitPlayer.Name)
+			for _, character in ipairs(charactersHit) do
+				local targetPlayer = Players:GetPlayerFromCharacter(character)
+				local name = targetPlayer and targetPlayer.Name or character.Name
+				print("[SmashVFX] HIT: " .. name)
+				
+				knockbackAndRagdoll(character, position)
 			end
 			
-			if #playersHit > 0 then
-				print("[SmashVFX] Total players hit: " .. #playersHit)
+			if #charactersHit > 0 then
+				print("[SmashVFX] Total hit: " .. #charactersHit)
 			end
 		end
 	end)
@@ -159,7 +339,6 @@ local function spawnHitbox(position, sourcePlayer)
 	end)
 	
 	Debris:AddItem(hitbox, HITBOX_DURATION + 1)
-	
 	return hitbox
 end
 
@@ -208,9 +387,9 @@ local function showPreview()
 	previewConnection = RunService.RenderStepped:Connect(function()
 		if not previewPart or not previewPart.Parent then return end
 		
-		local position, normal, hitPart = getGroundPosition()
+		local position, normal, hitPart, isValidGround = getGroundPosition()
 		
-		if position then
+		if position and isValidGround then
 			previewPart.CFrame = CFrame.new(position + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, 0, math.rad(90))
 			
 			local inRange = isWithinRange(position)
@@ -221,6 +400,16 @@ local function showPreview()
 			local highlight = previewPart:FindFirstChild("Highlight")
 			if highlight then
 				highlight.FillColor = targetColor
+			end
+			
+			previewPart.Transparency = PREVIEW_TRANSPARENCY
+		else
+			previewPart.Color = Color3.fromRGB(100, 100, 100)
+			previewPart.Transparency = 0.8
+			
+			local highlight = previewPart:FindFirstChild("Highlight")
+			if highlight then
+				highlight.FillColor = Color3.fromRGB(100, 100, 100)
 			end
 		end
 	end)
@@ -258,13 +447,35 @@ end
 local function createRaycastParams()
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	local filterList = {player.Character, camera}
+	
+	local filterList = {camera}
+	
 	if previewPart then
 		table.insert(filterList, previewPart)
 	end
+	
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character then
+			table.insert(filterList, p.Character)
+		end
+	end
+	
+	for _, child in ipairs(workspace:GetChildren()) do
+		if child:FindFirstChildOfClass("Humanoid") then
+			table.insert(filterList, child)
+		end
+	end
+	
 	params.FilterDescendantsInstances = filterList
 	params.IgnoreWater = true
 	return params
+end
+
+local function isValidGroundSurface(normal, hitPart)
+	if normal.Y < MIN_GROUND_NORMAL_Y then
+		return false
+	end
+	return true
 end
 
 function getGroundPosition()
@@ -279,10 +490,11 @@ function getGroundPosition()
 	)
 	
 	if raycastResult then
-		return raycastResult.Position, raycastResult.Normal, raycastResult.Instance
+		local isValidGround = isValidGroundSurface(raycastResult.Normal, raycastResult.Instance)
+		return raycastResult.Position, raycastResult.Normal, raycastResult.Instance, isValidGround
 	end
 	
-	return nil, nil, nil
+	return nil, nil, nil, false
 end
 
 function isWithinRange(position)
@@ -361,8 +573,9 @@ local function spawnVFX(position, normal, sourcePlayer)
 	vfxClone.Transparency = 1
 	vfxClone.Parent = workspace
 	
-	-- Spawn hitbox
-	spawnHitbox(position, sourcePlayer)
+	-- Get source character for hitbox filtering
+	local sourceCharacter = sourcePlayer and sourcePlayer.Character or player.Character
+	spawnHitbox(position, sourceCharacter)
 	
 	local tweenInObj = tweenIn(vfxClone, originalSize)
 	tweenInObj.Completed:Wait()
@@ -395,9 +608,15 @@ local function onInputBegan(input, gameProcessedEvent)
 		local currentTime = tick()
 		if currentTime - lastClickTime < COOLDOWN then return end
 		
-		local position, normal, hitPart = getGroundPosition()
-		if not position then return end
-		if not isWithinRange(position) then return end
+		local position, normal, hitPart, isValidGround = getGroundPosition()
+		
+		if not position or not isValidGround then
+			return
+		end
+		
+		if not isWithinRange(position) then
+			return
+		end
 		
 		isOnCooldown = true
 		lastClickTime = currentTime
@@ -441,8 +660,8 @@ local function init()
 	
 	print("[SmashVFX] Multiplayer controller initialized!")
 	print("  - Hold E to preview ability")
-	print("  - Left-click on ground within " .. MAX_DISTANCE .. " studs to spawn VFX")
-	print("  - Hitbox debug mode: " .. (DEBUG_HITBOX and "ON" or "OFF"))
+	print("  - Left-click on GROUND within " .. MAX_DISTANCE .. " studs")
+	print("  - Knockback & Ragdoll: ENABLED")
 end
 
 init()
