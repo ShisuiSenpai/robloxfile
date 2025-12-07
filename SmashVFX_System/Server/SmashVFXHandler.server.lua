@@ -379,14 +379,21 @@ end
 
 local function processHits(position, sourcePlayer)
 	local sourceCharacter = sourcePlayer.Character
-	if not sourceCharacter then return end
+	if not sourceCharacter then return {} end
 	
 	local charactersHit = getCharactersInHitbox(position, sourceCharacter)
+	local hitPositions = {} -- Store positions where hits occurred (for sound)
 	
 	for _, character in ipairs(charactersHit) do
 		local targetPlayer = Players:GetPlayerFromCharacter(character)
 		local name = targetPlayer and targetPlayer.Name or character.Name
 		print("[SmashVFX Server] HIT: " .. name .. " by " .. sourcePlayer.Name)
+		
+		-- Get hit position (character's position)
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		if rootPart then
+			table.insert(hitPositions, rootPart.Position)
+		end
 		
 		-- Apply knockback and ragdoll
 		knockbackAndRagdoll(character, position)
@@ -395,6 +402,8 @@ local function processHits(position, sourcePlayer)
 	if #charactersHit > 0 then
 		print("[SmashVFX Server] Total hit by " .. sourcePlayer.Name .. ": " .. #charactersHit)
 	end
+	
+	return hitPositions
 end
 
 -- ============================================
@@ -443,11 +452,11 @@ local function onSmashVFXRequested(player, position, normal)
 	-- Set cooldown
 	playerCooldowns[player.UserId] = tick()
 	
-	-- Process hits
-	processHits(position, player)
+	-- Process hits and get hit positions for sound effects
+	local hitPositions = processHits(position, player)
 	
-	-- Broadcast VFX to all clients
-	smashVFXEvent:FireAllClients(player, position, normal)
+	-- Broadcast VFX to all clients (include hit positions for sound)
+	smashVFXEvent:FireAllClients(player, position, normal, hitPositions)
 	
 	print("[SmashVFX Server] VFX spawned by " .. player.Name)
 end

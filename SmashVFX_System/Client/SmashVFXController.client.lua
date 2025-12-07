@@ -47,6 +47,16 @@ local RAGDOLL_DURATION = 1.5
 -- Ground Detection
 local MIN_GROUND_NORMAL_Y = 0.7
 
+-- Sound Configuration (Replace with your own Sound IDs!)
+local SOUND_SPAWN_ID = "rbxassetid://9125402735" -- Impact/explosion sound
+local SOUND_SPAWN_VOLUME = 1
+local SOUND_HIT_ID = "rbxassetid://9125514708" -- Hit/damage sound  
+local SOUND_HIT_VOLUME = 0.8
+local SOUND_PREVIEW_SHOW_ID = "rbxassetid://9113869830" -- UI whoosh sound
+local SOUND_PREVIEW_SHOW_VOLUME = 0.3
+local SOUND_PREVIEW_LOOP_ID = "rbxassetid://9112854440" -- Ambient hum while previewing
+local SOUND_PREVIEW_LOOP_VOLUME = 0.2
+
 -- VFX Reference
 local VFXFolder = ReplicatedStorage:WaitForChild("VFX")
 local SmashVfxTemplate = VFXFolder:WaitForChild("SmashVfx")
@@ -57,7 +67,78 @@ local isOnCooldown = false
 local isPreviewActive = false
 local previewPart = nil
 local previewConnection = nil
+local previewLoopSound = nil
 local ragdolledCharacters = {}
+
+-- ============================================
+-- SOUND SYSTEM
+-- ============================================
+
+-- Play a sound at a specific position in the world
+local function playSoundAtPosition(soundId, position, volume, pitch)
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume or 1
+	sound.PlaybackSpeed = pitch or 1
+	sound.RollOffMaxDistance = 100
+	sound.RollOffMinDistance = 10
+	sound.RollOffMode = Enum.RollOffMode.Linear
+	
+	local soundPart = Instance.new("Part")
+	soundPart.Name = "SoundEmitter"
+	soundPart.Anchored = true
+	soundPart.CanCollide = false
+	soundPart.CanQuery = false
+	soundPart.CanTouch = false
+	soundPart.Transparency = 1
+	soundPart.Size = Vector3.new(0.1, 0.1, 0.1)
+	soundPart.Position = position
+	soundPart.Parent = workspace
+	
+	sound.Parent = soundPart
+	sound:Play()
+	
+	sound.Ended:Connect(function()
+		soundPart:Destroy()
+	end)
+	
+	Debris:AddItem(soundPart, sound.TimeLength + 1)
+	
+	return sound
+end
+
+-- Play a sound attached to the player (for UI sounds)
+local function playLocalSound(soundId, volume, pitch)
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then return end
+	
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume or 1
+	sound.PlaybackSpeed = pitch or 1
+	sound.Parent = playerGui
+	sound:Play()
+	
+	sound.Ended:Connect(function()
+		sound:Destroy()
+	end)
+	
+	return sound
+end
+
+-- Create a looping sound
+local function createLoopingSound(soundId, volume)
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then return nil end
+	
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume or 1
+	sound.Looped = true
+	sound.Parent = playerGui
+	
+	return sound
+end
 
 -- ============================================
 -- RAGDOLL SYSTEM
@@ -422,10 +503,18 @@ local function spawnHitbox(position)
 		if hitbox and hitbox.Parent then
 			local charactersHit = getCharactersInHitbox(hitbox, player.Character)
 			
-			for _, character in ipairs(charactersHit) do
+			for i, character in ipairs(charactersHit) do
 				local targetPlayer = Players:GetPlayerFromCharacter(character)
 				local name = targetPlayer and targetPlayer.Name or character.Name
 				print("[SmashVFX] HIT: " .. name)
+				
+				-- Play hit sound at character position
+				local rootPart = character:FindFirstChild("HumanoidRootPart")
+				if rootPart then
+					task.delay((i - 1) * 0.05, function()
+						playSoundAtPosition(SOUND_HIT_ID, rootPart.Position, SOUND_HIT_VOLUME, math.random(85, 115) / 100)
+					end)
+				end
 				
 				knockbackAndRagdoll(character, position)
 			end
@@ -489,6 +578,15 @@ local function showPreview()
 	previewPart = createPreviewPart()
 	previewPart.Parent = workspace
 	
+	-- Play preview show sound
+	playLocalSound(SOUND_PREVIEW_SHOW_ID, SOUND_PREVIEW_SHOW_VOLUME, 1.2)
+	
+	-- Start preview loop sound
+	previewLoopSound = createLoopingSound(SOUND_PREVIEW_LOOP_ID, SOUND_PREVIEW_LOOP_VOLUME)
+	if previewLoopSound then
+		previewLoopSound:Play()
+	end
+	
 	previewPart.Size = Vector3.new(0.2, 0.5, 0.5)
 	local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	local tween = TweenService:Create(previewPart, tweenInfo, {
@@ -529,6 +627,13 @@ end
 local function hidePreview()
 	if not isPreviewActive then return end
 	isPreviewActive = false
+	
+	-- Stop preview loop sound
+	if previewLoopSound then
+		previewLoopSound:Stop()
+		previewLoopSound:Destroy()
+		previewLoopSound = nil
+	end
 	
 	if previewConnection then
 		previewConnection:Disconnect()
@@ -680,6 +785,9 @@ local function spawnVFX(position, normal)
 	vfxClone.CanTouch = false
 	vfxClone.Transparency = 1
 	vfxClone.Parent = workspace
+	
+	-- Play spawn/impact sound at VFX position
+	playSoundAtPosition(SOUND_SPAWN_ID, position, SOUND_SPAWN_VOLUME, math.random(90, 110) / 100)
 	
 	-- Spawn hitbox
 	spawnHitbox(position)
