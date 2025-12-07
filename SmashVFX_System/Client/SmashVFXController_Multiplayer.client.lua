@@ -106,21 +106,8 @@ local function spawnVFX(position, normal)
 	local vfxClone = SmashVfxTemplate:Clone()
 	local originalSize = vfxClone.Size
 	
-	-- Orient based on surface normal
-	local upVector = normal or Vector3.new(0, 1, 0)
-	local rightVector = upVector:Cross(Vector3.new(0, 0, 1))
-	if rightVector.Magnitude < 0.001 then
-		rightVector = upVector:Cross(Vector3.new(1, 0, 0))
-	end
-	rightVector = rightVector.Unit
-	local lookVector = rightVector:Cross(upVector).Unit
-	
-	vfxClone.CFrame = CFrame.fromMatrix(
-		position + (upVector * 0.1),
-		rightVector,
-		upVector,
-		-lookVector
-	)
+	-- Orient flat on the ground (90, 0, 0 rotation)
+	vfxClone.CFrame = CFrame.new(position + Vector3.new(0, 0.1, 0)) * CFrame.Angles(math.rad(90), 0, 0)
 	
 	vfxClone.Anchored = true
 	vfxClone.CanCollide = false

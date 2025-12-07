@@ -114,21 +114,8 @@ local function spawnVFX(position, normal)
 	local originalSize = vfxClone.Size
 	
 	-- Position the VFX at the hit point, slightly above ground
-	-- Orient it based on the surface normal (so it works on slopes too)
-	local upVector = normal or Vector3.new(0, 1, 0)
-	local rightVector = upVector:Cross(Vector3.new(0, 0, 1))
-	if rightVector.Magnitude < 0.001 then
-		rightVector = upVector:Cross(Vector3.new(1, 0, 0))
-	end
-	rightVector = rightVector.Unit
-	local lookVector = rightVector:Cross(upVector).Unit
-	
-	vfxClone.CFrame = CFrame.fromMatrix(
-		position + (upVector * 0.1), -- Slightly above the surface
-		rightVector,
-		upVector,
-		-lookVector
-	)
+	-- Orient it flat on the ground (90, 0, 0 rotation)
+	vfxClone.CFrame = CFrame.new(position + Vector3.new(0, 0.1, 0)) * CFrame.Angles(math.rad(90), 0, 0)
 	
 	-- Make the part non-collidable and anchored
 	vfxClone.Anchored = true
