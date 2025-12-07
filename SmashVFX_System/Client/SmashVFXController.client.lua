@@ -6,6 +6,7 @@
 	when clicking on the ground within 20 studs.
 	
 	Press E to show ability preview on the ground.
+	Includes hitbox system for player detection.
 ]]
 
 -- Services
@@ -33,6 +34,13 @@ local PREVIEW_COLOR_VALID = Color3.fromRGB(100, 255, 100) -- Green when in range
 local PREVIEW_COLOR_INVALID = Color3.fromRGB(255, 100, 100) -- Red when out of range
 local PREVIEW_TRANSPARENCY = 0.5
 
+-- Hitbox Configuration
+local HITBOX_SIZE = Vector3.new(7, 8, 7) -- Width, Height, Depth (extends upward)
+local HITBOX_COLOR = Color3.fromRGB(255, 0, 0) -- Red for visibility
+local HITBOX_TRANSPARENCY = 0.7 -- Semi-transparent to see through
+local HITBOX_DURATION = 0.3 -- How long the hitbox stays active (quick smash hit)
+local DEBUG_HITBOX = true -- Set to false to hide hitbox in production
+
 -- VFX Reference
 local VFXFolder = ReplicatedStorage:WaitForChild("VFX")
 local SmashVfxTemplate = VFXFolder:WaitForChild("SmashVfx")
@@ -43,6 +51,128 @@ local isOnCooldown = false
 local isPreviewActive = false
 local previewPart = nil
 local previewConnection = nil
+
+-- ============================================
+-- HITBOX SYSTEM
+-- ============================================
+
+-- Create a visible hitbox part
+local function createHitboxPart(position)
+	local hitbox = Instance.new("Part")
+	hitbox.Name = "SmashVFX_Hitbox"
+	hitbox.Shape = Enum.PartType.Block
+	hitbox.Size = HITBOX_SIZE
+	hitbox.Color = HITBOX_COLOR
+	hitbox.Material = Enum.Material.ForceField -- Nice effect for hitbox visualization
+	hitbox.Transparency = HITBOX_TRANSPARENCY
+	hitbox.Anchored = true
+	hitbox.CanCollide = false
+	hitbox.CanQuery = true -- Needed for spatial queries
+	hitbox.CanTouch = true -- Needed for Touched events
+	hitbox.CastShadow = false
+	
+	-- Position hitbox: bottom at ground level, extends upward
+	-- The hitbox center is at half its height above the ground
+	hitbox.CFrame = CFrame.new(position + Vector3.new(0, HITBOX_SIZE.Y / 2, 0))
+	
+	-- Add a SelectionBox for extra visibility (wireframe effect)
+	if DEBUG_HITBOX then
+		local selectionBox = Instance.new("SelectionBox")
+		selectionBox.Adornee = hitbox
+		selectionBox.Color3 = HITBOX_COLOR
+		selectionBox.LineThickness = 0.05
+		selectionBox.Transparency = 0.3
+		selectionBox.Parent = hitbox
+	end
+	
+	return hitbox
+end
+
+-- Check for players inside the hitbox using spatial query
+local function getPlayersInHitbox(hitbox)
+	local playersHit = {}
+	
+	-- Create OverlapParams to filter what we're looking for
+	local overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+	overlapParams.FilterDescendantsInstances = {hitbox, player.Character} -- Don't hit yourself
+	
+	-- Get all parts inside the hitbox
+	local partsInBox = workspace:GetPartsInPart(hitbox, overlapParams)
+	
+	-- Find which players these parts belong to
+	for _, part in ipairs(partsInBox) do
+		local character = part.Parent
+		if character then
+			local humanoid = character:FindFirstChild("Humanoid")
+			if humanoid and humanoid.Health > 0 then
+				local targetPlayer = Players:GetPlayerFromCharacter(character)
+				if targetPlayer and targetPlayer ~= player then
+					-- Avoid duplicates
+					if not table.find(playersHit, targetPlayer) then
+						table.insert(playersHit, targetPlayer)
+					end
+				end
+			end
+		end
+	end
+	
+	return playersHit
+end
+
+-- Spawn hitbox and check for hits
+local function spawnHitbox(position)
+	local hitbox = createHitboxPart(position)
+	hitbox.Parent = workspace
+	
+	-- Animate hitbox appearing (scale up from ground)
+	local originalSize = hitbox.Size
+	hitbox.Size = Vector3.new(HITBOX_SIZE.X, 0.5, HITBOX_SIZE.Z)
+	hitbox.CFrame = CFrame.new(position + Vector3.new(0, 0.25, 0))
+	
+	local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local tween = TweenService:Create(hitbox, tweenInfo, {
+		Size = originalSize,
+		CFrame = CFrame.new(position + Vector3.new(0, HITBOX_SIZE.Y / 2, 0))
+	})
+	tween:Play()
+	
+	-- Check for players hit (do this after a tiny delay so hitbox is fully formed)
+	task.delay(0.05, function()
+		if hitbox and hitbox.Parent then
+			local playersHit = getPlayersInHitbox(hitbox)
+			
+			-- Log hits for testing (replace with actual damage logic later)
+			for _, hitPlayer in ipairs(playersHit) do
+				print("[SmashVFX] HIT: " .. hitPlayer.Name)
+			end
+			
+			if #playersHit > 0 then
+				print("[SmashVFX] Total players hit: " .. #playersHit)
+			end
+		end
+	end)
+	
+	-- Fade out and destroy hitbox
+	task.delay(HITBOX_DURATION, function()
+		if hitbox and hitbox.Parent then
+			local fadeInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			local fadeTween = TweenService:Create(hitbox, fadeInfo, {
+				Transparency = 1,
+				Size = Vector3.new(HITBOX_SIZE.X, 0.5, HITBOX_SIZE.Z)
+			})
+			fadeTween:Play()
+			fadeTween.Completed:Connect(function()
+				hitbox:Destroy()
+			end)
+		end
+	end)
+	
+	-- Safety cleanup
+	Debris:AddItem(hitbox, HITBOX_DURATION + 1)
+	
+	return hitbox
+end
 
 -- ============================================
 -- PREVIEW SYSTEM
@@ -282,6 +412,9 @@ local function spawnVFX(position, normal)
 	-- Parent to workspace (or a dedicated VFX folder if you have one)
 	vfxClone.Parent = workspace
 	
+	-- Spawn the hitbox at the same position
+	spawnHitbox(position)
+	
 	-- Tween in
 	local tweenInObj = tweenIn(vfxClone, originalSize)
 	
@@ -384,6 +517,7 @@ local function init()
 	print("[SmashVFX] Controller initialized!")
 	print("  - Hold E to preview ability")
 	print("  - Left-click on ground within " .. MAX_DISTANCE .. " studs to spawn VFX")
+	print("  - Hitbox debug mode: " .. (DEBUG_HITBOX and "ON" or "OFF"))
 end
 
 -- Start the system
