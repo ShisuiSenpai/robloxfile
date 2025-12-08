@@ -67,6 +67,19 @@ local SHAKE_FADE_OUT = 0.5
 local SHAKE_POSITION_INFLUENCE = Vector3.new(0.1, 0.1, 0.1)
 local SHAKE_ROTATION_INFLUENCE = Vector3.new(2, 2, 2)
 
+-- Sound Settings
+local SOUND_ACTIVATION_ID = "rbxassetid://9125402735" -- Sound when pressing R / animation starts
+local SOUND_ACTIVATION_VOLUME = 0.8
+local SOUND_ACTIVATION_PITCH = 1
+
+local SOUND_KANJI_ID = "rbxassetid://9113869830" -- Sound when Kanji VFX appears
+local SOUND_KANJI_VOLUME = 0.6
+local SOUND_KANJI_PITCH = 1.2
+
+local SOUND_CANCEL_ID = "rbxassetid://9112854440" -- Sound when cancelled (optional)
+local SOUND_CANCEL_VOLUME = 0.4
+local SOUND_CANCEL_PITCH = 0.8
+
 -- ============================================
 -- REFERENCES
 -- ============================================
@@ -106,6 +119,108 @@ local isZooming = false
 local isPlaying = false -- Track if animation sequence is active
 local activeKanji = nil -- Track active Kanji VFX for cleanup
 local currentZoomTween = nil -- Track current zoom tween for cancellation
+local activeSound = nil -- Track active sound for cleanup
+
+-- ============================================
+-- SOUND SYSTEM
+-- ============================================
+
+-- Play a sound attached to the player (local, always audible)
+local function playLocalSound(soundId, volume, pitch)
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then return nil end
+	
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume or 1
+	sound.PlaybackSpeed = pitch or 1
+	sound.Parent = playerGui
+	sound:Play()
+	
+	sound.Ended:Connect(function()
+		sound:Destroy()
+	end)
+	
+	return sound
+end
+
+-- Play a sound at a position in the world (3D sound)
+local function playSoundAtPosition(soundId, position, volume, pitch)
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume or 1
+	sound.PlaybackSpeed = pitch or 1
+	sound.RollOffMaxDistance = 100
+	sound.RollOffMinDistance = 10
+	sound.RollOffMode = Enum.RollOffMode.Linear
+	
+	local soundPart = Instance.new("Part")
+	soundPart.Name = "SoundEmitter"
+	soundPart.Anchored = true
+	soundPart.CanCollide = false
+	soundPart.CanQuery = false
+	soundPart.CanTouch = false
+	soundPart.Transparency = 1
+	soundPart.Size = Vector3.new(0.1, 0.1, 0.1)
+	soundPart.Position = position
+	soundPart.Parent = workspace
+	
+	sound.Parent = soundPart
+	sound:Play()
+	
+	sound.Ended:Connect(function()
+		soundPart:Destroy()
+	end)
+	
+	Debris:AddItem(soundPart, sound.TimeLength + 1)
+	
+	return sound
+end
+
+-- Play activation sound
+local function playActivationSound()
+	activeSound = playLocalSound(
+		SOUND_ACTIVATION_ID, 
+		SOUND_ACTIVATION_VOLUME, 
+		SOUND_ACTIVATION_PITCH + (math.random(-10, 10) / 100) -- Slight pitch variation
+	)
+end
+
+-- Play Kanji appear sound
+local function playKanjiSound()
+	local character = player.Character
+	if character then
+		local head = character:FindFirstChild("Head")
+		if head then
+			playSoundAtPosition(
+				SOUND_KANJI_ID, 
+				head.Position + Vector3.new(0, 2, 0), 
+				SOUND_KANJI_VOLUME, 
+				SOUND_KANJI_PITCH + (math.random(-10, 10) / 100)
+			)
+		else
+			playLocalSound(SOUND_KANJI_ID, SOUND_KANJI_VOLUME, SOUND_KANJI_PITCH)
+		end
+	end
+end
+
+-- Play cancel sound
+local function playCancelSound()
+	playLocalSound(
+		SOUND_CANCEL_ID, 
+		SOUND_CANCEL_VOLUME, 
+		SOUND_CANCEL_PITCH
+	)
+end
+
+-- Stop active sound
+local function stopActiveSound()
+	if activeSound and activeSound.Parent then
+		activeSound:Stop()
+		activeSound:Destroy()
+		activeSound = nil
+	end
+end
 
 -- ============================================
 -- CAMERA SHAKE SYSTEM
@@ -423,6 +538,12 @@ local function cancelAnimation()
 	
 	isPlaying = false
 	
+	-- Play cancel sound
+	playCancelSound()
+	
+	-- Stop active sound
+	stopActiveSound()
+	
 	-- Stop animation
 	if animationTrack and animationTrack.IsPlaying then
 		animationTrack:Stop(ANIMATION_FADE_OUT)
@@ -481,17 +602,21 @@ local function playAnimation()
 	
 	-- === THE COOL EFFECT SEQUENCE ===
 	
-	-- 1. Start zoom in
+	-- 1. Play activation sound
+	playActivationSound()
+	
+	-- 2. Start zoom in
 	doZoomSequence()
 	
-	-- 2. Play animation
+	-- 3. Play animation
 	animationTrack:Play(ANIMATION_FADE_IN, ANIMATION_SPEED)
 	print("[Animation] Playing! (Press R again to cancel)")
 	
-	-- 3. Spawn Kanji VFX + Camera shake after delay
+	-- 4. Spawn Kanji VFX + Camera shake + Kanji sound after delay
 	task.delay(KANJI_DELAY_AFTER_ANIM, function()
 		if isPlaying then -- Only if not cancelled
 			spawnKanjiVFX()
+			playKanjiSound() -- Sound when Kanji appears
 			doShake()
 		end
 	end)
