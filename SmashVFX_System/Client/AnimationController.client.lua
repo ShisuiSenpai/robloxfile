@@ -8,6 +8,8 @@
 	- Kanji VFX above head
 	- Camera shake effect
 	- Smooth zoom out
+	
+	Press R again to cancel and return to normal.
 ]]
 
 -- Services
@@ -49,18 +51,19 @@ local KANJI_FADE_OUT_TIME = 0.3
 local KANJI_DELAY_AFTER_ANIM = 0.1
 
 -- Camera Zoom Settings
-local ZOOM_IN_FOV = 50 -- Field of view when zoomed in (default is 70)
-local ZOOM_IN_TIME = 0.2 -- How fast to zoom in
-local ZOOM_OUT_TIME = 0.4 -- How fast to zoom out
-local ZOOM_HOLD_TIME = 0.3 -- How long to stay zoomed in
+local ZOOM_IN_FOV = 50
+local ZOOM_IN_TIME = 0.2
+local ZOOM_OUT_TIME = 0.4
+local ZOOM_HOLD_TIME = 0.3
 local ZOOM_EASING_IN = Enum.EasingStyle.Back
 local ZOOM_EASING_OUT = Enum.EasingStyle.Quad
+local CANCEL_ZOOM_TIME = 0.2 -- Fast zoom out when cancelled
 
 -- Camera Shake Settings
-local SHAKE_MAGNITUDE = 5 -- How strong the shake is
-local SHAKE_ROUGHNESS = 12 -- How rough/fast the shake is
-local SHAKE_FADE_IN = 0 -- Instant shake
-local SHAKE_FADE_OUT = 0.5 -- Smooth fade out
+local SHAKE_MAGNITUDE = 5
+local SHAKE_ROUGHNESS = 12
+local SHAKE_FADE_IN = 0
+local SHAKE_FADE_OUT = 0.5
 local SHAKE_POSITION_INFLUENCE = Vector3.new(0.1, 0.1, 0.1)
 local SHAKE_ROTATION_INFLUENCE = Vector3.new(2, 2, 2)
 
@@ -71,11 +74,10 @@ local SHAKE_ROTATION_INFLUENCE = Vector3.new(2, 2, 2)
 local VFXFolder = ReplicatedStorage:WaitForChild("VFX")
 local KanjiTemplate = VFXFolder:WaitForChild("kanji")
 
--- CameraShaker Module (make sure it's in ReplicatedStorage or adjust path)
+-- CameraShaker Module
 local CameraShaker = nil
 local camShake = nil
 
--- Try to load CameraShaker
 local function loadCameraShaker()
 	local success, result = pcall(function()
 		return require(ReplicatedStorage:WaitForChild("CameraShaker", 5))
@@ -86,7 +88,7 @@ local function loadCameraShaker()
 		print("[Animation] CameraShaker module loaded!")
 		return true
 	else
-		warn("[Animation] CameraShaker module not found in ReplicatedStorage. Shake disabled.")
+		warn("[Animation] CameraShaker module not found. Shake disabled.")
 		return false
 	end
 end
@@ -101,7 +103,9 @@ local isOnCooldown = false
 local lastPlayTime = 0
 local originalFOV = 70
 local isZooming = false
-local cameraConnection = nil
+local isPlaying = false -- Track if animation sequence is active
+local activeKanji = nil -- Track active Kanji VFX for cleanup
+local currentZoomTween = nil -- Track current zoom tween for cancellation
 
 -- ============================================
 -- CAMERA SHAKE SYSTEM
@@ -110,9 +114,7 @@ local cameraConnection = nil
 local function initCameraShaker()
 	if not CameraShaker then return false end
 	
-	-- Create camera shaker instance
 	camShake = CameraShaker.new(Enum.RenderPriority.Camera.Value, function(shakeCFrame)
-		-- Apply shake to camera
 		if camera then
 			camera.CFrame = camera.CFrame * shakeCFrame
 		end
@@ -125,11 +127,9 @@ end
 
 local function doShake()
 	if not camShake or not CameraShaker then 
-		print("[Animation] Shake skipped - CameraShaker not available")
 		return 
 	end
 	
-	-- Create custom shake instance
 	local shakeInstance = CameraShaker.CameraShakeInstance.new(
 		SHAKE_MAGNITUDE,
 		SHAKE_ROUGHNESS,
@@ -140,7 +140,12 @@ local function doShake()
 	shakeInstance.RotationInfluence = SHAKE_ROTATION_INFLUENCE
 	
 	camShake:Shake(shakeInstance)
-	print("[Animation] Camera shake triggered!")
+end
+
+local function stopShake()
+	if camShake then
+		camShake:StopSustained(0.1)
+	end
 end
 
 -- ============================================
@@ -151,55 +156,57 @@ local function zoomIn()
 	if isZooming then return end
 	isZooming = true
 	
-	-- Store original FOV
 	originalFOV = camera.FieldOfView
 	
-	-- Tween to zoomed FOV
 	local tweenInfo = TweenInfo.new(
 		ZOOM_IN_TIME,
 		ZOOM_EASING_IN,
 		Enum.EasingDirection.Out
 	)
 	
-	local tween = TweenService:Create(camera, tweenInfo, {
+	currentZoomTween = TweenService:Create(camera, tweenInfo, {
 		FieldOfView = ZOOM_IN_FOV
 	})
 	
-	tween:Play()
-	print("[Animation] Zooming in...")
+	currentZoomTween:Play()
 end
 
-local function zoomOut()
+local function zoomOut(fast)
 	if not isZooming then return end
 	
-	-- Tween back to original FOV
+	-- Cancel any current zoom tween
+	if currentZoomTween then
+		currentZoomTween:Cancel()
+	end
+	
+	local duration = fast and CANCEL_ZOOM_TIME or ZOOM_OUT_TIME
+	
 	local tweenInfo = TweenInfo.new(
-		ZOOM_OUT_TIME,
+		duration,
 		ZOOM_EASING_OUT,
 		Enum.EasingDirection.Out
 	)
 	
-	local tween = TweenService:Create(camera, tweenInfo, {
+	currentZoomTween = TweenService:Create(camera, tweenInfo, {
 		FieldOfView = originalFOV
 	})
 	
-	tween:Play()
+	currentZoomTween:Play()
 	
-	tween.Completed:Connect(function()
+	currentZoomTween.Completed:Connect(function()
 		isZooming = false
+		currentZoomTween = nil
 	end)
-	
-	print("[Animation] Zooming out...")
 end
 
--- Full zoom sequence: zoom in -> hold -> zoom out
 local function doZoomSequence()
-	-- Zoom in
 	zoomIn()
 	
-	-- Wait for zoom in + hold time, then zoom out
 	task.delay(ZOOM_IN_TIME + ZOOM_HOLD_TIME, function()
-		zoomOut()
+		-- Only zoom out if still playing (not cancelled)
+		if isPlaying then
+			zoomOut(false)
+		end
 	end)
 end
 
@@ -230,6 +237,28 @@ local function emitAllParticles(vfxPart, emitCount)
 	end
 end
 
+local function destroyKanji()
+	if activeKanji and activeKanji.Parent then
+		-- Quick fade out
+		if activeKanji:IsA("BasePart") then
+			local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			local tween = TweenService:Create(activeKanji, tweenInfo, {
+				Size = Vector3.new(0.1, 0.1, 0.1)
+			})
+			tween:Play()
+			tween.Completed:Connect(function()
+				if activeKanji then
+					activeKanji:Destroy()
+					activeKanji = nil
+				end
+			end)
+		else
+			activeKanji:Destroy()
+			activeKanji = nil
+		end
+	end
+end
+
 local function spawnKanjiVFX()
 	local character = player.Character
 	if not character then return end
@@ -237,7 +266,11 @@ local function spawnKanjiVFX()
 	local head = character:FindFirstChild("Head")
 	if not head then return end
 	
+	-- Destroy any existing Kanji first
+	destroyKanji()
+	
 	local kanjiClone = KanjiTemplate:Clone()
+	activeKanji = kanjiClone -- Track for cleanup
 	
 	local headCFrame = head.CFrame
 	local offsetPosition = headCFrame.Position + 
@@ -285,7 +318,7 @@ local function spawnKanjiVFX()
 	emitAllParticles(kanjiClone)
 	
 	task.delay(KANJI_LIFETIME, function()
-		if kanjiClone and kanjiClone.Parent then
+		if kanjiClone and kanjiClone.Parent and kanjiClone == activeKanji then
 			if kanjiClone:IsA("BasePart") then
 				local tweenInfo = TweenInfo.new(KANJI_FADE_OUT_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 				local tween = TweenService:Create(kanjiClone, tweenInfo, {
@@ -293,10 +326,16 @@ local function spawnKanjiVFX()
 				})
 				tween:Play()
 				tween.Completed:Connect(function()
-					kanjiClone:Destroy()
+					if kanjiClone then
+						kanjiClone:Destroy()
+						if activeKanji == kanjiClone then
+							activeKanji = nil
+						end
+					end
 				end)
 			else
 				kanjiClone:Destroy()
+				activeKanji = nil
 			end
 		end
 	end)
@@ -376,7 +415,41 @@ local function canPlayAnimation()
 	return true
 end
 
+-- Cancel everything and return to normal
+local function cancelAnimation()
+	if not isPlaying then return end
+	
+	print("[Animation] Cancelled!")
+	
+	isPlaying = false
+	
+	-- Stop animation
+	if animationTrack and animationTrack.IsPlaying then
+		animationTrack:Stop(ANIMATION_FADE_OUT)
+	end
+	
+	-- Fast zoom out
+	zoomOut(true)
+	
+	-- Stop shake
+	stopShake()
+	
+	-- Destroy Kanji VFX
+	destroyKanji()
+	
+	-- Reset cooldown so they can play again
+	task.delay(0.3, function()
+		isOnCooldown = false
+	end)
+end
+
 local function playAnimation()
+	-- If already playing, cancel instead
+	if isPlaying then
+		cancelAnimation()
+		return true
+	end
+	
 	if not canPlayAnimation() then
 		return false
 	end
@@ -402,13 +475,9 @@ local function playAnimation()
 		return false
 	end
 	
-	if animationTrack.IsPlaying then
-		animationTrack:Stop(ANIMATION_FADE_OUT)
-		task.wait(ANIMATION_FADE_OUT)
-	end
-	
 	isOnCooldown = true
 	lastPlayTime = currentTime
+	isPlaying = true -- Mark as playing
 	
 	-- === THE COOL EFFECT SEQUENCE ===
 	
@@ -417,27 +486,33 @@ local function playAnimation()
 	
 	-- 2. Play animation
 	animationTrack:Play(ANIMATION_FADE_IN, ANIMATION_SPEED)
-	print("[Animation] Playing!")
+	print("[Animation] Playing! (Press R again to cancel)")
 	
 	-- 3. Spawn Kanji VFX + Camera shake after delay
 	task.delay(KANJI_DELAY_AFTER_ANIM, function()
-		spawnKanjiVFX()
-		doShake() -- Shake when Kanji appears!
+		if isPlaying then -- Only if not cancelled
+			spawnKanjiVFX()
+			doShake()
+		end
 	end)
 	
-	-- Reset cooldown
+	-- Track when animation ends naturally
+	local connection
+	connection = animationTrack.Stopped:Connect(function()
+		if isPlaying then
+			isPlaying = false
+		end
+		connection:Disconnect()
+	end)
+	
+	-- Reset cooldown after full sequence
 	task.delay(COOLDOWN, function()
-		isOnCooldown = false
+		if not isPlaying then -- Only reset if not actively playing
+			isOnCooldown = false
+		end
 	end)
 	
 	return true
-end
-
-local function stopAnimation()
-	if animationTrack and animationTrack.IsPlaying then
-		animationTrack:Stop(ANIMATION_FADE_OUT)
-		print("[Animation] Stopped")
-	end
 end
 
 -- ============================================
@@ -457,6 +532,8 @@ end
 -- ============================================
 
 local function onCharacterAdded(character)
+	-- Cancel any active animation
+	cancelAnimation()
 	unloadAnimation()
 	
 	local humanoid = character:WaitForChild("Humanoid", 10)
@@ -464,9 +541,15 @@ local function onCharacterAdded(character)
 	
 	task.wait(0.5)
 	loadAnimation(character)
+	
+	-- Reset state
+	isPlaying = false
+	isOnCooldown = false
+	isZooming = false
 end
 
 local function onCharacterRemoving(character)
+	cancelAnimation()
 	unloadAnimation()
 end
 
@@ -475,18 +558,14 @@ end
 -- ============================================
 
 local function init()
-	-- Load CameraShaker module
 	loadCameraShaker()
 	
-	-- Initialize camera shaker
 	if CameraShaker then
 		initCameraShaker()
 	end
 	
-	-- Connect input
 	UserInputService.InputBegan:Connect(onInputBegan)
 	
-	-- Connect character events
 	player.CharacterAdded:Connect(onCharacterAdded)
 	player.CharacterRemoving:Connect(onCharacterRemoving)
 	
@@ -499,8 +578,7 @@ local function init()
 	print("========================================")
 	print("[Animation] Controller initialized!")
 	print("  - Press " .. ACTIVATION_KEY.Name .. " to play")
-	print("  - Zoom: " .. originalFOV .. " → " .. ZOOM_IN_FOV .. " FOV")
-	print("  - Shake: Magnitude=" .. SHAKE_MAGNITUDE)
+	print("  - Press " .. ACTIVATION_KEY.Name .. " again to CANCEL")
 	print("  - Cooldown: " .. COOLDOWN .. " seconds")
 	print("  - ⚠️ Set your ANIMATION_ID!")
 	print("  - ⚠️ Put CameraShaker in ReplicatedStorage!")
