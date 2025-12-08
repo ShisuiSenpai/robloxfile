@@ -1,15 +1,16 @@
 --[[
-	SmashAnimationController (LocalScript)
-	Location: StarterPlayerScripts/SmashAnimationController
+	AnimationController (LocalScript)
+	Location: StarterPlayerScripts/AnimationController
 	
-	Plays a smooth animation when pressing R.
-	Integrates with the SmashVFX system.
+	Standalone animation system.
+	Press R to play animation smoothly.
+	
+	Completely separate from VFX system.
 ]]
 
 -- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Player references
 local player = Players.LocalPlayer
@@ -18,33 +19,34 @@ local player = Players.LocalPlayer
 -- CONFIGURATION
 -- ============================================
 
--- Animation Settings
-local ANIMATION_ID = "rbxassetid://YOUR_ANIMATION_ID_HERE" -- Replace with your animation ID!
-local ANIMATION_PRIORITY = Enum.AnimationPriority.Action4 -- High priority to override other anims
-local ANIMATION_FADE_IN = 0.1 -- Smooth fade in time
-local ANIMATION_FADE_OUT = 0.15 -- Smooth fade out time
+local ANIMATION_ID = "rbxassetid://YOUR_ANIMATION_ID_HERE" -- ⚠️ Replace with your animation ID!
+
+local ACTIVATION_KEY = Enum.KeyCode.R -- Key to play animation
+local COOLDOWN = 1.5 -- Seconds between plays
+
+local ANIMATION_PRIORITY = Enum.AnimationPriority.Action4 -- High priority
+local ANIMATION_FADE_IN = 0.1 -- Smooth fade in (seconds)
+local ANIMATION_FADE_OUT = 0.15 -- Smooth fade out (seconds)
 local ANIMATION_SPEED = 1 -- Playback speed (1 = normal)
 
--- Input Settings
-local ACTIVATION_KEY = Enum.KeyCode.R
-local COOLDOWN = 1.5 -- Match with VFX cooldown
-local ALLOW_WHILE_JUMPING = false -- Can play while in air?
-local ALLOW_WHILE_FALLING = false -- Can play while falling?
+local ALLOW_WHILE_JUMPING = false
+local ALLOW_WHILE_FALLING = false
+local ALLOW_WHILE_SEATED = false
 
 -- ============================================
 -- STATE
 -- ============================================
 
-local currentAnimation = nil
 local animationTrack = nil
+local animationInstance = nil
 local isOnCooldown = false
 local lastPlayTime = 0
 
 -- ============================================
--- ANIMATION SYSTEM
+-- ANIMATION FUNCTIONS
 -- ============================================
 
--- Get or create the Animator
+-- Get or create the Animator from character
 local function getAnimator(character)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return nil end
@@ -58,27 +60,24 @@ local function getAnimator(character)
 	return animator
 end
 
--- Load the animation
+-- Load the animation onto the character
 local function loadAnimation(character)
 	local animator = getAnimator(character)
 	if not animator then return nil end
 	
 	-- Create animation instance
-	local animation = Instance.new("Animation")
-	animation.AnimationId = ANIMATION_ID
+	animationInstance = Instance.new("Animation")
+	animationInstance.AnimationId = ANIMATION_ID
 	
-	-- Load the animation track
-	local track = animator:LoadAnimation(animation)
-	track.Priority = ANIMATION_PRIORITY
+	-- Load animation track
+	animationTrack = animator:LoadAnimation(animationInstance)
+	animationTrack.Priority = ANIMATION_PRIORITY
 	
-	-- Store reference
-	currentAnimation = animation
-	animationTrack = track
-	
-	return track
+	print("[Animation] Loaded successfully")
+	return animationTrack
 end
 
--- Unload animation (cleanup)
+-- Unload and cleanup animation
 local function unloadAnimation()
 	if animationTrack then
 		animationTrack:Stop(0)
@@ -86,13 +85,13 @@ local function unloadAnimation()
 		animationTrack = nil
 	end
 	
-	if currentAnimation then
-		currentAnimation:Destroy()
-		currentAnimation = nil
+	if animationInstance then
+		animationInstance:Destroy()
+		animationInstance = nil
 	end
 end
 
--- Check if player can play animation
+-- Check if player can play animation right now
 local function canPlayAnimation()
 	local character = player.Character
 	if not character then return false end
@@ -101,9 +100,11 @@ local function canPlayAnimation()
 	if not humanoid then return false end
 	
 	-- Check if alive
-	if humanoid.Health <= 0 then return false end
+	if humanoid.Health <= 0 then
+		return false
+	end
 	
-	-- Check movement state
+	-- Check movement states
 	local state = humanoid:GetState()
 	
 	if not ALLOW_WHILE_JUMPING and state == Enum.HumanoidStateType.Jumping then
@@ -114,8 +115,7 @@ local function canPlayAnimation()
 		return false
 	end
 	
-	-- Check if sitting
-	if state == Enum.HumanoidStateType.Seated then
+	if not ALLOW_WHILE_SEATED and state == Enum.HumanoidStateType.Seated then
 		return false
 	end
 	
@@ -124,35 +124,36 @@ end
 
 -- Play the animation smoothly
 local function playAnimation()
-	local character = player.Character
-	if not character then return false end
-	
-	-- Check if we can play
+	-- Check if can play
 	if not canPlayAnimation() then
 		return false
 	end
 	
 	-- Check cooldown
-	if isOnCooldown then return false end
+	if isOnCooldown then
+		return false
+	end
 	
 	local currentTime = tick()
 	if currentTime - lastPlayTime < COOLDOWN then
 		return false
 	end
 	
-	-- Load animation if needed
+	-- Make sure animation is loaded
 	if not animationTrack then
-		loadAnimation(character)
+		local character = player.Character
+		if character then
+			loadAnimation(character)
+		end
 	end
 	
 	if not animationTrack then
-		warn("[SmashAnimation] Failed to load animation!")
+		warn("[Animation] No animation track loaded!")
 		return false
 	end
 	
-	-- Check if already playing
+	-- If already playing, let it finish or restart
 	if animationTrack.IsPlaying then
-		-- Option 1: Restart the animation
 		animationTrack:Stop(ANIMATION_FADE_OUT)
 		task.wait(ANIMATION_FADE_OUT)
 	end
@@ -161,13 +162,12 @@ local function playAnimation()
 	isOnCooldown = true
 	lastPlayTime = currentTime
 	
-	-- Play with smooth fade in
-	animationTrack:Play(ANIMATION_FADE_IN, ANIMATION_SPEED, ANIMATION_SPEED)
+	-- Play with smooth fade
+	animationTrack:Play(ANIMATION_FADE_IN, ANIMATION_SPEED)
 	
-	print("[SmashAnimation] Playing animation!")
+	print("[Animation] Playing!")
 	
-	-- Reset cooldown after animation or cooldown time
-	local resetTime = math.max(COOLDOWN, animationTrack.Length)
+	-- Reset cooldown
 	task.delay(COOLDOWN, function()
 		isOnCooldown = false
 	end)
@@ -175,11 +175,11 @@ local function playAnimation()
 	return true
 end
 
--- Stop animation early (if needed)
+-- Stop animation early
 local function stopAnimation()
 	if animationTrack and animationTrack.IsPlaying then
 		animationTrack:Stop(ANIMATION_FADE_OUT)
-		print("[SmashAnimation] Animation stopped")
+		print("[Animation] Stopped")
 	end
 end
 
@@ -188,7 +188,7 @@ end
 -- ============================================
 
 local function onInputBegan(input, gameProcessedEvent)
-	-- Ignore if game processed (typing in chat, etc.)
+	-- Ignore if typing in chat, etc.
 	if gameProcessedEvent then return end
 	
 	-- Check for activation key
@@ -202,18 +202,18 @@ end
 -- ============================================
 
 local function onCharacterAdded(character)
-	-- Wait for humanoid to load
+	-- Cleanup old animation
+	unloadAnimation()
+	
+	-- Wait for humanoid to be ready
 	local humanoid = character:WaitForChild("Humanoid", 10)
 	if not humanoid then return end
 	
-	-- Unload old animation
-	unloadAnimation()
+	-- Small delay to ensure everything is loaded
+	task.wait(0.5)
 	
-	-- Pre-load new animation for instant playback
-	task.wait(0.5) -- Small delay to ensure character is fully loaded
+	-- Pre-load animation for instant playback
 	loadAnimation(character)
-	
-	print("[SmashAnimation] Animation pre-loaded for " .. player.Name)
 end
 
 local function onCharacterRemoving(character)
@@ -234,48 +234,17 @@ local function init()
 	
 	-- Handle existing character
 	if player.Character then
-		onCharacterAdded(player.Character)
+		task.spawn(function()
+			onCharacterAdded(player.Character)
+		end)
 	end
 	
-	print("[SmashAnimation] Controller initialized!")
+	print("========================================")
+	print("[Animation] Controller initialized!")
 	print("  - Press " .. ACTIVATION_KEY.Name .. " to play animation")
 	print("  - Cooldown: " .. COOLDOWN .. " seconds")
-	print("  - Remember to set your ANIMATION_ID!")
+	print("  - ⚠️ Set your ANIMATION_ID in the script!")
+	print("========================================")
 end
 
 init()
-
-
--- ============================================
--- PUBLIC API (for other scripts to use)
--- ============================================
-
-local SmashAnimation = {}
-
-function SmashAnimation:Play()
-	return playAnimation()
-end
-
-function SmashAnimation:Stop()
-	stopAnimation()
-end
-
-function SmashAnimation:IsPlaying()
-	return animationTrack and animationTrack.IsPlaying
-end
-
-function SmashAnimation:GetTrack()
-	return animationTrack
-end
-
--- Store in ReplicatedStorage for other scripts to access
-local existingModule = ReplicatedStorage:FindFirstChild("SmashAnimationAPI")
-if existingModule then existingModule:Destroy() end
-
-local apiModule = Instance.new("ModuleScript")
-apiModule.Name = "SmashAnimationAPI"
-apiModule.Parent = ReplicatedStorage
--- Note: The actual API is stored in the local script, 
--- this is just a reference marker
-
-return SmashAnimation
